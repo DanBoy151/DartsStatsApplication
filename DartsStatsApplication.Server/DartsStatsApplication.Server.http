@@ -1,0 +1,6 @@
+@DartsStats.Server_HostAddress = http://localhost:5229
+
+GET {{DartsStats.Server_HostAddress}}/dartsStats/
+Accept: application/json
+
+###

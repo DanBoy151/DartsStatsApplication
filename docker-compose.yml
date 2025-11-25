@@ -1,0 +1,28 @@
+    version: '3.8'
+    services:
+      webapi:
+        build:
+          context: .
+          dockerfile: ./DartsStatsApplication.Server/Dockerfile
+        ports:
+          - "5001:8080"
+        depends_on:
+          - postgresdb
+        environment:
+          # Your connection string, using the service name 'postgresdb' as the host
+          - ConnectionStrings__Database=Host=postgresdb;Port=5432;Database=dartsStats;Username=postgres;Password=postgres
+          - ASPNETCORE_ENVIRONMENT=Development
+          - ASPNETCORE_HTTP_PORTS=8080
+      postgresdb:
+        image: postgres:latest
+        environment:
+          POSTGRES_DB: dartsStats
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        volumes:
+          - postgres_data:/var/lib/postgresql
+        ports:
+          - "54320:5432" # Optional: Expose port for external tools
+    volumes:
+      postgres_data:
+        driver: local
