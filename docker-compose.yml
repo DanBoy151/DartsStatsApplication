@@ -1,9 +1,18 @@
-    version: '3.8'
     services:
-      webapi:
+      client:
+        build:
+          context: ./DartsStatsApplication.Client/
+          dockerfile: Dockerfile
+        ports:
+            - "80:80"
+        depends_on:
+            - server
+        volumes:
+            - .:/app/
+      server:
         build:
           context: .
-          dockerfile: ./DartsStatsApplication.Server/Dockerfile
+          dockerfile: /DartsStatsApplication.Server/Dockerfile
         ports:
           - "5001:8080"
         depends_on:
@@ -26,3 +35,4 @@
     volumes:
       postgres_data:
         driver: local
+      
