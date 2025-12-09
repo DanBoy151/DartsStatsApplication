@@ -98,7 +98,7 @@ namespace DartsStatsApplication.Server.Controllers
                     return NotFound();
                 }
 
-                Game.data.status = GameStatus.Completed;
+                Game.data.status = GameStatus.Complete;
 
                 GameControllerValidator validator = new GameControllerValidator(Game, session);
                 string err = validator.IsValidToCompleteGame();

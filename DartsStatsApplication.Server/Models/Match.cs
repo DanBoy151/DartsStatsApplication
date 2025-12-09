@@ -2,7 +2,7 @@
 
 namespace DartsStatsApplication.Server.Models
 {
-    public enum MatchStatus { Scheduled, InProgress, Completed }
+    public enum MatchStatus { Scheduled, Ready, InProgress, Completed }
     public enum Location { Home, Away }
 
     public enum MatchResult { Win, Loss }

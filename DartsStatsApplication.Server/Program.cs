@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 using Marten;
 using NSwag;
 
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -35,7 +37,6 @@ builder.Services.AddOpenApiDocument(options => {
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-
 
 var app = builder.Build();
 

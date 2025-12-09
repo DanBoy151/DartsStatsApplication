@@ -3,6 +3,8 @@ using Marten;
 using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
+using DartsStatsApplication.Server.Services;
+using Microsoft.Extensions.Options;
 
 namespace DartsStatsApplication.Server.Controllers
 {
@@ -25,7 +27,7 @@ namespace DartsStatsApplication.Server.Controllers
         /// </summary>
         /// <returns></returns>
         // GET: api/<MatchController>
-        [HttpGet]
+        [HttpGet("matches")]
         public async Task<ActionResult<IEnumerable<Match>>> GetAllMatches()
         {
             using (var session = _documentStore.QuerySession())
@@ -57,6 +59,57 @@ namespace DartsStatsApplication.Server.Controllers
         }
 
         /// <summary>
+        /// Get The Next Match
+        /// </summary>
+        /// <returns></returns>
+        // GET: api/<MatchController>
+        [HttpGet("next")]
+        public async Task<ActionResult<Match>> GetNextMatch()
+        {
+            using (var session = _documentStore.QuerySession())
+            {
+                var match = session.Query<Match>().Where(x => x.data.status == MatchStatus.InProgress || x.data.status == MatchStatus.Ready).FirstOrDefault();
+
+                if (match == null)
+                {
+                    match = session.Query<Match>().Where(x => x.data.status == MatchStatus.Scheduled).OrderBy(x=> x.data.date).First();
+
+                }
+
+                if (match == null)
+                {
+                    return NotFound();
+                }
+                return Ok(match);
+            }
+
+        }
+
+        /// <summary>
+        /// Get Games Linked to a Match
+        /// </summary>
+        /// <returns></returns>
+        // GET: api/<MatchController>
+        [HttpGet("{id}/games")]
+        public async Task<ActionResult<IEnumerable<Game>>> GetMatchGames(Guid id)
+        {
+            using (var session = _documentStore.QuerySession())
+            {
+                var match = session.Query<Match>().Where(x => x.Id == id).FirstOrDefault();
+
+                if (match == null)
+                {
+                    return NotFound();
+                }
+
+                var allGames = await session.Query<Game>().Where(x=> x.data.matchId== id).ToListAsync();
+                return Ok(allGames);
+            }
+
+        }
+
+
+        /// <summary>
         /// Create a New Match
         /// </summary>
         /// <param name="data"></param>
@@ -86,7 +139,7 @@ namespace DartsStatsApplication.Server.Controllers
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        [HttpPut]
+        [HttpPut("{id}/complete")]
         public async Task<ActionResult<Match>> CompleteMatch(CompleteMatchData data)
         {
 
@@ -121,7 +174,7 @@ namespace DartsStatsApplication.Server.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpPut("{id}/start")]
-        public async Task<ActionResult<Match>> StartMatch(Guid id, [FromBody] StartMatchData data)
+        public async Task<ActionResult<Match>> StartMatch(Guid id)
         {
 
             using (var session = _documentStore.LightweightSession())
@@ -132,21 +185,53 @@ namespace DartsStatsApplication.Server.Controllers
                     return NotFound();
                 }
 
-                match.data.status = MatchStatus.InProgress;
-                match.data.availablePlayers = data.availablePlayers;
-
-                MatchControllerValidator validator = new MatchControllerValidator(match, session);
-                string err = validator.IsValidToStartMatch();
-                if (err != string.Empty)
+                MatchService service = new MatchService(session, match);
+                try
                 {
-                    return BadRequest(err);
+                    service.StartMatch();
+
+                    await session.SaveChangesAsync();
+                    return Ok(match);
                 }
-
-                session.Store(match);
-                await session.SaveChangesAsync();
-
-                return Ok(match);
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
             }
         }
+
+        /// <summary>
+        /// Add Available Players
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpPut("{id}/update-available-players")]
+        public async Task<ActionResult<Match>> UpdateAvailablePlayers(Guid id, [FromBody] StartMatchData data)
+        {
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var match = await session.LoadAsync<Match>(id);
+                if (match == null)
+                {
+                    return NotFound();
+                }
+                
+                try
+                {
+                    MatchService service = new MatchService(session, match);
+                    service.UpdateAvailablePlayers(data.availablePlayers);
+
+                    await session.SaveChangesAsync();
+
+                    return Ok(match);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
+            }
+        }
+
     }
 }
