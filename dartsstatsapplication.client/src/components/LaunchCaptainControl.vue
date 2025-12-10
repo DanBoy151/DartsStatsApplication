@@ -1,40 +1,52 @@
 <template>
   <div class="button-group">
-    <button class="large-square-btn play-match-btn" @click="fetchNextMatch">
+    <button class="large-square-btn play-match-btn" @click="onPlayMatch">
       <span class="btn-label">Play Match</span>
       <img src="./icons/dartboard.svg" alt="Dartboard" class="dartboard-img" />
       <div v-if="nextOpponent" class="next-match">
-        Next Match: <strong>{{ nextOpponent }}</strong>
+        Next Match: {{ nextOpponent }} {{ locationSuffix }}
       </div>
     </button>
     <button class="large-square-btn">
       <span class="btn-label">View Statistics</span>
+      <img src="./icons/statistics.svg" alt="Statistics" class="statistics-img" />
     </button>
-    <div v-if="error" class="error-message">
-      {{ error }}
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, defineProps } from 'vue'
+  const props = defineProps<{
+    nextOpponent: string
+    locationSuffix: string
+    matchId: string
+  }>()
 
-  const nextOpponent = ref('')
   const error = ref('')
 
-  async function fetchNextMatch() {
-    nextOpponent.value = ''
+  async function onPlayMatch() {
     error.value = ''
     try {
-      const response = await fetch('http://localhost:5001/api/Match/next')
-      //if (!response.ok) throw new Error('Failed to fetch next match')
-      const data = await response.json()
-      // Assuming the API returns { opponent: "Team Name" }
-      nextOpponent.value = data.opponent ?? 'Unknown'
+      if (props.matchId) {
+        const response = await fetch(`http://localhost:5001/api/Match/${props.matchId}/start`, { method: 'PUT' })
+        if (!response.ok) throw new Error('Failed to start match')
+      }
+      // Emit event after successful start
+      // (or always emit, depending on your requirements)
+      // You can also handle navigation or state here if needed
+      // @ts-ignore
+      // (ts-ignore is only needed if using defineEmits in script setup)
+      // If you use defineEmits, use it instead of $emit
+      // $emit('play-match')
+      emit('play-match')
     } catch (err: any) {
-      error.value = err.message || 'Error fetching next match'
+      error.value = err.message || 'Error starting match'
     }
   }
+
+  const emit = defineEmits<{
+    (e: 'play-match'): void
+  }>()
 </script>
 
 <style scoped>
@@ -87,22 +99,20 @@
     margin: 0 auto 1rem auto;
   }
 
+  .statistics-img {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+  }
+
   .next-match {
     margin-top: 0.5rem;
-    font-size: 1.3rem;
+    font-size: 0.8rem;
+    font-weight: normal;
     color: #2c3e50;
     text-align: center;
     word-break: break-word;
-  }
-
-  .error-message {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -5rem;
-    width: 100%;
-    text-align: center;
-    color: #e74c3c;
-    font-size: 1.2rem;
   }
 </style>

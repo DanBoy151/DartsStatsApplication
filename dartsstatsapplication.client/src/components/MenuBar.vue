@@ -27,7 +27,7 @@
         menuItems: [
           {
             label: 'Match',
-            dropdown: ['View'],
+            dropdown: ['Fixtures', 'History'],
             open: false,
           },
           {

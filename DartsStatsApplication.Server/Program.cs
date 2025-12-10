@@ -48,10 +48,18 @@ app.UseOpenApi(); //http://localhost:<port>/swagger/v1/swagger.json
 app.UseSwaggerUi(); //http://localhost:<port>/swagger
 //}
 
+app.UseCors(policy =>
+    policy.WithOrigins("http://localhost") // Use your actual client port
+          .AllowAnyHeader()
+          .AllowAnyMethod()
+);
+
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+
 
 app.Run();

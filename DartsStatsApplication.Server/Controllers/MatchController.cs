@@ -188,9 +188,12 @@ namespace DartsStatsApplication.Server.Controllers
                 MatchService service = new MatchService(session, match);
                 try
                 {
-                    service.StartMatch();
+                    if (match.data.status == MatchStatus.Scheduled)
+                    {
+                        service.StartMatch();
+                        await session.SaveChangesAsync();
+                    }
 
-                    await session.SaveChangesAsync();
                     return Ok(match);
                 }
                 catch (Exception ex)
