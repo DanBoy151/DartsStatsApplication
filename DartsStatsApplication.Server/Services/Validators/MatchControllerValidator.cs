@@ -36,7 +36,7 @@ namespace DartsStatsApplication.Server.Services.Validators
         public void ValidateAvailablePlayers()
         {
             //Validate that we are attaching available players to an In Progress Match
-            if (_match.data.status != MatchStatus.Ready)
+            if (_match.data.status != MatchStatus.Ready && _match.data.status != MatchStatus.InProgress)
             {
                 throw new Exception("Unable to add players to a match that is not Ready");
             }

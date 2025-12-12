@@ -9,6 +9,8 @@
   const nextOpponent = ref('')
   const nextLocation = ref('')
   const matchId = ref('')
+  const nextMatchDate = ref('')
+  const availablePlayers = ref<string[]>([])
 
   const locationSuffix = computed(() => {
     if (nextLocation.value === 'Home') return '(H)'
@@ -30,13 +32,20 @@
     nextOpponent.value = ''
     nextLocation.value = ''
     matchId.value = ''
+    nextMatchDate.value = ''
+    availablePlayers.value = []
+
     try {
       const response = await fetch('http://localhost:5001/api/Match/next')
       if (!response.ok) throw new Error('Failed to fetch next match')
       const data = await response.json()
       nextOpponent.value = data.data?.opponent ?? 'Unknown'
       nextLocation.value = data.data?.location ?? ''
+      nextMatchDate.value = data.data?.date ?? ''
       matchId.value = data.id ?? ''
+      availablePlayers.value = Array.isArray(data.data?.availablePlayers)
+        ? data.data.availablePlayers
+        : []
     } catch (err: any) {
       error.value = err.message || 'Error fetching next match'
     } finally {
@@ -51,19 +60,24 @@
 
 <template>
   <div class="center-content">
-    <transition name="fade">
-      <div v-if="loading" key="loading" class="loading-indicator">
-        <span class="spinner"></span>
-      </div>
-      <component v-else
-                 :is="showMatchControl ? MatchControl : LaunchCaptainControl"
-                 :nextOpponent="nextOpponent"
-                 :locationSuffix="locationSuffix"
-                 :matchId="matchId"
-                 @play-match="handlePlayMatch"
-                 @back="handleBack"
-                 key="main-content" />
-    </transition>
+    <keep-alive>
+      <transition name="fade">
+        <div v-if="loading" key="loading" class="loading-indicator">
+          <span class="spinner"></span>
+        </div>
+        <component v-else
+                   :is="showMatchControl ? MatchControl : LaunchCaptainControl"
+                   :nextOpponent="nextOpponent"
+                   :locationSuffix="locationSuffix"
+                   :matchId="matchId"
+                   :nextMatchDate="nextMatchDate"
+                   :opposition="nextOpponent"
+                   :availablePlayers="availablePlayers"
+                   @play-match="handlePlayMatch"
+                   @back="handleBack"
+                   key="main-content" />
+      </transition>
+    </keep-alive>
     <div v-if="error" class="error-message">
       {{ error }}
     </div>
