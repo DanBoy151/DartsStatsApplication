@@ -1,7 +1,6 @@
 <template>
   <div class="available-players-control">
     <h2 class="player-list-heading">Select Available Players</h2>
-    <keep-alive>
       <div v-if="loading" key="loading" class="loading-indicator">
         <span class="spinner"></span>
       </div>
@@ -15,7 +14,6 @@
           </li>
         </ul>
       </div>
-    </keep-alive>
     <div v-if="error" class="error-message">{{ error }}</div>
     <div class="button-row">
       <button class="control-btn" @click="proceed">Proceed</button>
@@ -179,7 +177,7 @@
   }
 
     .control-btn:hover {
-      background: #34495e;
+      background: #506E8BFF;
     }
 
   .back-btn {

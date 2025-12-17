@@ -17,7 +17,9 @@
     <div class="games-list">
       <div v-for="game in games"
            :key="game.id"
-           class="game-box">
+           class="game-box"
+           :class="{ selected: game.id === selectedGameId, disabled: props.disabled }"
+           @click="!props.disabled && $emit('select-game', game.id)">
         <div class="game-row">
           <span class="game-label">Players:</span>
           <span class="game-value">{{ displayPlayers(game) }}</span>
@@ -55,6 +57,8 @@
     matchId: string
     nextMatchDate: string
     opposition: string
+    selectedGameId?: string
+    disabled?: boolean
   }>()
 
   const formattedDate = computed(() => {
@@ -175,8 +179,14 @@
     gap: 1.2rem;
     background: #f8f9fa;
   }
+  .game-box.selected {
+    border: 2px solid #3498db;
+    background: #eaf6fb;
+    cursor: pointer;
+  }
 
   .game-box {
+    cursor: pointer;
     background: #fff;
     border-radius: 10px;
     box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
@@ -185,6 +195,12 @@
     flex-direction: column;
     gap: 0.5rem;
   }
+
+  .game-box.disabled {
+      pointer-events: none;
+      opacity: 0.5;
+      filter: grayscale(0.5);
+    }
 
   .game-row {
     display: flex;

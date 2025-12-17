@@ -60,7 +60,6 @@
 
 <template>
   <div class="center-content">
-    <keep-alive>
       <transition name="fade">
         <div v-if="loading" key="loading" class="loading-indicator">
           <span class="spinner"></span>
@@ -77,7 +76,6 @@
                    @back="handleBack"
                    key="main-content" />
       </transition>
-    </keep-alive>
     <div v-if="error" class="error-message">
       {{ error }}
     </div>
