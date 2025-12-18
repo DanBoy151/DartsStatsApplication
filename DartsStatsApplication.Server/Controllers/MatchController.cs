@@ -102,7 +102,13 @@ namespace DartsStatsApplication.Server.Controllers
                     return NotFound();
                 }
 
-                var allGames = await session.Query<Game>().Where(x=> x.data.matchId== id).ToListAsync();
+                var allGames = (await session.Query<Game>()
+                    .Where(x => x.data.matchId == id)
+                    .ToListAsync())
+                    .OrderBy(x => x.data.type == GameType.Trebles ? 0 :
+                                  x.data.type == GameType.Doubles ? 1 : 2)
+                    .ToList();
+
                 return Ok(allGames);
             }
 

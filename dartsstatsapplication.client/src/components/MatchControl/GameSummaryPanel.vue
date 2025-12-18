@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, defineProps, computed, onMounted } from 'vue'
+  import { ref, defineProps, computed, onMounted, watch } from 'vue'
 
   interface Game {
     id: string
@@ -57,8 +57,9 @@
     matchId: string
     nextMatchDate: string
     opposition: string
-    selectedGameId?: string
+    selectedGameId: string
     disabled?: boolean
+    refreshKey: number
   }>()
 
   const formattedDate = computed(() => {
@@ -86,7 +87,7 @@
 
   function displayPlayers(game: Game): string {
     if (game.players && game.players.length > 0) {
-      return game.players.join('/')
+      return game.players.map(id => playerMap.value[id] || id).join('/')
     }
     switch (game.type.toLowerCase()) {
       case 'singles':
@@ -103,6 +104,35 @@
     }
   }
 
+  watch(() => props.refreshKey, () => {
+    fetchGames() // Replace with your actual fetch function
+  })
+
+  const playerMap = ref<Record<string, string>>({})
+
+  async function fetchPlayerNames(playerIds: string[]) {
+    // Remove duplicates and already-fetched IDs
+    const uniqueIds = Array.from(new Set(playerIds)).filter(id => !(id in playerMap.value))
+    if (uniqueIds.length === 0) return
+
+    const results = await Promise.all(
+      uniqueIds.map(async id => {
+        try {
+          const res = await fetch(`http://localhost:5001/api/Player/${id}`)
+          if (res.ok) {
+            const player = await res.json()
+            return { id, name: player.data?.name}
+          }
+        } catch { }
+        return { id, name: id }
+      })
+    )
+    for (const { id, name } of results) {
+      playerMap.value[id] = name
+    }
+  }
+
+
   async function fetchGames() {
     loading.value = true
     error.value = ''
@@ -112,11 +142,15 @@
       const data = await response.json()
       games.value = data.map((g: any) => ({
         id: g.id,
-        players: g.data?.players || [],
+        players: g.data?.playerIds || [],
         type: g.data?.type || 'Unknown',
         status: g.data?.status || 'Unknown',
         result: g.data?.result || 'N/A',
       })) || []
+
+      // Fetch player names for all unique player IDs
+      const allPlayerIds = games.value.flatMap(g => g.players)
+      await fetchPlayerNames(allPlayerIds)
     } catch (err: any) {
       error.value = err.message || 'Error fetching players'
     } finally {

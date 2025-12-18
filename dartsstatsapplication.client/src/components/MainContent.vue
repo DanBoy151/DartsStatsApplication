@@ -1,3 +1,28 @@
+<template>
+  <div class="center-content">
+    <transition name="fade">
+      <div v-if="loading" key="loading" class="loading-indicator">
+        <span class="spinner"></span>
+      </div>
+      <component v-else
+                 :is="showMatchControl ? MatchControl : LaunchCaptainControl"
+                 :nextOpponent="nextOpponent"
+                 :locationSuffix="locationSuffix"
+                 :matchId="matchId"
+                 :nextMatchDate="nextMatchDate"
+                 :opposition="nextOpponent"
+                 :availablePlayers="availablePlayers"
+                 @play-match="handlePlayMatch"
+                 @back="handleBack"
+                 key="main-content" />
+    </transition>
+    <div v-if="error" class="error-message">
+      {{ error }}
+    </div>
+  </div>
+</template>
+
+
 <script setup lang="ts">
   import { ref, computed, onMounted } from 'vue'
   import LaunchCaptainControl from './LaunchCaptainControl.vue'
@@ -57,30 +82,6 @@
     fetchNextMatch()
   })
 </script>
-
-<template>
-  <div class="center-content">
-      <transition name="fade">
-        <div v-if="loading" key="loading" class="loading-indicator">
-          <span class="spinner"></span>
-        </div>
-        <component v-else
-                   :is="showMatchControl ? MatchControl : LaunchCaptainControl"
-                   :nextOpponent="nextOpponent"
-                   :locationSuffix="locationSuffix"
-                   :matchId="matchId"
-                   :nextMatchDate="nextMatchDate"
-                   :opposition="nextOpponent"
-                   :availablePlayers="availablePlayers"
-                   @play-match="handlePlayMatch"
-                   @back="handleBack"
-                   key="main-content" />
-      </transition>
-    <div v-if="error" class="error-message">
-      {{ error }}
-    </div>
-  </div>
-</template>
 
 <style scoped>
   .center-content {

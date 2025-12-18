@@ -22,4 +22,9 @@ namespace DartsStatsApplication.Server.Controllers.Models
         public GameResult result { get; set; }
     }
 
+    public class UpdatePlayersData
+    {
+        public List<Guid> selectedPlayers { get; set; }
+    }
+
 }

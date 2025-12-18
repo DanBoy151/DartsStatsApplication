@@ -16,4 +16,9 @@ namespace DartsStatsApplication.Server.Models
         public GameData data { get; set; }
 
     }
+
+    public class UpdatePlayerData
+    {
+        public List<Guid> availablePlayers { get; set; }
+    }
 }

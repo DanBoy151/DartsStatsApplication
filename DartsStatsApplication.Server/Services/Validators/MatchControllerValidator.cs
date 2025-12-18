@@ -84,5 +84,10 @@ namespace DartsStatsApplication.Server.Services.Validators
             errCode = "";
             return errCode;
         }
+
+        public static implicit operator MatchControllerValidator(GameControllerValidator v)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

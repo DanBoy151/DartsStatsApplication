@@ -2,7 +2,7 @@
   <div class="holding-screen">
     <div class="top-bar">
       <h2 class="heading">Please Select Game</h2>
-      <button class="exit-btn" @click="exit">Exit</button>
+      <button class="exit-btn" @click="exit">Back</button>
     </div>
   </div>
 </template>

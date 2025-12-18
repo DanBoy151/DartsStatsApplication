@@ -1,5 +1,6 @@
 ﻿using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
+using DartsStatsApplication.Server.Services;
 using DartsStatsApplication.Server.Services.Validators;
 using Marten;
 using Microsoft.AspNetCore.Mvc;
@@ -99,16 +100,17 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 Game.data.status = GameStatus.Complete;
-
-                GameControllerValidator validator = new GameControllerValidator(Game, session);
-                string err = validator.IsValidToCompleteGame();
-                if (err != string.Empty)
+                try
                 {
-                    return BadRequest(err);
+                    GameControllerValidator validator = new GameControllerValidator(Game, session);
+                    validator.IsValidToCompleteGame();
+                    session.Store(Game);
+                    await session.SaveChangesAsync();
                 }
-
-                session.Store(Game);
-                await session.SaveChangesAsync();
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
 
                 return Ok(Game);
             }
@@ -137,6 +139,39 @@ namespace DartsStatsApplication.Server.Controllers
                 await session.SaveChangesAsync();
 
                 return Ok(game);
+            }
+        }
+
+        /// <summary>
+        /// Update the selected players for a Game
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpPut("{id}/update-players")]
+        public async Task<ActionResult<Game>> UpdatePlayers(Guid Id, [FromBody] UpdatePlayersData data)
+        {
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var game = await session.LoadAsync<Game>(Id);
+                if (game == null)
+                {
+                    return NotFound();
+                }
+
+                try
+                {
+                    GameService service = new GameService(session, game);
+                    service.UpdateAvailablePlayers(data.selectedPlayers);
+
+                    await session.SaveChangesAsync();
+
+                    return Ok(game);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
             }
         }
     }

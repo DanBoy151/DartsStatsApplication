@@ -14,25 +14,37 @@ namespace DartsStatsApplication.Server.Services.Validators
             _documentSession = documentSession;
         }
 
-        public string IsValidToCompleteGame()
+        public void IsValidToCompleteGame()
         {
-            string errCode = "";
 
-            errCode = IsValidGameToComplete();
-
-            return errCode;
         }
 
-
-        /// <summary>
-        /// Validate that all Legs & Games within the Game have been completed
-        /// </summary>
-        /// <returns></returns>
-        private string IsValidGameToComplete()
+        public void ValidateSelectedPlayers()
         {
-            string errCode = "It is currently invalid to complete the Game";
-            errCode = "";
-            return errCode;
+            //Is the game in the correct status to update player selection
+            if (_game.data.status != GameStatus.Pending)
+            {
+                throw new Exception("Unable to add players to a Game that is not Pending");
+            }
+
+            //Has the player been added to a game of the same type within the match (where 6+ players are available)
+
+
+            //Is there enough players selected for the game type
+            int requiredPlayers = _game.data.type switch
+            {
+                GameType.Singles => 1,
+                GameType.Doubles => 2,
+                GameType.Trebles => 3,
+                _ => throw new Exception("Invalid Game Type")
+            };
+
+            if(_game.data.playerIds.Count != requiredPlayers)
+            {
+                throw new Exception("Invalid number of players selected for a {_game.data.type} game. Required: {requiredPlayers}");
+            }
+
         }
+
     }
 }
