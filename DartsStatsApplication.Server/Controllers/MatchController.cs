@@ -105,8 +105,7 @@ namespace DartsStatsApplication.Server.Controllers
                 var allGames = (await session.Query<Game>()
                     .Where(x => x.data.matchId == id)
                     .ToListAsync())
-                    .OrderBy(x => x.data.type == GameType.Trebles ? 0 :
-                                  x.data.type == GameType.Doubles ? 1 : 2)
+                    .OrderBy(x => x.data.order)
                     .ToList();
 
                 return Ok(allGames);

@@ -13,6 +13,8 @@ namespace DartsStatsApplication.Server.Controllers.Models
         public List<Guid> playerIds { get; set; }
 
         public GameResult? result { get; set; }
+
+        public int order { get; set; }
     }
 
     public class CompleteGameData

@@ -28,7 +28,7 @@ namespace DartsStatsApplication.Server.Services
             CreatePendingGames();
         }
 
-        private void CreateGame(GameType type)
+        private void CreateGame(GameType type, int gameOrder)
         {
             Game game = new Game();
             game.Id = Guid.NewGuid();
@@ -36,32 +36,37 @@ namespace DartsStatsApplication.Server.Services
             game.data.type = type;
             game.data.matchId = _match.Id;
             game.data.status = GameStatus.Pending;
+            game.data.order = gameOrder;
 
             _documentSession.Store<Game>(game);
         }
 
         private void CreatePendingGames()
         {
+            int gameOrder = 0;
             //Create Blank Trebles Games that match the leagues config
             int count = 0;
             while (count < 2)
             {
-                CreateGame(GameType.Trebles);
+                CreateGame(GameType.Trebles, gameOrder);
                 count++;
+                gameOrder++;
             }
             //Create Blank Doubles Games that match the leagues config
             count = 0;
             while (count < 3)
             {
-                CreateGame(GameType.Doubles);
+                CreateGame(GameType.Doubles, gameOrder);
                 count++;
+                gameOrder++;
             }
             //Create Blank Singles Games that match the leagues config
             count = 0;
             while (count < 6)
             {
-                CreateGame(GameType.Singles);
+                CreateGame(GameType.Singles, gameOrder);
                 count++;
+                gameOrder++;
             }
         }
 

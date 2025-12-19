@@ -16,13 +16,21 @@
                                 :gameId="selectedGameId"
                                 @save="handleSave"
                                 @cancel="handleCancel" />
+
+      <MatchCenter v-else-if="selectedGameId && selectedGame && selectedGame?.status=='Ready'"
+                   class="match-center"
+                   :game-type="selectedGame?.type"
+                   @back="handleMatchCenterBack" />
+
       <HoldingScreenControl v-else-if="showHoldingScreen"
                             @exit="handleExit" />
+
       <AvailablePlayersControl v-else
                                :match-id="props.matchId"
                                :available-players="props.availablePlayers"
                                @proceed="handleProceed"
                                @back="$emit('back')" />
+
     </div>
   </div>
 </template>
@@ -33,6 +41,7 @@
   import AvailablePlayersControl from './MatchControl/AvailablePlayersControl.vue'
   import HoldingScreenControl from './MatchControl/HoldingScreenControl.vue'
   import SelectPlayersGameControl from './MatchControl/SelectPlayersGameControl.vue'
+  import MatchCenter from './MatchControl/MatchCenter.vue'
 
   const props = defineProps<{
     matchId: string
@@ -102,6 +111,12 @@
     showHoldingScreen.value = false
     selectedGameId.value = null
   }
+
+  function handleMatchCenterBack() {
+    showHoldingScreen.value = true
+    selectedGameId.value = null
+    selectedGame.value = null
+  }
 </script>
 
 <style scoped>
@@ -135,11 +150,20 @@
   .center-panel {
     flex: 1 1 0;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
     min-width: 0;
     padding: 2rem;
-    height: 100%;
     box-sizing: border-box;
   }
+
+    /* Only MatchCenter fills the panel */
+    .center-panel > .match-center {
+      padding: 2rem;
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
 </style>
