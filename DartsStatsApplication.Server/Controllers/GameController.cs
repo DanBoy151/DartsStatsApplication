@@ -122,7 +122,7 @@ namespace DartsStatsApplication.Server.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpPut("{id}/start")]
-        public async Task<ActionResult<Game>> StartGame(Guid Id)
+        public async Task<ActionResult<Game>> StartGame(Guid Id, Boolean wonBull)
         {
 
             using (var session = _documentStore.LightweightSession())
@@ -134,6 +134,7 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 game.data.status = GameStatus.InProgress;
+                game.data.wonBull = wonBull;
 
                 session.Store(game);
                 await session.SaveChangesAsync();

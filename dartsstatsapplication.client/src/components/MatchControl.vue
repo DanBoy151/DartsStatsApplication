@@ -17,10 +17,11 @@
                                 @save="handleSave"
                                 @cancel="handleCancel" />
 
-      <MatchCenter v-else-if="selectedGameId && selectedGame && selectedGame?.status=='Ready'"
+      <MatchCenter v-else-if="selectedGameId && selectedGame && (selectedGame?.status=='Ready' || selectedGame?.status=='InProgress') "
                    class="match-center"
-                   :game-type="selectedGame?.type"
-                   @back="handleMatchCenterBack" />
+                   :game="selectedGame"
+                   @back="handleMatchCenterBack"
+                   @refreshGamePanel="handleRefreshGamePanel"/>
 
       <HoldingScreenControl v-else-if="showHoldingScreen"
                             @exit="handleExit" />
@@ -71,6 +72,10 @@
   function handleProceed(selectedPlayerIds: string[]) {
     selectedPlayersForGame.value = [...selectedPlayerIds];
     showHoldingScreen.value = true
+  }
+
+  function handleRefreshGamePanel() {
+    refreshKey.value++ // This will trigger MatchCenter to refresh
   }
 
   async function handleSelectGame(gameId: string) {

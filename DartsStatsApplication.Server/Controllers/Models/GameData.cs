@@ -12,6 +12,8 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
         public List<Guid> playerIds { get; set; }
 
+        public Boolean wonBull { get; set; }
+
         public GameResult? result { get; set; }
 
         public int order { get; set; }

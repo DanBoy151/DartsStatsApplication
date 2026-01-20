@@ -7,18 +7,61 @@
       {{ score }}
     </div>
     <div class="button-row">
-      <button class="start-btn">Start</button>
-      <button class="back-btn" @click="$emit('back')">Cancel</button>
+      <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
+      <button v-else class="finish-btn" @click="finishMatch">Finish</button>
+      <button class="back-btn" @click="cancelMatch">Cancel</button>
     </div>
+    <WonBullControl v-if="showBullPopup"
+                    @result="onBullResult" />
   </div>
 </template>
 
-<script lang="ts" setup>
-  import { computed, defineProps } from 'vue'
+<script setup lang="ts">
+  import { computed, ref, watch, defineEmits, defineProps, onMounted } from 'vue'
+  import WonBullControl from './WonBullControl.vue'
 
+  const emit = defineEmits(['start-match', 'finish-match', 'back-match'])
   const props = defineProps<{
     gameType: string
+    disabled?: boolean
+    gamestarted?: boolean
   }>()
+
+  const started = ref(false)
+  const showBullPopup = ref(false)
+  const wonBull = ref<boolean | null>(null)
+
+  watch(
+    () => props.gamestarted,
+    (val) => {
+      started.value = !!val
+    },
+    { immediate: true }
+  )
+
+  function onBullResult(result: boolean) {
+    wonBull.value = result
+    showBullPopup.value = false
+    startMatch()
+  }
+
+  function startMatch() {
+    started.value = true
+    emit('start-match', { wonBull: wonBull.value })
+  }
+
+  function cancelMatch() {
+    emit('back-match')
+  }
+
+  function finishMatch() {
+    emit('finish-match')
+  }
+
+  // Optionally, reset started if disabled becomes false again
+  watch(() => props.disabled, (val) => {
+    if (!val) started.value = true
+  })
 
   const isSingles = computed(() =>
     props.gameType?.toLowerCase() === 'singles' || props.gameType?.toLowerCase() === 'single'
@@ -98,6 +141,21 @@
   }
 
     .start-btn:hover {
+      background: #506E8BFF;
+    }
+
+  .finish-btn {
+    background: #2c3e50;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+    .finish-btn:hover {
       background: #506E8BFF;
     }
 </style>
