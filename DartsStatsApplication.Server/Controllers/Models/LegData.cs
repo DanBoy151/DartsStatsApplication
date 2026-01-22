@@ -15,6 +15,9 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
         public int? finishDarts { get; set; }
 
+        public int order { get; set; }
+
+        public int remainingScore { get; set; }
     }
 
     public class CompleteLegData

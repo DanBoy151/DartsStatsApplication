@@ -2,7 +2,7 @@
 
 namespace DartsStatsApplication.Server.Models
 {
-    public enum LegStatus { Started, Completed }
+    public enum LegStatus { Pending, Started, Completed }
 
     public enum LegResult { Win, Loss }
 

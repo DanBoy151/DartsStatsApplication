@@ -1,9 +1,9 @@
 <template>
   <div class="match-control-layout">
     <div class="left-panel">
-      <GameSummaryPanel :match-id="props.matchId"
-                        :next-match-date="props.nextMatchDate"
-                        :opposition="props.opposition"
+      <GameSummaryPanel :match-id="match?.id ?? ''"
+                        :next-match-date="match?.date ? match.date.toString() : ''"
+                        :opposition="match?.opponent ?? ''"
                         :selected-game-id="selectedGameId ?? ''"
                         :disabled="!showHoldingScreen"
                         :refresh-key="refreshKey"
@@ -27,8 +27,8 @@
                             @exit="handleExit" />
 
       <AvailablePlayersControl v-else
-                               :match-id="props.matchId"
-                               :available-players="props.availablePlayers"
+                               :match-id="match?.id ?? ''"
+                               :available-players="match?.availablePlayers ?? []"
                                @proceed="handleProceed"
                                @back="$emit('back')" />
 
@@ -43,13 +43,12 @@
   import HoldingScreenControl from './MatchControl/HoldingScreenControl.vue'
   import SelectPlayersGameControl from './MatchControl/SelectPlayersGameControl.vue'
   import MatchCenter from './MatchControl/MatchCenter.vue'
+  import { useMatchDataStore } from "@/stores/matchDataStore"
+  import type { Match } from '@/models/MatchModel'
+  import { convertToMatchFromMatchDataState } from '@/models/MatchModel'
 
-  const props = defineProps<{
-    matchId: string
-    availablePlayers: string[]
-    nextMatchDate: string
-    opposition: string
-  }>()
+  const matchDataStore = useMatchDataStore()
+  const match: Match | null = convertToMatchFromMatchDataState(matchDataStore.getMatchData())
 
   interface Game {
     id: string

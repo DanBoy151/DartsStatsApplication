@@ -43,7 +43,7 @@
     if (!validateScore(scoreValue.value)) {
       return;
     }
-    // Replace with your actual submit logic
+
     alert(`Submitted score: ${scoreValue.value}`);
 
     scoreValue.value = '';

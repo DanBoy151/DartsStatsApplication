@@ -133,10 +133,9 @@ namespace DartsStatsApplication.Server.Controllers
                     return NotFound();
                 }
 
-                game.data.status = GameStatus.InProgress;
-                game.data.wonBull = wonBull;
+                GameService service = new GameService(session, game);
+                service.StartGame(wonBull);
 
-                session.Store(game);
                 await session.SaveChangesAsync();
 
                 return Ok(game);
@@ -175,5 +174,34 @@ namespace DartsStatsApplication.Server.Controllers
                 }
             }
         }
+
+        /// <summary>
+        /// Get Legs Linked to a Game
+        /// </summary>
+        /// <returns></returns>
+        // GET: api/<GameController>
+        [HttpGet("{id}/legs")]
+        public async Task<ActionResult<IEnumerable<Leg>>> GetGameLegs(Guid id)
+        {
+            using (var session = _documentStore.QuerySession())
+            {
+                var game = session.Query<Game>().Where(x => x.Id == id).FirstOrDefault();
+
+                if (game == null)
+                {
+                    return NotFound();
+                }
+
+                var allLegs = (await session.Query<Leg>()
+                    .Where(x => x.data.gameID == id)
+                    .ToListAsync())
+                    .OrderBy(x => x.data.order)
+                    .ToList();
+
+                return Ok(allLegs);
+            }
+
+        }
+
     }
 }

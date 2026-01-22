@@ -17,20 +17,25 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, watch, defineEmits, defineProps, onMounted } from 'vue'
+  import { computed, ref, watch, defineEmits, defineProps } from 'vue'
   import WonBullControl from './WonBullControl.vue'
-
+  
   const emit = defineEmits(['start-match', 'finish-match', 'back-match'])
   const props = defineProps<{
     gameType: string
     disabled?: boolean
     gamestarted?: boolean
+    currentLegId?: string
+    currentPlayerId?: string
   }>()
+
 
   const started = ref(false)
   const showBullPopup = ref(false)
   const wonBull = ref<boolean | null>(null)
+  const score = ref<number | string>('')
 
+  // Sync started with gamestarted prop
   watch(
     () => props.gamestarted,
     (val) => {
@@ -38,6 +43,14 @@
     },
     { immediate: true }
   )
+
+  function getInitialScore() {
+    const type = props.gameType?.toLowerCase()
+    if (type === 'trebles' || type === 'treble') return 701
+    if (type === 'doubles' || type === 'double') return 601
+    if (type === 'singles' || type === 'single') return 501
+    return ''
+  }
 
   function onBullResult(result: boolean) {
     wonBull.value = result
@@ -66,19 +79,6 @@
   const isSingles = computed(() =>
     props.gameType?.toLowerCase() === 'singles' || props.gameType?.toLowerCase() === 'single'
   )
-
-  const score = computed(() => {
-    if (props.gameType?.toLowerCase() === 'trebles' || props.gameType?.toLowerCase() === 'treble') {
-      return 701
-    }
-    if (props.gameType?.toLowerCase() === 'doubles' || props.gameType?.toLowerCase() === 'double') {
-      return 601
-    }
-    if (isSingles.value) {
-      return 501
-    }
-    return ''
-  })
 </script>
 
 <style scoped>

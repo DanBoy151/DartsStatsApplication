@@ -6,12 +6,6 @@
       </div>
       <component v-else
                  :is="showMatchControl ? MatchControl : LaunchCaptainControl"
-                 :nextOpponent="nextOpponent"
-                 :locationSuffix="locationSuffix"
-                 :matchId="matchId"
-                 :nextMatchDate="nextMatchDate"
-                 :opposition="nextOpponent"
-                 :availablePlayers="availablePlayers"
                  @play-match="handlePlayMatch"
                  @back="handleBack"
                  key="main-content" />
@@ -27,21 +21,13 @@
   import { ref, computed, onMounted } from 'vue'
   import LaunchCaptainControl from './LaunchCaptainControl.vue'
   import MatchControl from './MatchControl.vue'
+  import { getNextMatch } from '@/actions/MatchService'
+  import type { Match } from '@/models/MatchModel'
 
   const showMatchControl = ref(false)
   const loading = ref(true)
-  const error = ref('')
-  const nextOpponent = ref('')
-  const nextLocation = ref('')
-  const matchId = ref('')
-  const nextMatchDate = ref('')
-  const availablePlayers = ref<string[]>([])
-
-  const locationSuffix = computed(() => {
-    if (nextLocation.value === 'Home') return '(H)'
-    if (nextLocation.value === 'Away') return '(A)'
-    return ''
-  })
+  const error = ref(false)
+  const match = ref(null as Match | null)
 
   function handlePlayMatch() {
     showMatchControl.value = true
@@ -53,29 +39,8 @@
 
   async function fetchNextMatch() {
     loading.value = true
-    error.value = ''
-    nextOpponent.value = ''
-    nextLocation.value = ''
-    matchId.value = ''
-    nextMatchDate.value = ''
-    availablePlayers.value = []
-
-    try {
-      const response = await fetch('http://localhost:5001/api/Match/next')
-      if (!response.ok) throw new Error('Failed to fetch next match')
-      const data = await response.json()
-      nextOpponent.value = data.data?.opponent ?? 'Unknown'
-      nextLocation.value = data.data?.location ?? ''
-      nextMatchDate.value = data.data?.date ?? ''
-      matchId.value = data.id ?? ''
-      availablePlayers.value = Array.isArray(data.data?.availablePlayers)
-        ? data.data.availablePlayers
-        : []
-    } catch (err: any) {
-      error.value = err.message || 'Error fetching next match'
-    } finally {
-      loading.value = false
-    }
+    match.value = await getNextMatch()
+    loading.value = false
   }
 
   onMounted(() => {

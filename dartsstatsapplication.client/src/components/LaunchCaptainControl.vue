@@ -3,8 +3,8 @@
     <button class="large-square-btn play-match-btn" @click="onPlayMatch">
       <span class="btn-label">Play Match</span>
       <img src="./icons/dartboard.svg" alt="Dartboard" class="dartboard-img" />
-      <div v-if="nextOpponent" class="next-match">
-        Next Match: {{ nextOpponent }} {{ locationSuffix }}
+      <div v-if="match?.opponent" class="next-match">
+        Next Match: {{ match?.opponent }} {{ locationSuffix }}
       </div>
     </button>
     <button class="large-square-btn">
@@ -15,20 +15,27 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, defineProps } from 'vue'
-  const props = defineProps<{
-    nextOpponent: string
-    locationSuffix: string
-    matchId: string
-  }>()
+  import { ref, defineProps, computed } from 'vue'
+  import { useMatchDataStore } from "@/stores/matchDataStore"
+  import type { Match } from '@/models/MatchModel'
+  import { convertToMatchFromMatchDataState } from '@/models/MatchModel'
+
+  const matchDataStore = useMatchDataStore()
+  const match: Match | null = convertToMatchFromMatchDataState(matchDataStore.getMatchData())
+
+  const locationSuffix = computed(() => {
+    if (match?.location === 'Home') return '(H)'
+    if (match?.location === 'Away') return '(A)'
+    return ''
+  })
 
   const error = ref('')
 
   async function onPlayMatch() {
     error.value = ''
     try {
-      if (props.matchId) {
-        const response = await fetch(`http://localhost:5001/api/Match/${props.matchId}/start`, { method: 'PUT' })
+      if (match?.id) {
+        const response = await fetch(`http://localhost:5001/api/Match/${match?.id}/start`, { method: 'PUT' })
         if (!response.ok) throw new Error('Failed to start match')
       }
       // Emit event after successful start

@@ -6,6 +6,7 @@
     <div class="quarter remaining-score">
       <RemainingScorePanel @start-match="onStartMatch"
                            @back-match="$emit('back')"
+                           @finish-match="onFinishMatch"
                            :game-type="selectedGame?.type"
                            :gamestarted="started"/>
     </div>
@@ -34,6 +35,18 @@
     result: string
   }
 
+  interface Leg {
+    id: string
+    gameId: string
+    status: string
+    score: Record<string, number>
+    result: string
+    finishDarts: number
+    order: number
+    remainingScore: number
+  }
+
+  const legs = ref<Leg[]>([])
   const emit = defineEmits(['back', 'refreshGamePanel'])
 
   const props = defineProps<{
@@ -53,10 +66,13 @@
     { immediate: true }
   )
 
+  async function onFinishMatch() {
+
+  }
+
   async function onStartMatch(payload: { wonBull: boolean }) {
     started.value = true
     wonBull.value = payload.wonBull
-
     try {
       const response = await fetch(`http://localhost:5001/api/Game/${selectedGame.id}/start?wonBull=${wonBull.value}`, { method: 'PUT'})
       if (!response.ok) {
@@ -71,8 +87,33 @@
       console.error('Error calling start API:', err)
     }
 
+    fetchLegs()
     emit('refreshGamePanel')
   }
+
+  //fetch leg information from server via gameID & then add to the store for later use
+  async function fetchLegs() {
+    try {
+      const response = await fetch(`http://localhost:5001/api/Game/${selectedGame.id}/legs`)
+      if (!response.ok) throw new Error('Failed to fetch legs')
+      const data = await response.json()
+      legs.value = data.map((g: any) => ({
+        id: g.id,
+        gameId: g.data?.playerIds || [],
+        status: g.data?.status || 'Unknown',
+        score: g.data?.score || {},
+        result: g.data?.result || 'N/A',
+        finishDarts: g.data?.finishDarts || 0,
+        order: g.data?.order || 0,
+        remainingScore: g.data?.remainingScore || 0,
+      })) || []
+    }
+    catch (err) {
+      console.error('Error calling start API:', err)
+    }
+  }
+
+
 </script>
 
 <style scoped>

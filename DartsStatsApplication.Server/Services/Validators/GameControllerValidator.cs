@@ -19,6 +19,11 @@ namespace DartsStatsApplication.Server.Services.Validators
 
         }
 
+        public void IsValidToStartGame()
+        {
+
+        }
+
         public void ValidateSelectedPlayers()
         {
             //Is the game in the correct status to update player selection

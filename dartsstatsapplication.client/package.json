@@ -14,9 +14,11 @@
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix --cache"
   },
-  "dependencies": {
-    "vue": "^3.5.22"
-  },
+    "dependencies": {
+        "vue": "^3.5.22",
+        "pinia": "^3.0.0",
+        "pinia-plugin-persistedstate": "4.7.1"
+    },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^22.18.11",
