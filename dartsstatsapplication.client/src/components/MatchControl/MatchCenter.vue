@@ -47,7 +47,7 @@
   }
 
   const legs = ref<Leg[]>([])
-  const emit = defineEmits(['back', 'refreshGamePanel'])
+  const emit = defineEmits(['back'])
 
   const props = defineProps<{
     game: Game
@@ -88,7 +88,6 @@
     }
 
     fetchLegs()
-    emit('refreshGamePanel')
   }
 
   //fetch leg information from server via gameID & then add to the store for later use

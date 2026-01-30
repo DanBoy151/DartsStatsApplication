@@ -3,7 +3,7 @@
     <div class="summary-header">
       <div class="summary-row">
         <span class="summary-label">Opposition:</span>
-        <span class="summary-value">{{ opposition }}</span>
+        <span class="summary-value">{{ matchDataStore.getMatchData()?.opposition }}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Date:</span>
@@ -19,7 +19,7 @@
            :key="game.id"
            class="game-box"
            :class="{ selected: game.id === selectedGameId, disabled: props.disabled }"
-           @click="!props.disabled && $emit('select-game', game.id)">
+           @click="handleSelectGame(game.id)">
         <div class="game-row">
           <span class="game-label">Players:</span>
           <span class="game-value">{{ displayPlayers(game) }}</span>
@@ -39,38 +39,31 @@
 
 <script setup lang="ts">
   import { ref, defineProps, computed, onMounted, watch } from 'vue'
+  import { useMatchDataStore } from "@/stores/matchDataStore"
+  import { getMatchGames } from "@/actions/MatchService"
+  import type { Game } from '@/models/GameModel'
+  import { convertToGameFromGameDataState, convertToGameListFromGameDataStateList } from '@/models/GameModel'
 
-  interface Game {
-    id: string
-    players: string[]
-    type: string
-    status: string
-    result: string
-  }
+  const matchDataStore = useMatchDataStore()
 
   const games = ref<Game[]>([])
-  const loading = ref(true)
-  const error = ref('')
 
   // Replace with real data or props as needed
   const props = defineProps<{
-    matchId: string
-    nextMatchDate: string
-    opposition: string
     selectedGameId: string
     disabled?: boolean
-    refreshKey: number
   }>()
 
   const formattedDate = computed(() => {
-    if (!props.nextMatchDate) return ''
-    const date = new Date(props.nextMatchDate)
-    if (isNaN(date.getTime())) return props.nextMatchDate // fallback if invalid
-    const day = date.getDate().toString().padStart(2, '0')
-    const month = date.toLocaleString('default', { month: 'long' })
-    const year = date.getFullYear()
-    return `${day} ${month} ${year}`
-  })
+    const date = matchDataStore.getMatchData()?.date;
+    if (!date) return '';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return String(date);
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = dateObj.toLocaleString('default', { month: 'long' });
+    const year = dateObj.getFullYear();
+    return `${day} ${month} ${year}`;
+  });
 
   // Computes the current score as "home - away"
   const currentScore = computed(() => {
@@ -86,9 +79,16 @@
   })
 
   function displayPlayers(game: Game): string {
+    const availablePlayers = matchDataStore.getMatchAvailablePlayers();
     if (game.players && game.players.length > 0) {
-      return game.players.map(id => playerMap.value[id] || id).join('/')
+      return game.players
+        .map(id => {
+          const player = availablePlayers.find(p => p.playerId === id);
+          return player ? player.name : id;
+        })
+        .join('/');
     }
+
     switch (game.type.toLowerCase()) {
       case 'singles':
       case 'single':
@@ -103,64 +103,34 @@
         return '?'
     }
   }
+  const emit = defineEmits<{
+    (e: 'select-game'): void
+  }>()
 
-  watch(() => props.refreshKey, () => {
-    fetchGames() // Replace with your actual fetch function
-  })
+  function handleSelectGame(gameId: string) {
+    if (!props.disabled) {
+      // emits the select-game event with the game id
+      // $emit is available in <script setup> as just emit
+      matchDataStore.setSelectedGame(gameId)
 
-  const playerMap = ref<Record<string, string>>({})
-
-  async function fetchPlayerNames(playerIds: string[]) {
-    // Remove duplicates and already-fetched IDs
-    const uniqueIds = Array.from(new Set(playerIds)).filter(id => !(id in playerMap.value))
-    if (uniqueIds.length === 0) return
-
-    const results = await Promise.all(
-      uniqueIds.map(async id => {
-        try {
-          const res = await fetch(`http://localhost:5001/api/Player/${id}`)
-          if (res.ok) {
-            const player = await res.json()
-            return { id, name: player.data?.name}
-          }
-        } catch { }
-        return { id, name: id }
-      })
-    )
-    for (const { id, name } of results) {
-      playerMap.value[id] = name
+      emit('select-game')
     }
   }
-
 
   async function fetchGames() {
-    loading.value = true
-    error.value = ''
-    try {
-      const response = await fetch(`http://localhost:5001/api/Match/${props.matchId}/games`)
-      if (!response.ok) throw new Error('Failed to fetch players')
-      const data = await response.json()
-      games.value = data.map((g: any) => ({
-        id: g.id,
-        players: g.data?.playerIds || [],
-        type: g.data?.type || 'Unknown',
-        status: g.data?.status || 'Unknown',
-        result: g.data?.result || 'N/A',
-      })) || []
-
-      // Fetch player names for all unique player IDs
-      const allPlayerIds = games.value.flatMap(g => g.players)
-      await fetchPlayerNames(allPlayerIds)
-    } catch (err: any) {
-      error.value = err.message || 'Error fetching players'
-    } finally {
-      loading.value = false
-    }
+    const matchId = matchDataStore.getMatchData()?.matchId ?? ''
+    games.value = await getMatchGames(matchId) ?? []
   }
 
-  onMounted(() => {
-    fetchGames()
-  })
+  onMounted(fetchGames)
+
+  watch(
+    () => matchDataStore.getMatchData()?.games,
+    (newGames) => {
+      games.value = convertToGameListFromGameDataStateList(newGames ?? null) ?? []
+    },
+    { deep: true }
+  )
 
 </script>
 

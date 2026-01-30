@@ -1,20 +1,20 @@
 <template>
   <div class="available-players-control">
     <h2 class="player-list-heading">Select Available Players</h2>
-      <div v-if="loading" key="loading" class="loading-indicator">
-        <span class="spinner"></span>
-      </div>
-      <div v-else class="player-list-container">
-        <ul class="player-list">
-          <li v-for="player in players" :key="player.id" class="player-item">
-            <label>
-              <input type="checkbox" v-model="selected" :value="player.id" />
-              {{ player.name }}
-            </label>
-          </li>
-        </ul>
-      </div>
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="loading" key="loading" class="loading-indicator">
+      <span class="spinner"></span>
+    </div>
+    <div v-else class="player-list-container">
+      <ul class="player-list">
+        <li v-for="player in matchDataStore.matchAvailablePlayers" :key="player.playerId" class="player-item">
+          <label>
+            <input type="checkbox"
+                   v-model="player.isAvailable" />
+            {{ player.name }}
+          </label>
+        </li>
+      </ul>
+    </div>
     <div class="button-row">
       <button class="control-btn" @click="proceed">Proceed</button>
       <button class="control-btn back-btn" @click="back">Back</button>
@@ -24,65 +24,33 @@
 
 <script setup lang="ts">
   import { ref, onMounted } from 'vue'
+  import { getPlayers } from '@/actions/PlayerService'
+  import { setAvailablePlayers } from '@/actions/MatchService'
+  import { useMatchDataStore } from "@/stores/matchDataStore"
 
-  const props = defineProps<{
-    matchId: string
-    availablePlayers: string[]
-  }>()
+  const matchDataStore = useMatchDataStore()
 
   const emit = defineEmits<{
-    (e: 'proceed', selectedPlayerIds: string[]): void
+    (e: 'proceed'): void
     (e: 'back'): void
   }>()
 
-  interface Player {
-    id: string
-    name: string
-  }
-
-  const players = ref<Player[]>([])
-  const selected = ref<string[]>([])
   const loading = ref(true)
-  const error = ref('')
 
   async function fetchPlayers() {
     loading.value = true
-    error.value = ''
     try {
-      const response = await fetch('http://localhost:5001/api/Player')
-      if (!response.ok) throw new Error('Failed to fetch players')
-      const data = await response.json()
-      players.value = data.map((p: any) => ({
-        id: p.id,
-        name: p.data?.name,
-      })) || []
-      // Pre-tick checkboxes for available players
-      selected.value = players.value
-        .filter(player => props.availablePlayers.includes(player.id))
-        .map(player => player.id)
-    } catch (err: any) {
-      error.value = err.message || 'Error fetching players'
-    } finally {
+      await getPlayers()
+    }
+    catch (err: any) { }
+    finally {
       loading.value = false
     }
   }
 
   async function proceed() {
-    error.value = ''
-    try {
-      const response = await fetch(
-        `http://localhost:5001/api/Match/${props.matchId}/update-available-players`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ availablePlayers: selected.value })
-        }
-      )
-      if (!response.ok) throw new Error('Failed to update available players')
-      emit('proceed', selected.value)
-    } catch (err: any) {
-      error.value = err.message || 'Error updating available players'
-    }
+    setAvailablePlayers()
+    emit('proceed')
   }
 
   function back() {

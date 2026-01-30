@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { Player } from '@/models/PlayerModel'
 
 export interface MatchDataState {
   matchId: string | null
@@ -7,6 +8,13 @@ export interface MatchDataState {
   date: Date
   availablePlayers: string[]
   games: GameDataState[]
+  status: string | null
+}
+
+export interface MatchAvailablePlayers {
+  playerId: string
+  name: string
+  isAvailable: boolean
 }
 
 export interface GameDataState {
@@ -15,6 +23,8 @@ export interface GameDataState {
   type: string
   status: string
   result: string
+  wonBull: boolean
+  order: number
   legs: LegDataState[]
 }
 
@@ -31,12 +41,20 @@ export interface LegDataState {
 
 export const useMatchDataStore = defineStore('leg', {
   state: () => ({
+    memDateTime: null as Date | null,
     match: null as MatchDataState | null,
     selectedGame: null as GameDataState | null,
     selectedLeg: null as LegDataState | null,
+    matchAvailablePlayers: [] as MatchAvailablePlayers[],
   }),
   actions: {
-    setMatchData(matchID: string, opposition: string, date: Date, location: string, availablePlayers: string[]) {
+    setMemoryDateTime() {
+      this.memDateTime = new Date()
+    },
+    getMemoryDateTime() {
+      return this.memDateTime
+    },
+    setMatchData(matchID: string, opposition: string, date: Date, location: string, availablePlayers: string[], status: string) {
       this.match = {
         matchId: matchID,
         opposition: opposition,
@@ -44,12 +62,59 @@ export const useMatchDataStore = defineStore('leg', {
         location: location,
         availablePlayers: availablePlayers,
         games: [],
+        status: status,
+      }
+      this.setMemoryDateTime()
+    },
+    clearStore() {
+      this.match = null;
+      this.selectedGame = null;
+      this.selectedLeg = null;
+      this.memDateTime = null;
+      this.matchAvailablePlayers = [];
+    },
+    resetStore() {
+      if (!this.memDateTime) return;
+
+      const currentDate = new Date();
+      const checkDate = new Date(this.memDateTime.setHours(this.memDateTime.getHours() +6));
+      if (checkDate < currentDate) {
+        this.clearStore();
       }
     },
     getMatchData() {
       return this.match
     },
-    setGameData(gameID: string, players: string[], type: string, status: string, result: string) {
+    setMatchAvailablePlayers(players: Player[]) {
+      // Get the list of available player IDs from the match, if present
+      const availableIds = this.match?.availablePlayers ?? [];
+
+      this.matchAvailablePlayers = players.map(player => ({
+        playerId: player.playerId,
+        name: player.name,
+        isAvailable: availableIds.includes(player.playerId)
+      }));
+    },
+    getMatchAvailablePlayers() {
+      return this.matchAvailablePlayers
+    },
+    setPlayerAvailability(playerId: string, isAvailable: boolean) {
+      if (!this.matchAvailablePlayers) return;
+
+      const existingIndex = this.matchAvailablePlayers.findIndex(p => p.playerId === playerId);
+      if (existingIndex !== -1 && this.matchAvailablePlayers[existingIndex]) {
+        // Update existing game
+        this.matchAvailablePlayers[existingIndex].isAvailable = isAvailable;
+      }
+    },
+    updateMatchAvailablePlayers() {
+      if (!this.match) return;
+      // Update the match's availablePlayers based on matchAvailablePlayers
+      this.match.availablePlayers = this.matchAvailablePlayers
+        .filter(p => p.isAvailable)
+        .map(p => p.playerId);
+    },
+    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number) {
       if (!this.match) return;
 
       const existingIndex = this.match.games.findIndex(g => g.gameId === gameID);
@@ -61,6 +126,8 @@ export const useMatchDataStore = defineStore('leg', {
         status,
         result,
         legs: [],
+        wonBull,
+        order,
       };
 
       if (existingIndex !== -1) {

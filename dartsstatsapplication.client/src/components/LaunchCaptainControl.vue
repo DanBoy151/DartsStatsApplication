@@ -19,6 +19,7 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import type { Match } from '@/models/MatchModel'
   import { convertToMatchFromMatchDataState } from '@/models/MatchModel'
+  import { startMatch } from '@/actions/MatchService'
 
   const matchDataStore = useMatchDataStore()
   const match: Match | null = convertToMatchFromMatchDataState(matchDataStore.getMatchData())
@@ -29,26 +30,10 @@
     return ''
   })
 
-  const error = ref('')
-
   async function onPlayMatch() {
-    error.value = ''
-    try {
-      if (match?.id) {
-        const response = await fetch(`http://localhost:5001/api/Match/${match?.id}/start`, { method: 'PUT' })
-        if (!response.ok) throw new Error('Failed to start match')
-      }
-      // Emit event after successful start
-      // (or always emit, depending on your requirements)
-      // You can also handle navigation or state here if needed
-      // @ts-ignore
-      // (ts-ignore is only needed if using defineEmits in script setup)
-      // If you use defineEmits, use it instead of $emit
-      // $emit('play-match')
-      emit('play-match')
-    } catch (err: any) {
-      error.value = err.message || 'Error starting match'
-    }
+    if (!match) return
+    await startMatch(match.id)
+    emit('play-match')
   }
 
   const emit = defineEmits<{

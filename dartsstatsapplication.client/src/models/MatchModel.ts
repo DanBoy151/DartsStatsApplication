@@ -6,6 +6,7 @@ export interface Match {
   date: Date;
   opponent: string;
   availablePlayers: string[];
+  status: string;
 }
 
 export function convertToMatchFromMatchDataState(matchDataState: MatchDataState | null): Match | null {
@@ -17,5 +18,6 @@ export function convertToMatchFromMatchDataState(matchDataState: MatchDataState 
     date: new Date(matchDataState.date),
     opponent: matchDataState.opposition,
     availablePlayers: matchDataState.availablePlayers,
+    status: matchDataState.status ?? '',
   };
 }

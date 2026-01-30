@@ -2,157 +2,102 @@
   <div class="select-players-game-control">
     <h2 class="player-list-heading">Select Players</h2>
     <div class="player-selectors">
-      <div v-for="i in playerCount" :key="i" class="player-select-row">
-        <label :for="'player-select-' + i">Player {{ i }}:</label>
-        <select :id="'player-select-' + i"
-                v-model="selectedPlayers[i - 1]"
-                class="player-dropdown"
-                :disabled="loadingPlayers || matchPlayers.length === 0">
-          <option value="" disabled>
-            {{ loadingPlayers ? 'Loading players...' : 'Select player' }}
-          </option>
-          <option v-for="player in availablePlayersFor(i - 1)"
-                  :key="player.id"
-                  :value="player.id">
-            {{ player.name || player.id }}
+      <div v-for="(dropdown, idx) in playerCount"
+           :key="idx"
+           class="player-select-row">
+        <select class="player-dropdown"
+                v-model="selectedPlayerIds[idx]">
+          <option value="" disabled>Select player</option>
+          <option v-for="player in matchPlayers"
+                  :key="player.playerId"
+                  :value="player.playerId"
+                  :disabled="selectedPlayerIds.includes(player.playerId) && selectedPlayerIds[idx] !== player.playerId">
+            {{ player.name }}
           </option>
         </select>
       </div>
-      <div v-if="!loadingPlayers && matchPlayers.length === 0" class="error-message">
-        No players available.
-      </div>
-    </div>
-    <div v-if="error" class="error-message">
-      {{ error }}
     </div>
     <div class="button-row">
-      <button class="control-btn" :disabled="!allSelected" @click="save">Save</button>
+      <button class="control-btn" @click="save" :disabled="!canSave">Save</button>
       <button class="control-btn back-btn" @click="cancel">Cancel</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue'
+  import { ref, computed, watch, onMounted } from 'vue'
+  import { setAvailablePlayers } from '@/actions/GameService'
+  import { useMatchDataStore } from "@/stores/matchDataStore"
+  import type { Player } from '@/models/PlayerModel'  
 
-  const props = defineProps<{
-    gameId: string
-    gameType: string
-    selectedMatchPlayers?: string[]
-  }>()
+  const matchDataStore = useMatchDataStore()
 
   const emit = defineEmits<{
     (e: 'save'): void
     (e: 'cancel'): void
   }>()
-  const error = ref('')
-  const loadingPlayers = ref(false)
 
   const playerCount = computed(() => {
-    switch (props.gameType.toLowerCase()) {
+    const type = matchDataStore.getSelectedGame()?.type ?? ''
+
+    switch (type.toLowerCase()) {
       case 'doubles':
-      case 'double':
         return 2
       case 'trebles':
-      case 'treble':
         return 3
       default:
         return 1
     }
   })
 
-  const matchPlayers = ref<{ id: string, name: string }[]>([])
+
+  const matchPlayers = ref<Player[]>([])
+  const selectedPlayers = ref<Player[]>([])
+  const selectedPlayerIds = ref<string[]>([])
 
   async function fetchMatchPlayers() {
-    loadingPlayers.value = true
     matchPlayers.value = []
-    if (props.selectedMatchPlayers && props.selectedMatchPlayers.length) {
-      const players = await Promise.all(
-        props.selectedMatchPlayers.map(async id => {
-          try {
-            const res = await fetch(`http://localhost:5001/api/Player/${id}`)
-            if (res.ok) {
-              const player = await res.json()
-              // Map to expected structure
-              return {
-                id: player.id,
-                name: player.data?.name
-              }
-            }
-          } catch { }
-          return null
-        })
-      )
-      matchPlayers.value = players.filter(
-        (p): p is { id: string; name: string } => !!p
-      )
+    const storePlayers = matchDataStore.matchAvailablePlayers
+    if (storePlayers && storePlayers.length) {
+      matchPlayers.value = storePlayers
+        .filter(p => p.isAvailable)
+        .map(p => ({
+          playerId: p.playerId,
+          name: p.name
+        }))
     }
-    loadingPlayers.value = false
+    // Reset selectedPlayerIds when players are fetched
+    selectedPlayerIds.value = Array(playerCount.value).fill('')
   }
 
-  watch(() => props.selectedMatchPlayers, fetchMatchPlayers, { immediate: true })
+  // Watch for playerCount changes and adjust selectedPlayerIds accordingly
+  watch(playerCount, (newCount) => {
+    if (selectedPlayerIds.value.length > newCount) {
+      selectedPlayerIds.value = selectedPlayerIds.value.slice(0, newCount)
+    } else {
+      selectedPlayerIds.value = [
+        ...selectedPlayerIds.value,
+        ...Array(newCount - selectedPlayerIds.value.length).fill('')
+      ]
+    }
+  })
 
-  const selectedPlayers = ref<string[]>(
-    Array(playerCount.value).fill('')
+  // Only enable save if all dropdowns have a selection and no duplicates
+  const canSave = computed(() =>
+    selectedPlayerIds.value.length === playerCount.value &&
+    selectedPlayerIds.value.every(id => !!id) &&
+    new Set(selectedPlayerIds.value).size === selectedPlayerIds.value.length
   )
 
-  watch(
-    playerCount,
-    (newCount) => {
-      selectedPlayers.value = Array(newCount).fill('')
-    },
-    { immediate: true }
-  )
-
-  const allSelected = computed(() =>
-    selectedPlayers.value.length === playerCount.value &&
-    selectedPlayers.value.every((id) => !!id)
-  )
-
-  function availablePlayersFor(index: number) {
-    // Exclude players selected in other dropdowns
-    const selectedIds = selectedPlayers.value.filter((id, i) => i !== index && id);
-    return matchPlayers.value.filter(player => !selectedIds.includes(player.id));
-  }
+  onMounted(fetchMatchPlayers)
 
   async function save() {
-    error.value = ''
-    try {
-      // Only send non-empty player IDs
-      const playerIds = selectedPlayers.value.filter(id => !!id)
-      const response = await fetch(
-        `http://localhost:5001/api/Game/${props.gameId}/update-players`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ selectedPlayers: playerIds })
-        }
-      )
-      if (!response.ok) {
-        let message = 'Failed to update players'
-        let bodyText = await response.text()
-        try {
-          const data = JSON.parse(bodyText)
-          if (data && data.errors && typeof data.errors === 'object') {
-            message = Object.values(data.errors).flat().join(' ')
-          } else if (data && data.title) {
-            message = data.title
-          } else if (typeof data === 'string') {
-            message = data
-          }
-        } catch {
-          if (bodyText) {
-            message = bodyText
-          } else {
-            message = response.statusText || message
-          }
-        }
-        throw new Error(message)
-      }
-      emit('save')
-    } catch (err: any) {
-      error.value = err.message || 'Error updating players'
-    }
+    // Map selected IDs to Player objects
+    selectedPlayers.value = selectedPlayerIds.value
+      .map(id => matchPlayers.value.find(p => p.playerId === id))
+      .filter((p): p is Player => !!p)
+    await setAvailablePlayers(selectedPlayers.value)
+    emit('save')
   }
 
   function cancel() {

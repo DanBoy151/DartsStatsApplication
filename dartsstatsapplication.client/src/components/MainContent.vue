@@ -23,11 +23,16 @@
   import MatchControl from './MatchControl.vue'
   import { getNextMatch } from '@/actions/MatchService'
   import type { Match } from '@/models/MatchModel'
+  import { useMatchDataStore } from '@/stores/matchDataStore'
 
   const showMatchControl = ref(false)
   const loading = ref(true)
   const error = ref(false)
-  const match = ref(null as Match | null)
+  const matchDataStore = useMatchDataStore()
+
+  function resetMatchDataStore() {
+    matchDataStore.clearStore()
+  }
 
   function handlePlayMatch() {
     showMatchControl.value = true
@@ -39,11 +44,12 @@
 
   async function fetchNextMatch() {
     loading.value = true
-    match.value = await getNextMatch()
+    await getNextMatch()
     loading.value = false
   }
 
   onMounted(() => {
+    resetMatchDataStore()
     fetchNextMatch()
   })
 </script>

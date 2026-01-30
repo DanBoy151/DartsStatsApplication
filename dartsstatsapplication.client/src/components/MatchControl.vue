@@ -1,19 +1,12 @@
 <template>
   <div class="match-control-layout">
     <div class="left-panel">
-      <GameSummaryPanel :match-id="match?.id ?? ''"
-                        :next-match-date="match?.date ? match.date.toString() : ''"
-                        :opposition="match?.opponent ?? ''"
-                        :selected-game-id="selectedGameId ?? ''"
+      <GameSummaryPanel :selected-game-id="selectedGameId ?? ''"
                         :disabled="!showHoldingScreen"
-                        :refresh-key="refreshKey"
                         @select-game="handleSelectGame" />
     </div>
     <div class="center-panel">
       <SelectPlayersGameControl v-if="selectedGameId && selectedGame && selectedGame?.status=='Pending'"
-                                :game-type="selectedGame?.type"
-                                :selected-match-players="selectedPlayersForGame"
-                                :gameId="selectedGameId"
                                 @save="handleSave"
                                 @cancel="handleCancel" />
 
@@ -21,14 +14,12 @@
                    class="match-center"
                    :game="selectedGame"
                    @back="handleMatchCenterBack"
-                   @refreshGamePanel="handleRefreshGamePanel"/>
+                   />
 
       <HoldingScreenControl v-else-if="showHoldingScreen"
                             @exit="handleExit" />
 
       <AvailablePlayersControl v-else
-                               :match-id="match?.id ?? ''"
-                               :available-players="match?.availablePlayers ?? []"
                                @proceed="handleProceed"
                                @back="$emit('back')" />
 
@@ -46,17 +37,11 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import type { Match } from '@/models/MatchModel'
   import { convertToMatchFromMatchDataState } from '@/models/MatchModel'
+  import type { Game } from '@/models/GameModel'
+  import { convertToGameFromGameDataState } from '@/models/GameModel'
 
   const matchDataStore = useMatchDataStore()
   const match: Match | null = convertToMatchFromMatchDataState(matchDataStore.getMatchData())
-
-  interface Game {
-    id: string
-    players: string[]
-    type: string
-    status: string
-    result: string
-  }
 
   const emit = defineEmits(['back'])
   const refreshKey = ref(0)
@@ -65,45 +50,22 @@
   const showHoldingScreen = ref(false)
   const selectedGameId = ref<string | null>(null)
   const selectedGame = ref<Game | null > (null)
-  const loading = ref(true)
-  const error = ref('')
+ 
 
-  function handleProceed(selectedPlayerIds: string[]) {
-    selectedPlayersForGame.value = [...selectedPlayerIds];
+  //Need to update this and the Prop into the next screen
+  function handleProceed() {
     showHoldingScreen.value = true
   }
 
-  function handleRefreshGamePanel() {
-    refreshKey.value++ // This will trigger MatchCenter to refresh
-  }
-
-  async function handleSelectGame(gameId: string) {
-    selectedGameId.value = gameId
-    loading.value = true
-    error.value = ''
-    try {
-      const response = await fetch(`http://localhost:5001/api/Game/${gameId}`)
-      if (!response.ok) throw new Error('Failed to fetch Game')
-      const data = await response.json()
-      selectedGame.value = {
-        id: data.id,
-        players: data.data?.playerIds,
-        type: data.data?.type,
-        status: data.data?.status,
-        result: data.data?.result,
-      }
-    } catch (err: any) {
-      error.value = err.message || 'Error fetching games'
-    } finally {
-      loading.value = false
-    }
+  async function handleSelectGame() {
+    selectedGameId.value = matchDataStore.getSelectedGame()?.gameId || null
+    selectedGame.value =  convertToGameFromGameDataState(matchDataStore.getSelectedGame())
 
     showHoldingScreen.value = false
   }
   function handleSave() {
     selectedGameId.value = null
     selectedGame.value = null
-    refreshKey.value++ // This will trigger GameSummaryPanel to refresh
     showHoldingScreen.value = true
   }
   function handleCancel() {
