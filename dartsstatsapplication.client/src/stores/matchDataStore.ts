@@ -46,6 +46,7 @@ export const useMatchDataStore = defineStore('leg', {
     selectedGame: null as GameDataState | null,
     selectedLeg: null as LegDataState | null,
     matchAvailablePlayers: [] as MatchAvailablePlayers[],
+    currentPlayer: null as string | null,
   }),
   actions: {
     setMemoryDateTime() {
@@ -171,7 +172,7 @@ export const useMatchDataStore = defineStore('leg', {
       if (!game) return;
 
       const existingIndex = game.legs.findIndex(l => l.legId === legId);
-
+      
       const newLeg: LegDataState = {
         gameId,
         legId,
@@ -190,6 +191,11 @@ export const useMatchDataStore = defineStore('leg', {
         // Add new leg
         game.legs.push(newLeg);
       }
+
+      if (this.selectedGame && this.selectedGame.gameId === gameId) {
+        this.selectedGame = game;
+      }
+
     },
     setSelectedLeg(legID: string) {
       if (!this.selectedGame) return;
@@ -221,7 +227,13 @@ export const useMatchDataStore = defineStore('leg', {
         game.legs[existingIndex] = this.selectedLeg;
       }
       this.selectedLeg = null;
-    } 
+    },
+    setNextPlayerTurn(playerId: string) {
+      this.currentPlayer = playerId
+    },
+    getCurrentPlayer() {
+      return this.currentPlayer
+    },
   },
   persist: true,
 })

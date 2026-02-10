@@ -6,9 +6,10 @@
     <div class="quarter remaining-score">
       <RemainingScorePanel @start-match="onStartMatch"
                            @back-match="$emit('back')"
-                           @finish-match="onFinishMatch"
+                           @finish-game="onFinishGame"
+                           @finish-leg="onFinishLeg"
                            :game-type="selectedGame?.type"
-                           :gamestarted="started"/>
+                           :gamestarted="started" />
     </div>
     <div class="quarter enter-score" :class="{ disabled: !started }">
       <EnterScorePanel :disabled="!started" />
@@ -20,33 +21,19 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, watch } from 'vue'
+  import { ref, watch, onMounted } from 'vue'
   import { defineProps, defineEmits } from 'vue'
   import ScoreLedgerPanel from './MatchCenter/ScoreLedgerPanel.vue'
   import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
   import StatsPanel from './MatchCenter/StatsPanel.vue'
   import EnterScorePanel from './MatchCenter/EnterScorePanel.vue'
+  import { startGame, fetchLegs } from '@/actions/GameService'
+  import type { Game } from '@/models/GameModel'
+  import { useMatchDataStore } from "@/stores/matchDataStore"
+  import { startLeg } from '@/actions/LegService'
 
-  interface Game {
-    id: string
-    players: string[]
-    type: string
-    status: string
-    result: string
-  }
+  const matchDataStore = useMatchDataStore()
 
-  interface Leg {
-    id: string
-    gameId: string
-    status: string
-    score: Record<string, number>
-    result: string
-    finishDarts: number
-    order: number
-    remainingScore: number
-  }
-
-  const legs = ref<Leg[]>([])
   const emit = defineEmits(['back'])
 
   const props = defineProps<{
@@ -58,60 +45,64 @@
   const started = ref(false)
   const wonBull = ref<boolean | null>(null)
 
-  watch(
-    () => selectedGame.status,
-    (newStatus) => {
-      started.value = newStatus === 'InProgress'
-    },
-    { immediate: true }
-  )
+  async function onFinishLeg() {
+    //update the leg information within the store and the server
+    matchDataStore.doneWithSelectedLeg()
 
-  async function onFinishMatch() {
+    if (!matchDataStore.selectedGame) return;
 
+    //identify if a new leg is required to be started
+    if (matchDataStore.selectedGame.legs.length > 1) {
+      const allLegsFinished = matchDataStore.selectedGame.legs.every(leg => leg.status == "Completed")
+      if (allLegsFinished) {
+        return
+      }
+      else {
+        //start the new leg
+
+      }
+    }
+  }
+
+  async function onFinishGame() {
+    //if the game has finished then update the server
+
+
+    //check if the match has now finished and update server if required
+    finishMatch()
+
+  }
+
+  async function finishMatch() {
+
+  }
+  onMounted(() => {
+    if (hasGameStarted()) {
+      started.value = true
+    }
+  });
+
+  function hasGameStarted() {
+    const game = matchDataStore.getSelectedGame()
+    return game?.status === 'InProgress'
   }
 
   async function onStartMatch(payload: { wonBull: boolean }) {
     started.value = true
     wonBull.value = payload.wonBull
-    try {
-      const response = await fetch(`http://localhost:5001/api/Game/${selectedGame.id}/start?wonBull=${wonBull.value}`, { method: 'PUT'})
-      if (!response.ok) {
-        // Handle error (e.g., show notification)
-        console.error('Failed to start game:', await response.text())
-      } else {
-        // Optionally handle success (e.g., update local game state)
-        const game = await response.json()
-        // ... use game as needed
-      }
-    } catch (err) {
-      console.error('Error calling start API:', err)
-    }
-
-    fetchLegs()
+    await startGame(wonBull.value)
+    //fetch leg information from server via gameID & then add to the store for later use
+    await fetchLegs()
+    //start first leg automatically
+    const legID = matchDataStore.selectedGame?.legs[0]?.legId ?? ''
+    matchDataStore.setSelectedLeg(legID)
+    await startLeg()
+    //set first Player to throw
+    const game = matchDataStore.selectedGame;
+    if (!game) return;
+    const firstPlayer = game.players[0] ?? ''
+    matchDataStore.setNextPlayerTurn(firstPlayer)
   }
-
-  //fetch leg information from server via gameID & then add to the store for later use
-  async function fetchLegs() {
-    try {
-      const response = await fetch(`http://localhost:5001/api/Game/${selectedGame.id}/legs`)
-      if (!response.ok) throw new Error('Failed to fetch legs')
-      const data = await response.json()
-      legs.value = data.map((g: any) => ({
-        id: g.id,
-        gameId: g.data?.playerIds || [],
-        status: g.data?.status || 'Unknown',
-        score: g.data?.score || {},
-        result: g.data?.result || 'N/A',
-        finishDarts: g.data?.finishDarts || 0,
-        order: g.data?.order || 0,
-        remainingScore: g.data?.remainingScore || 0,
-      })) || []
-    }
-    catch (err) {
-      console.error('Error calling start API:', err)
-    }
-  }
-
 
 </script>
 

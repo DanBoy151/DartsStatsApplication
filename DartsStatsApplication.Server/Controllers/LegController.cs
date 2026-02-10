@@ -1,5 +1,6 @@
 ﻿using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
+using DartsStatsApplication.Server.Services;
 using DartsStatsApplication.Server.Services.Validators;
 using Marten;
 using Microsoft.AspNetCore.Mvc;
@@ -114,6 +115,32 @@ namespace DartsStatsApplication.Server.Controllers
                 await session.SaveChangesAsync();
 
                 return Ok(leg);
+            }
+        }
+
+        /// <summary>
+        /// Start a Leg
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [HttpPut("{id}/start")]
+        public async Task<ActionResult<Leg>> StartLeg(Guid Id)
+        {
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var existLeg = await session.LoadAsync<Leg>(Id);
+                if (existLeg == null)
+                {
+                    return NotFound();
+                }
+
+                LegService service = new LegService(session, existLeg);
+                service.StartLeg();
+
+                await session.SaveChangesAsync();
+
+                return Ok(existLeg);
             }
         }
     }

@@ -8,7 +8,7 @@
     </div>
     <div class="button-row">
       <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
-      <button v-else class="finish-btn" @click="finishMatch">Finish</button>
+      <button v-else class="finish-btn" @click="finish">Finish</button>
       <button class="back-btn" @click="cancelMatch">Cancel</button>
     </div>
     <WonBullControl v-if="showBullPopup"
@@ -19,8 +19,13 @@
 <script setup lang="ts">
   import { computed, ref, watch, defineEmits, defineProps } from 'vue'
   import WonBullControl from './WonBullControl.vue'
+  import { useMatchDataStore } from "@/stores/matchDataStore"
+
+  const matchDataStore = useMatchDataStore()
+
+  const remainingScore = computed(() => matchDataStore.getSelectedLeg()?.remainingScore ?? 0)
   
-  const emit = defineEmits(['start-match', 'finish-match', 'back-match'])
+  const emit = defineEmits(['start-match', 'finish-game', 'finish-leg', 'back-match'])
   const props = defineProps<{
     gameType: string
     disabled?: boolean
@@ -30,32 +35,46 @@
   }>()
 
 
-  const started = ref(false)
+  const started = ref(!!props.gamestarted || hasMatchStarted())
   const showBullPopup = ref(false)
   const wonBull = ref<boolean | null>(null)
-  const score = ref<number | string>('')
+  const score = ref<number | string>(getInitialScore()) 
+
+  watch(remainingScore, (newScore) => {
+    score.value = newScore
+  })
+
+  function hasMatchStarted() {
+    const game = matchDataStore.getSelectedGame()
+    return game?.status === 'InProgress'
+  }
 
   // Sync started with gamestarted prop
   watch(
     () => props.gamestarted,
     (val) => {
-      started.value = !!val
+      started.value = !!val || hasMatchStarted()
     },
     { immediate: true }
   )
-
-  function getInitialScore() {
-    const type = props.gameType?.toLowerCase()
-    if (type === 'trebles' || type === 'treble') return 701
-    if (type === 'doubles' || type === 'double') return 601
-    if (type === 'singles' || type === 'single') return 501
-    return ''
-  }
 
   function onBullResult(result: boolean) {
     wonBull.value = result
     showBullPopup.value = false
     startMatch()
+  }
+
+  function getInitialScore() {
+    const score = 0
+
+    if (hasMatchStarted()) {
+      return remainingScore.value
+    } 
+    const type = props.gameType?.toLowerCase()
+    if (type === 'trebles' || type === 'treble') return 701 
+    if (type === 'doubles' || type === 'double') return 601 
+    if (type === 'singles' || type === 'single') return 501 
+    return score
   }
 
   function startMatch() {
@@ -67,8 +86,17 @@
     emit('back-match')
   }
 
+  function finish() {
+    finishLeg()
+    finishMatch()
+  }
+
   function finishMatch() {
-    emit('finish-match')
+    emit('finish-game')
+  }
+
+  function finishLeg() {
+    emit('finish-leg')
   }
 
   // Optionally, reset started if disabled becomes false again

@@ -1,6 +1,6 @@
 <template>
   <div class="enter-score-panel">
-    <h2>Next Player: Dan</h2>
+    <h2>Next Player: {{ currentPlayerName }}</h2>
     <div v-if="error" class="error-message">{{ error }}</div>
     <form class="input-row" @submit.prevent="submit">
       <input class="score-input"
@@ -15,7 +15,17 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref } from 'vue';
+  import { ref, computed, onMounted } from 'vue';
+  import { useMatchDataStore } from "@/stores/matchDataStore"
+
+  const matchDataStore = useMatchDataStore()
+
+const currentPlayerName = computed(() => {
+  const playerId = matchDataStore.currentPlayer;
+  if (!playerId) return '';
+  const player = matchDataStore.matchAvailablePlayers.find(p => p.playerId === playerId);
+  return player ? player.name : '';
+});
 
   const scoreValue = ref('');
   const error = ref('');
@@ -39,15 +49,41 @@
     return true;
   }
 
-  function submit() {
-    if (!validateScore(scoreValue.value)) {
-      return;
-    }
-
-    alert(`Submitted score: ${scoreValue.value}`);
-
-    scoreValue.value = '';
+function submit() {
+  if (!validateScore(scoreValue.value)) {
+    return;
   }
+
+  if (!matchDataStore.currentPlayer) return; 
+
+  //set the score in the data store
+  const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) };
+  matchDataStore.updateSelectedLegScore(score);
+
+  //update the next player from the list
+  getNextPlayer();
+
+  //reset the score
+  scoreValue.value = '';
+}
+
+function getNextPlayer() {
+
+  const game = matchDataStore.selectedGame;
+  const currentPlayerId = matchDataStore.getCurrentPlayer()
+
+  if (!game || !Array.isArray(game.players) || game.players.length === 0 || !currentPlayerId) return;
+
+  const currentIndex = game.players.findIndex(id => id === currentPlayerId);
+  const nextIndex = currentIndex === -1
+    ? 0
+    : (currentIndex + 1) % game.players.length;
+
+  const nextPlayerId = game.players[nextIndex];
+  if (nextPlayerId) { 
+    matchDataStore.setNextPlayerTurn(nextPlayerId);
+  }
+}
 
   function noScore() {
     // Replace with your actual submit logic

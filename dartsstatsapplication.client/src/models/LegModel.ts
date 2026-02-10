@@ -1,4 +1,4 @@
-export interface Model {
+export interface Leg {
   gameId: string
   legId: string
   status: string
