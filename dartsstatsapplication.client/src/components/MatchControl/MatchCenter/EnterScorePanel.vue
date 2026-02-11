@@ -7,20 +7,24 @@
              type="text"
              placeholder="Enter score"
              v-model="scoreValue" />
-      <button class="no-score-btn" type="button" onclick="noScore">No Score</button>
+      <button class="no-score-btn" type="button" @click="noScore">No Score</button>
       <button class="submit-btn" type="submit">Submit</button>
     </form>
-
+    <DoublesFinishControl v-if="showDartsDoublePopup"
+                          @result="onDoublesFinishResult" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { ref, computed, onMounted } from 'vue';
   import { useMatchDataStore } from "@/stores/matchDataStore"
+  import DoublesFinishControl from './DoublesFinishControl.vue'
+
+  const showDartsDoublePopup = ref(false)
 
   const matchDataStore = useMatchDataStore()
 
-const currentPlayerName = computed(() => {
+  const currentPlayerName = computed(() => {
   const playerId = matchDataStore.currentPlayer;
   if (!playerId) return '';
   const player = matchDataStore.matchAvailablePlayers.find(p => p.playerId === playerId);
@@ -48,26 +52,46 @@ const currentPlayerName = computed(() => {
     error.value = '';
     return true;
   }
-
-function submit() {
-  if (!validateScore(scoreValue.value)) {
-    return;
+  function onDoublesFinishResult() {
+    showDartsDoublePopup.value = false
+    finishLeg();
   }
 
-  if (!matchDataStore.currentPlayer) return; 
+  function submit() {
+    if (!validateScore(scoreValue.value)) {
+      return;
+    }
 
-  //set the score in the data store
-  const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) };
-  matchDataStore.updateSelectedLegScore(score);
+    if (!matchDataStore.currentPlayer || !matchDataStore.selectedLeg) return;
 
-  //update the next player from the list
-  getNextPlayer();
+    //Identify if the score will bust the result, ie send it to be less than 0
+    if (matchDataStore.selectedLeg?.remainingScore - Number(scoreValue.value) < 0 || matchDataStore.selectedLeg?.remainingScore - Number(scoreValue.value) === 1 ) {
+      noScore();
+    }
+    //Identify if the score will finish the leg
+    else if (matchDataStore.selectedLeg?.remainingScore - Number(scoreValue.value) === 0) {
+      const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) };
+      matchDataStore.updateSelectedLegScore(score);
+      showDartsDoublePopup.value = true
+    }
+    else {
+      //set the score in the data store
+      const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) };
+      matchDataStore.updateSelectedLegScore(score);
 
+      //update the next player from the list
+      getNextPlayer();
+    }
   //reset the score
   scoreValue.value = '';
-}
+  }
 
-function getNextPlayer() {
+  //finish leg will show DoublesFinishControl and then update the leg and match scores based on the result
+  function finishLeg() {
+    
+  }
+
+  function getNextPlayer() {
 
   const game = matchDataStore.selectedGame;
   const currentPlayerId = matchDataStore.getCurrentPlayer()
@@ -82,13 +106,21 @@ function getNextPlayer() {
   const nextPlayerId = game.players[nextIndex];
   if (nextPlayerId) { 
     matchDataStore.setNextPlayerTurn(nextPlayerId);
+    }
   }
-}
 
   function noScore() {
-    // Replace with your actual submit logic
-    alert(`No Score`);
+    if (!matchDataStore.currentPlayer) return;
 
+    //set the score in the data store
+    const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(0) };
+
+    matchDataStore.updateSelectedLegScore(score);
+
+    //update the next player from the list
+    getNextPlayer();
+
+    //reset the score
     scoreValue.value = '';
   }
 </script>

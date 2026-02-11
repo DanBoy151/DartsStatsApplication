@@ -87,19 +87,24 @@ export async function fetchLegs() {
       remainingScore: g.data?.remainingScore || 0,
     })) || []
 
-    //update legs within the store
     legs.forEach(leg => {
+      // Convert score object to array
+      const scoreArray = Object.entries(leg.score || {}).map(([playerId, score]) => ({
+        playerId,
+        score
+      }));
+
       matchDataStore.setLegData(
         leg.gameId,
         leg.legId,
         leg.status,
-        leg.score,
+        scoreArray,
         leg.result,
         leg.finishDarts,
         leg.order,
         leg.remainingScore
-      )
-    })
+      );
+    });
 
   }
   catch (err) {

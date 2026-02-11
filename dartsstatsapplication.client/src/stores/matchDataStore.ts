@@ -32,7 +32,7 @@ export interface LegDataState {
   gameId: string
   legId: string
   status: string
-  score: Record<string, number> // Dictionary: Guid -> int
+  score: { playerId: string, score: number }[] // ordered history of scores for the leg
   result: string
   finishDarts: number
   order: number
@@ -157,7 +157,7 @@ export const useMatchDataStore = defineStore('leg', {
       }
       this.selectedGame = null;
     },
-    setLegData(gameId: string, legId: string, status: string, score: Record<string, number>, result: string, finishDarts: number, order: number, remainingScore: number) {
+    setLegData(gameId: string, legId: string, status: string, score: { playerId: string, score: number }[], result: string, finishDarts: number, order: number, remainingScore: number) {
       if (
         !this.match ||
         !Array.isArray(this.match.games) ||
@@ -206,12 +206,11 @@ export const useMatchDataStore = defineStore('leg', {
       return this.selectedLeg;
     },
     updateSelectedLegScore(score: Record<string, number>) {
-      if (this.selectedLeg) { 
-        Object.assign(this.selectedLeg.score, score);
-
-        // Subtract the sum of the new score values from remainingScore
-        const reduction = Object.values(score).reduce((acc, val) => acc + val, 0);
-        this.selectedLeg.remainingScore -= reduction;
+      if (this.selectedLeg) {
+        for (const [playerId, value] of Object.entries(score)) {
+          this.selectedLeg.score.push({ playerId, score: value });
+          this.selectedLeg.remainingScore -= value;
+        }
       }
     },
     doneWithSelectedLeg() {

@@ -9,7 +9,8 @@
     <div class="button-row">
       <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
       <button v-else class="finish-btn" @click="finish">Finish</button>
-      <button class="back-btn" @click="cancelMatch">Cancel</button>
+      <button v-if="!started" class="cancel-btn" @click="cancelMatch">Cancel</button>
+      <button v-else class="back-btn" @click="backMatch">Back</button>
     </div>
     <WonBullControl v-if="showBullPopup"
                     @result="onBullResult" />
@@ -25,7 +26,7 @@
 
   const remainingScore = computed(() => matchDataStore.getSelectedLeg()?.remainingScore ?? 0)
   
-  const emit = defineEmits(['start-match', 'finish-game', 'finish-leg', 'back-match'])
+  const emit = defineEmits(['start-match', 'finish-game', 'finish-leg', 'back-match', 'cancel-match'])
   const props = defineProps<{
     gameType: string
     disabled?: boolean
@@ -83,6 +84,10 @@
   }
 
   function cancelMatch() {
+    emit('cancel-match')
+  }
+
+  function backMatch() {
     emit('back-match')
   }
 
@@ -154,6 +159,21 @@
   }
 
     .back-btn:hover {
+      background: #555;
+    }
+
+  .cancel-btn {
+    background: #888;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+    .cancel-btn:hover {
       background: #555;
     }
 

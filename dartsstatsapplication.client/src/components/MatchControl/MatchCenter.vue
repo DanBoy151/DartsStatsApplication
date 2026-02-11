@@ -6,6 +6,7 @@
     <div class="quarter remaining-score">
       <RemainingScorePanel @start-match="onStartMatch"
                            @back-match="$emit('back')"
+                           @cancel-match="$emit('back')"
                            @finish-game="onFinishGame"
                            @finish-leg="onFinishLeg"
                            :game-type="selectedGame?.type"
