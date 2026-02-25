@@ -19,6 +19,12 @@
   import { ref, computed, onMounted } from 'vue';
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import DoublesFinishControl from './DoublesFinishControl.vue'
+  import { completeLeg } from '@/actions/LegService';
+
+  const emit = defineEmits<{
+    (e: 'legComplete'): void
+  }>()
+
 
   const showDartsDoublePopup = ref(false)
 
@@ -33,6 +39,7 @@
 
   const scoreValue = ref('');
   const error = ref('');
+  const doubleFinishResult = ref(null)
 
   function validateScore(value: string): boolean {
     // Only allow integers between 0 and 180
@@ -52,9 +59,14 @@
     error.value = '';
     return true;
   }
-  function onDoublesFinishResult() {
+  function onDoublesFinishResult(result: any) {
+    doubleFinishResult.value = result
     showDartsDoublePopup.value = false
-    finishLeg();
+
+    //Need to verify this works
+    matchDataStore.completeSelectedLeg('Win', Number(doubleFinishResult.value))
+
+    emit('legComplete')
   }
 
   function submit() {
@@ -72,6 +84,7 @@
     else if (matchDataStore.selectedLeg?.remainingScore - Number(scoreValue.value) === 0) {
       const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) };
       matchDataStore.updateSelectedLegScore(score);
+
       showDartsDoublePopup.value = true
     }
     else {
@@ -84,11 +97,6 @@
     }
   //reset the score
   scoreValue.value = '';
-  }
-
-  //finish leg will show DoublesFinishControl and then update the leg and match scores based on the result
-  function finishLeg() {
-    
   }
 
   function getNextPlayer() {

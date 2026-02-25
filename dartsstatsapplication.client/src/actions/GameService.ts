@@ -91,7 +91,7 @@ export async function fetchLegs() {
       // Convert score object to array
       const scoreArray = Object.entries(leg.score || {}).map(([playerId, score]) => ({
         playerId,
-        score
+        score: Number(score)
       }));
 
       matchDataStore.setLegData(
@@ -109,5 +109,28 @@ export async function fetchLegs() {
   }
   catch (err) {
     console.error('Error calling start API:', err)
+  }
+}
+
+export async function completeGame() {
+  const matchDataStore = useMatchDataStore()
+  const gameId = matchDataStore.selectedGame?.gameId
+
+  //Check if a selected game has been set and if so return
+  if (!matchDataStore.selectedGame && !gameId) return;
+
+  try {
+    const response = await fetch(
+      `http://localhost:5001/api/Game/${gameId}/complete`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ result: matchDataStore.selectedGame?.result })
+      }
+    )
+    if (!response.ok) throw new Error('Unable to complete Game')
+
+  } catch (err: any) {
+    console.error(err.message || 'Error updating Game Record')
   }
 }

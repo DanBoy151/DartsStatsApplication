@@ -1,4 +1,5 @@
-﻿using DartsStatsApplication.Server.Controllers.Models;
+﻿using System.Text.Json;
+using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services;
 using DartsStatsApplication.Server.Services.Validators;
@@ -87,31 +88,25 @@ namespace DartsStatsApplication.Server.Controllers
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        [HttpPut]
-        public async Task<ActionResult<Leg>> CompleteLeg(CompleteLegData leg)
+        [HttpPut("{id}/complete")]
+        public async Task<ActionResult<Leg>> CompleteLeg(Guid id, [FromBody] CompleteLegData leg)
         {
+
+            Console.WriteLine($"Received request to complete leg with id: {id}");
+            Console.WriteLine(JsonSerializer.Serialize(leg));
+
 
             using (var session = _documentStore.LightweightSession())
             {
-                var existLeg = await session.LoadAsync<Leg>(leg.Id);
+                var existLeg = await session.LoadAsync<Leg>(id);
                 if (existLeg == null)
                 {
                     return NotFound();
                 }
 
-                existLeg.data.status = LegStatus.Completed;
-                existLeg.data.finishDarts = leg.finishDarts;
-                existLeg.data.result = leg.result;
-                existLeg.data.score = leg.score;
+                LegService service = new LegService(session, existLeg);
+                service.CompleteLeg(leg);
 
-                LegControllerValidator validator = new LegControllerValidator(existLeg, session);
-                string err = validator.IsValidToCompleteLeg();
-                if (err != string.Empty)
-                {
-                    return BadRequest(err);
-                }
-
-                session.Store(leg);
                 await session.SaveChangesAsync();
 
                 return Ok(leg);

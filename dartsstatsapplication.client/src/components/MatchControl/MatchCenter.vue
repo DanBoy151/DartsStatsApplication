@@ -13,7 +13,7 @@
                            :gamestarted="started" />
     </div>
     <div class="quarter enter-score" :class="{ disabled: !started }">
-      <EnterScorePanel :disabled="!started" />
+      <EnterScorePanel @legComplete="onFinishLeg" :disabled="!started" />
     </div>
     <div class="quarter stats" :class="{ disabled: !started }">
       <StatsPanel :disabled="!started" />
@@ -31,7 +31,7 @@
   import { startGame, fetchLegs } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
-  import { startLeg } from '@/actions/LegService'
+  import { startLeg, completeLeg } from '@/actions/LegService'
 
   const matchDataStore = useMatchDataStore()
 
@@ -47,7 +47,9 @@
   const wonBull = ref<boolean | null>(null)
 
   async function onFinishLeg() {
+    started.value= false
     //update the leg information within the store and the server
+    completeLeg()
     matchDataStore.doneWithSelectedLeg()
 
     if (!matchDataStore.selectedGame) return;

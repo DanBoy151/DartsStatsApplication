@@ -213,6 +213,14 @@ export const useMatchDataStore = defineStore('leg', {
         }
       }
     },
+    completeSelectedLeg(result: string, finishDarts: number) {
+      alert(result)
+      alert(finishDarts)
+      if (this.selectedLeg) {
+        this.selectedLeg.result = result;
+        this.selectedLeg.finishDarts = finishDarts;
+      }
+    },
     doneWithSelectedLeg() {
       if (!this.match || !this.selectedLeg) return;
 

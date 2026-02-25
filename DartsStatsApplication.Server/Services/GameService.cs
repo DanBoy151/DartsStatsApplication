@@ -37,6 +37,14 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_game);
         }
 
+        public void CompleteGame(CompleteGameData data)
+        {
+            _validator.IsValidToCompleteGame();
+            _game.data.status = GameStatus.Complete;
+            _game.data.result = data.result;
+            _documentSession.Store(_game);
+        }
+
         private void CreatePendingLegs()
         {
             int legsToCreate = 0;

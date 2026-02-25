@@ -24,5 +24,18 @@ namespace DartsStatsApplication.Server.Services
             _leg.data.status = LegStatus.Started;
             _documentSession.Store(_leg);
         }
+
+        public void CompleteLeg(CompleteLegData legData)
+        {
+         
+            _validator.IsValidToCompleteLeg();
+
+            _leg.data.finishDarts = legData.finishDarts;
+            _leg.data.result = legData.result;
+            _leg.data.score = legData.score;
+            _leg.data.remainingScore = 0;
+            _leg.data.status = LegStatus.Completed;
+            _documentSession.Store(_leg);
+        }
     }
 }

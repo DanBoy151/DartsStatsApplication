@@ -21,8 +21,6 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
     public class CompleteGameData
     {
-        public Guid Id { get; set; }
-
         public GameResult result { get; set; }
     }
 

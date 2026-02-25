@@ -2,14 +2,19 @@
 
 namespace DartsStatsApplication.Server.Controllers.Models
 {
+    public class PlayerScore
+    {
+        public Guid playerId { get; set; }
+        public int score { get; set; }
+    }
 
-    public class LegData
+        public class LegData
     {
         public Guid gameID { get; set; }
 
         public LegStatus status { get; set; }
 
-        public Dictionary<Guid, int>? score { get; set; }
+        public List<PlayerScore> score { get; set; }
 
         public LegResult? result { get; set; }
 
@@ -22,9 +27,7 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
     public class CompleteLegData
     {
-        public Guid Id { get; set; }
-
-        public Dictionary<Guid, int>? score { get; set; }
+        public List<PlayerScore> score { get; set; }
 
         public LegResult? result { get; set; }
 

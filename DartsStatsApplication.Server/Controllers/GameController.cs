@@ -87,30 +87,22 @@ namespace DartsStatsApplication.Server.Controllers
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        [HttpPut]
-        public async Task<ActionResult<Game>> CompleteGame(CompleteGameData data)
+        [HttpPut("{id}/complete")]
+        public async Task<ActionResult<Game>> CompleteGame(Guid Id, [FromBody] CompleteGameData data)
         {
 
             using (var session = _documentStore.LightweightSession())
             {
-                var Game = await session.LoadAsync<Game>(data.Id);
+                var Game = await session.LoadAsync<Game>(Id);
                 if (Game == null)
                 {
                     return NotFound();
                 }
 
-                Game.data.status = GameStatus.Complete;
-                try
-                {
-                    GameControllerValidator validator = new GameControllerValidator(Game, session);
-                    validator.IsValidToCompleteGame();
-                    session.Store(Game);
-                    await session.SaveChangesAsync();
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+                GameService service = new GameService(session, Game);
+                service.CompleteGame(data);
+
+                await session.SaveChangesAsync();
 
                 return Ok(Game);
             }
