@@ -1,19 +1,8 @@
 import { useMatchDataStore } from "@/stores/matchDataStore"
 import type { Player } from "@/models/PlayerModel"
-import type { Leg } from "@/models/LegModel"
-
-interface RawLeg {
-  id: string
-  data?: {
-    gameID?: string
-    status?: string
-    score?: Record<string, number>
-    result?: string
-    finishDarts?: number
-    order?: number
-    remainingScore?: number
-  }
-}
+import type { Leg, RawLeg } from "@/models/LegModel"
+import type { RawGameData } from "@/models/GameModel"
+import { apiGet, apiRequest } from "@/actions/apiClient"
 
 export async function setAvailablePlayers(players: Player[]) {
   const matchDataStore = useMatchDataStore()
@@ -24,17 +13,14 @@ export async function setAvailablePlayers(players: Player[]) {
     const playerIds = players
       .map(player => player.playerId)
       .filter(playerId => !!playerId)
-    const response = await fetch(
-      `http://localhost:5001/api/Game/${gameId}/update-players`,
+    const data = await apiRequest<RawGameData>(
+      `/api/Game/${gameId}/update-players`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedPlayers: playerIds })
       }
     )
-    if (!response.ok) throw new Error('Failed to update available players')
-
-    const data = await response.json()
     matchDataStore.setGameData(
       data.id ?? '',
       data.data?.playerIds ?? [],
@@ -42,7 +28,7 @@ export async function setAvailablePlayers(players: Player[]) {
       data.data?.status ?? '',
       data.data?.result ?? '',
       data.data?.wonBull ?? false,
-      data.data.order ?? 0)
+      data.data?.order ?? 0)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating players')
@@ -55,10 +41,7 @@ export async function startGame(wonBull: boolean) {
   const gameId = matchDataStore.selectedGame?.gameId
 
   try {
-    const response = await fetch(`http://localhost:5001/api/Game/${gameId}/start?wonBull=${wonBull}`, { method: 'PUT' })
-    if (!response.ok)  throw new Error('Failed to start game:')
- 
-    const data = await response.json()
+    const data = await apiRequest<RawGameData>(`/api/Game/${gameId}/start?wonBull=${wonBull}`, { method: 'PUT' })
     matchDataStore.setGameData(
       data.id ?? '',
       data.data?.playerIds ?? [],
@@ -66,10 +49,10 @@ export async function startGame(wonBull: boolean) {
       data.data?.status ?? '',
       data.data?.result ?? '',
       data.data?.wonBull ?? false,
-      data.data.order ?? 0)
+      data.data?.order ?? 0)
 
   } catch (err) {
-    console.error('Error calling start API:', err)
+    console.error(err instanceof Error ? err.message : 'Error calling start API')
   }
 
 }
@@ -85,18 +68,13 @@ export async function fetchLegs() {
 
   //if no legs found then make call to fetch legs
   try {
-    const response = await fetch(`http://localhost:5001/api/Game/${gameId}/legs`)
-    if (!response.ok) throw new Error('Failed to fetch legs')
-    const data = (await response.json()) as RawLeg[]
+    const data = await apiGet<RawLeg[]>(`/api/Game/${gameId}/legs`)
 
     const legs: Leg[] = data.map((g) => ({
       legId: g.id,
       gameId: g.data?.gameID || '',
       status: g.data?.status || 'Unknown',
-      score: Object.entries(g.data?.score || {}).map(([playerId, score]) => ({
-        playerId,
-        score: Number(score)
-      })),
+      score: g.data?.score ?? [],
       result: g.data?.result || 'N/A',
       finishDarts: g.data?.finishDarts || 0,
       order: g.data?.order || 0,
@@ -104,13 +82,11 @@ export async function fetchLegs() {
     })) || []
 
     legs.forEach(leg => {
-      const scoreArray = leg.score;
-
       matchDataStore.setLegData(
         leg.gameId,
         leg.legId,
         leg.status,
-        scoreArray,
+        leg.score,
         leg.result,
         leg.finishDarts,
         leg.order,
@@ -120,7 +96,7 @@ export async function fetchLegs() {
 
   }
   catch (err) {
-    console.error('Error calling start API:', err)
+    console.error(err instanceof Error ? err.message : 'Error calling start API')
   }
 }
 
@@ -132,17 +108,14 @@ export async function completeGame(result: string) {
   if (!matchDataStore.selectedGame && !gameId) return;
 
   try {
-    const response = await fetch(
-      `http://localhost:5001/api/Game/${gameId}/complete`,
+    const data = await apiRequest<RawGameData>(
+      `/api/Game/${gameId}/complete`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ result: result })
       }
     )
-    if (!response.ok) throw new Error('Unable to complete Game')
-
-    const data = await response.json()
     matchDataStore.setGameData(
       data.id ?? '',
       data.data?.playerIds ?? [],
@@ -150,7 +123,7 @@ export async function completeGame(result: string) {
       data.data?.status ?? '',
       data.data?.result ?? '',
       data.data?.wonBull ?? false,
-      data.data.order ?? 0)
+      data.data?.order ?? 0)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating Game Record')

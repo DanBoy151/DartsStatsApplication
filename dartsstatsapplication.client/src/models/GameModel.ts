@@ -8,6 +8,19 @@ export interface Game {
   wonBull: boolean
   order: number
 }
+
+/** Wire shape returned by the Game endpoints (update-players, start, complete, list). */
+export interface RawGameData {
+  id?: string
+  data?: {
+    playerIds?: string[]
+    type?: string
+    status?: string
+    result?: string
+    wonBull?: boolean
+    order?: number
+  }
+}
 export function convertToGameListFromGameDataStateList(gameDataState: GameDataState[] | null): Game[] | null {
   if (!gameDataState) return null;
 

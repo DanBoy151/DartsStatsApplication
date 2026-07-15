@@ -11,6 +11,20 @@ export interface Match {
   gamesAgainst: number
 }
 
+/** Wire shape returned by the Match endpoints (next, start, update-match-score). */
+export interface RawMatchData {
+  id?: string
+  data?: {
+    opponent?: string
+    location?: string
+    date?: string
+    availablePlayers?: string[]
+    status?: string
+    gamesFor?: number
+    gamesAgainst?: number
+  }
+}
+
 export function convertToMatchFromMatchDataState(matchDataState: MatchDataState | null): Match | null {
   if (!matchDataState) return null;
 

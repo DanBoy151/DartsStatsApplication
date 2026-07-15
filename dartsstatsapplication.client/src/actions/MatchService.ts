@@ -1,32 +1,8 @@
-import type { Match } from "@/models/MatchModel"
+import type { Match, RawMatchData } from "@/models/MatchModel"
 import { useMatchDataStore } from "@/stores/matchDataStore"
-import type { Game } from "@/models/GameModel"
+import type { Game, RawGameData } from "@/models/GameModel"
 import { convertToGameListFromGameDataStateList } from "@/models/GameModel"
-
-interface RawMatchData {
-  id?: string
-  data?: {
-    opponent?: string
-    location?: string
-    date?: string
-    availablePlayers?: string[]
-    status?: string
-    gamesFor?: number
-    gamesAgainst?: number
-  }
-}
-
-interface RawGameData {
-  id?: string
-  data?: {
-    playerIds?: string[]
-    type?: string
-    status?: string
-    result?: string
-    wonBull?: boolean
-    order?: number
-  }
-}
+import { apiGet, apiRequest } from "@/actions/apiClient"
 
 async function setData(data: RawMatchData): Promise<Match> {
   const matchDataStore = useMatchDataStore()
@@ -77,9 +53,7 @@ export async function getNextMatch(): Promise<Match | null> {
   }
 
   try {
-    const response = await fetch('http://localhost:5001/api/Match/next')
-    if (!response.ok) throw new Error('Failed to fetch next match')
-    const data = await response.json()
+    const data = await apiGet<RawMatchData>('/api/Match/next')
     const match: Match = await setData(data)
 
     return match
@@ -101,11 +75,9 @@ export async function startMatch(matchId: string) {
 
   try {
     if (matchId) {
-      const response = await fetch(`http://localhost:5001/api/Match/${matchId}/start`, { method: 'PUT' })
-      if (!response.ok) throw new Error('Failed to start match')
-      const data = await response.json()
+      const data = await apiRequest<RawMatchData>(`/api/Match/${matchId}/start`, { method: 'PUT' })
       await setData(data)
-    }  
+    }
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching starting match')
   }
@@ -126,15 +98,14 @@ export async function setAvailablePlayers() {
   }
 
   try {
-    const response = await fetch(
-      `http://localhost:5001/api/Match/${matchDataStore.getMatchData()?.matchId}/update-available-players`,
+    await apiRequest<RawMatchData>(
+      `/api/Match/${matchDataStore.getMatchData()?.matchId}/update-available-players`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ availablePlayers: players })
       }
     )
-    if (!response.ok) throw new Error('Failed to update available players')
     matchDataStore.updateMatchAvailablePlayers()
 
   } catch (err) {
@@ -152,9 +123,7 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
   }
 
   try {
-    const response = await fetch(`http://localhost:5001/api/Match/${matchId}/games`)
-    if (!response.ok) throw new Error('Failed to fetch match games')
-    const data = (await response.json()) as RawGameData[]
+    const data = await apiGet<RawGameData[]>(`/api/Match/${matchId}/games`)
     // Map the response to Game[]
     const games: Game[] = Array.isArray(data)
       ? data.map((g) => ({
@@ -192,14 +161,11 @@ export async function updateMatchScore(result: boolean) {
   const matchId = matchDataStore.match?.matchId
 
   try {
-    const response = await fetch(`http://localhost:5001/api/Match/${matchId}/update-match-score?result=${result}`, { method: 'PUT' })
-    if (!response.ok) throw new Error('Failed to update Match:')
-
-    const data = await response.json()
+    const data = await apiRequest<RawMatchData>(`/api/Match/${matchId}/update-match-score?result=${result}`, { method: 'PUT' })
     await setData(data)
 
   } catch (err) {
-    console.error('Error calling update Match API:', err)
+    console.error(err instanceof Error ? err.message : 'Error calling update Match API')
   }
 
 }

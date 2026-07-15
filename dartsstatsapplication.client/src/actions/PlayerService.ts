@@ -1,10 +1,6 @@
-import type { Player } from '@/models/PlayerModel'
+import type { Player, RawPlayer } from '@/models/PlayerModel'
 import { useMatchDataStore } from '@/stores/matchDataStore'
-
-interface RawPlayer {
-  id: string
-  data?: { name?: string }
-}
+import { apiGet } from '@/actions/apiClient'
 
 export async function getPlayers(): Promise<Player[]> {
   const matchDataStore = useMatchDataStore()
@@ -21,9 +17,7 @@ export async function getPlayers(): Promise<Player[]> {
 
   //if they aren't in local storage then fetch them from the api
   try {
-    const response = await fetch('http://localhost:5001/api/Player')
-    if (!response.ok) throw new Error('Failed to fetch players')
-    const data = (await response.json()) as RawPlayer[]
+    const data = await apiGet<RawPlayer[]>('/api/Player')
     players = data.map((p) => ({
       playerId: p.id,
       name: p.data?.name ?? '',

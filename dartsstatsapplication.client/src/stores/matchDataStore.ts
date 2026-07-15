@@ -49,6 +49,7 @@ export const useMatchDataStore = defineStore('leg', {
     selectedLeg: null as LegDataState | null,
     matchAvailablePlayers: [] as MatchAvailablePlayers[],
     currentPlayer: null as string | null,
+    lastError: null as string | null,
   }),
   actions: {
     setMemoryDateTime() {
@@ -242,6 +243,12 @@ export const useMatchDataStore = defineStore('leg', {
     },
     getCurrentPlayer() {
       return this.currentPlayer
+    },
+    setError(message: string) {
+      this.lastError = message
+    },
+    clearError() {
+      this.lastError = null
     },
   },
   persist: true,
