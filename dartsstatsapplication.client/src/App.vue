@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import MenuBar from './components/MenuBar.vue'
   import MainContent from './components/MainContent.vue'
+  import ErrorToast from './components/ErrorToast.vue'
 </script>
 
 <template>
@@ -11,6 +12,7 @@
     <main>
       <MainContent />
     </main>
+    <ErrorToast />
   </div>
 </template>
 
