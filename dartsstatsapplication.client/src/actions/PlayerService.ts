@@ -1,6 +1,11 @@
 import type { Player } from '@/models/PlayerModel'
 import { useMatchDataStore } from '@/stores/matchDataStore'
 
+interface RawPlayer {
+  id: string
+  data?: { name?: string }
+}
+
 export async function getPlayers(): Promise<Player[]> {
   const matchDataStore = useMatchDataStore()
   let players: Player[] = []
@@ -18,17 +23,17 @@ export async function getPlayers(): Promise<Player[]> {
   try {
     const response = await fetch('http://localhost:5001/api/Player')
     if (!response.ok) throw new Error('Failed to fetch players')
-    const data = await response.json()
-    players = data.map((p: any) => ({
+    const data = (await response.json()) as RawPlayer[]
+    players = data.map((p) => ({
       playerId: p.id,
-      name: p.data?.name,
+      name: p.data?.name ?? '',
     })) || []
 
     matchDataStore.setMatchAvailablePlayers(players)
 
     return players
-  } catch (err: any) {
-    console.error(err.message || 'Error fetching players')
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching players')
     return []
   }
 }

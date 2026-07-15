@@ -61,12 +61,14 @@ export async function completeLeg() {
       data.data?.order ?? 0,
       data.data?.remainingScore ?? 0)
 
-  } catch (err: any) {
-    console.error(err.message || 'Error updating selected Leg ')
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error updating selected Leg ')
   }
 }
 
-function scoreToArray(score: any): { playerId: string; score: number }[] {
+function scoreToArray(
+  score: Record<string, number> | { playerId: string; score: number }[] | undefined
+): { playerId: string; score: number }[] {
   if (!score) return [];
   if (Array.isArray(score)) return score;
   return Object.entries(score).map(([playerId, score]) => ({

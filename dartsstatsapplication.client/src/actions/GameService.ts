@@ -2,6 +2,19 @@ import { useMatchDataStore } from "@/stores/matchDataStore"
 import type { Player } from "@/models/PlayerModel"
 import type { Leg } from "@/models/LegModel"
 
+interface RawLeg {
+  id: string
+  data?: {
+    gameID?: string
+    status?: string
+    score?: Record<string, number>
+    result?: string
+    finishDarts?: number
+    order?: number
+    remainingScore?: number
+  }
+}
+
 export async function setAvailablePlayers(players: Player[]) {
   const matchDataStore = useMatchDataStore()
   const gameId = matchDataStore.selectedGame?.gameId
@@ -31,8 +44,8 @@ export async function setAvailablePlayers(players: Player[]) {
       data.data?.wonBull ?? false,
       data.data.order ?? 0)
 
-  } catch (err: any) {
-    console.error(err.message || 'Error updating players')
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error updating players')
   }
 
 }
@@ -74,9 +87,9 @@ export async function fetchLegs() {
   try {
     const response = await fetch(`http://localhost:5001/api/Game/${gameId}/legs`)
     if (!response.ok) throw new Error('Failed to fetch legs')
-    const data = await response.json()
+    const data = (await response.json()) as RawLeg[]
 
-    const legs: Leg[] = data.map((g: any) => ({
+    const legs: Leg[] = data.map((g) => ({
       legId: g.id,
       gameId: g.data?.gameID || '',
       status: g.data?.status || 'Unknown',
@@ -140,7 +153,7 @@ export async function completeGame(result: string) {
       data.data?.wonBull ?? false,
       data.data.order ?? 0)
 
-  } catch (err: any) {
-    console.error(err.message || 'Error updating Game Record')
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error updating Game Record')
   }
 }

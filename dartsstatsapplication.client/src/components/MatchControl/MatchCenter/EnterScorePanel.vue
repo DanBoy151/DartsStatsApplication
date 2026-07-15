@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref, computed, onMounted } from 'vue';
+  import { ref, computed } from 'vue';
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import DoublesFinishControl from './DoublesFinishControl.vue'
   
@@ -58,7 +58,7 @@
     error.value = '';
     return true;
   }
-  function onDoublesFinishResult(result: any) {
+  function onDoublesFinishResult(result: number) {
     doubleFinishResult.value = result
     showDartsDoublePopup.value = false
 

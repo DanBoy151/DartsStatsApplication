@@ -42,7 +42,7 @@
     try {
       await getPlayers()
     }
-    catch (err: any) { }
+    catch { }
     finally {
       loading.value = false
     }

@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, watch, onMounted } from 'vue'
+  import { ref, onMounted } from 'vue'
   import { defineProps, defineEmits } from 'vue'
   import ScoreLedgerPanel from './MatchCenter/ScoreLedgerPanel.vue'
   import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
@@ -103,29 +103,7 @@
   }
 
   async function finishMatch() {
-    // Only proceed once every game in the match has been completed; this is a
-    // no-op mid-match.
-    const games = matchDataStore.match?.games ?? []
-    if (games.length === 0) return
 
-    const allGamesComplete = games.every(g => g.status === "Complete")
-    if (!allGamesComplete) return
-
-    // Derive the match result from the running games-for / games-against tally.
-    const match = matchDataStore.match
-    if (!match) return
-    const matchResult = match.gamesFor > match.gamesAgainst ? "Win" : "Loss"
-
-    // TODO (Stage 3d follow-up): the server's CompleteMatch endpoint requires a
-    // playerOfMatch GUID, but there is currently NO UI for selecting Player of
-    // the Match, so the match cannot be completed on the server from here yet.
-    // Next step: show a "Select Player of the Match" modal (same overlay pattern
-    // as WonBullControl / DoublesFinishControl), then call a match-complete
-    // action with the chosen player and matchResult.
-    console.warn(
-      `All games complete. Match result would be '${matchResult}'. ` +
-      `Player-of-the-Match selection UI is required before the match can be completed on the server.`
-    )
   }
 
 

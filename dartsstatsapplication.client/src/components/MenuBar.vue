@@ -19,9 +19,9 @@
   </nav>
 </template>
 
-<script>
+<script lang="ts">
   export default {
-    name: 'Menu',
+    name: 'MenuBar',
     data() {
       return {
         menuItems: [

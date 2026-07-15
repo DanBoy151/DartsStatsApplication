@@ -1,10 +1,34 @@
 import type { Match } from "@/models/MatchModel"
 import { useMatchDataStore } from "@/stores/matchDataStore"
 import type { Game } from "@/models/GameModel"
-import { convertToGameListFromGameDataStateList } from "@/models/GameModel" 
+import { convertToGameListFromGameDataStateList } from "@/models/GameModel"
 
+interface RawMatchData {
+  id?: string
+  data?: {
+    opponent?: string
+    location?: string
+    date?: string
+    availablePlayers?: string[]
+    status?: string
+    gamesFor?: number
+    gamesAgainst?: number
+  }
+}
 
-async function setData(data: any): Promise<Match> {
+interface RawGameData {
+  id?: string
+  data?: {
+    playerIds?: string[]
+    type?: string
+    status?: string
+    result?: string
+    wonBull?: boolean
+    order?: number
+  }
+}
+
+async function setData(data: RawMatchData): Promise<Match> {
   const matchDataStore = useMatchDataStore()
   // Construct and return a Match object
   const match: Match = {
@@ -59,9 +83,9 @@ export async function getNextMatch(): Promise<Match | null> {
     const match: Match = await setData(data)
 
     return match
-  } catch (err: any) {
+  } catch (err) {
     // Optionally log error
-    console.error(err.message || 'Error fetching next match')
+    console.error(err instanceof Error ? err.message : 'Error fetching next match')
     return null
   }
 }
@@ -82,8 +106,8 @@ export async function startMatch(matchId: string) {
       const data = await response.json()
       await setData(data)
     }  
-  } catch (err: any) {
-    console.error(err.message || 'Error fetching starting match')
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching starting match')
   }
 }
 
@@ -113,8 +137,8 @@ export async function setAvailablePlayers() {
     if (!response.ok) throw new Error('Failed to update available players')
     matchDataStore.updateMatchAvailablePlayers()
 
-  } catch (err: any) {
-    console.error(err.message || 'Error fetching updating available players')
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching updating available players')
   }
 }
 
@@ -130,10 +154,10 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
   try {
     const response = await fetch(`http://localhost:5001/api/Match/${matchId}/games`)
     if (!response.ok) throw new Error('Failed to fetch match games')
-    const data = await response.json()
+    const data = (await response.json()) as RawGameData[]
     // Map the response to Game[]
     const games: Game[] = Array.isArray(data)
-      ? data.map((g: any) => ({
+      ? data.map((g) => ({
         id: g.id ?? '',
         players: g.data?.playerIds ?? [],
         type: g.data?.type ?? '',
@@ -157,8 +181,8 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
     })
 
     return games
-  } catch (err: any) {
-    console.error(err.message || 'Error fetching match games')
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching match games')
     return null
   }
 }

@@ -42,7 +42,7 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { getMatchGames } from "@/actions/MatchService"
   import type { Game } from '@/models/GameModel'
-  import { convertToGameFromGameDataState, convertToGameListFromGameDataStateList } from '@/models/GameModel'
+  import { convertToGameListFromGameDataStateList } from '@/models/GameModel'
 
   const matchDataStore = useMatchDataStore()
 

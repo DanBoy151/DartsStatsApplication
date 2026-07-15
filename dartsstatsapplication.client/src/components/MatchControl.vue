@@ -28,25 +28,18 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref } from 'vue'
   import GameSummaryPanel from './MatchControl/GameSummaryPanel.vue'
   import AvailablePlayersControl from './MatchControl/AvailablePlayersControl.vue'
   import HoldingScreenControl from './MatchControl/HoldingScreenControl.vue'
   import SelectPlayersGameControl from './MatchControl/SelectPlayersGameControl.vue'
   import MatchCenter from './MatchControl/MatchCenter.vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
-  import type { Match } from '@/models/MatchModel'
-  import { convertToMatchFromMatchDataState } from '@/models/MatchModel'
   import type { Game } from '@/models/GameModel'
   import { convertToGameFromGameDataState } from '@/models/GameModel'
 
   const matchDataStore = useMatchDataStore()
-  const match: Match | null = convertToMatchFromMatchDataState(matchDataStore.getMatchData())
 
-  const emit = defineEmits(['back'])
-  const refreshKey = ref(0)
-
-  const selectedPlayersForGame = ref<string[]>([]);
   const showHoldingScreen = ref(false)
   const selectedGameId = ref<string | null>(null)
   const selectedGame = ref<Game | null > (null)

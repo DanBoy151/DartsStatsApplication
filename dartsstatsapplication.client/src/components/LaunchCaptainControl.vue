@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, defineProps, computed } from 'vue'
+  import { computed } from 'vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import type { Match } from '@/models/MatchModel'
   import { convertToMatchFromMatchDataState } from '@/models/MatchModel'

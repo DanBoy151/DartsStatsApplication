@@ -18,11 +18,10 @@
 
 
 <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue'
+  import { ref, onMounted } from 'vue'
   import LaunchCaptainControl from './LaunchCaptainControl.vue'
   import MatchControl from './MatchControl.vue'
   import { getNextMatch } from '@/actions/MatchService'
-  import type { Match } from '@/models/MatchModel'
   import { useMatchDataStore } from '@/stores/matchDataStore'
 
   const showMatchControl = ref(false)
