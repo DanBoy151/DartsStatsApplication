@@ -11,8 +11,8 @@
             - .:/app/
       server:
         build:
-          context: .
-          dockerfile: /DartsStatsApplication.Server/Dockerfile
+          context: ./DartsStatsApplication.Server/
+          dockerfile: Dockerfile
         ports:
           - "5001:8080"
         depends_on:

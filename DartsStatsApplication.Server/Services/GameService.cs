@@ -2,7 +2,6 @@
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
 using Marten;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DartsStatsApplication.Server.Services
 {
