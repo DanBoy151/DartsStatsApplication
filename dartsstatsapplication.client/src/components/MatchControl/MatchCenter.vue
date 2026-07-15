@@ -7,7 +7,6 @@
       <RemainingScorePanel @start-match="onStartMatch"
                            @back-match="$emit('back')"
                            @cancel-match="$emit('back')"
-                           @finish-game="onFinishGame"
                            @finish-leg="onFinishLeg"
                            :game-type="selectedGame?.type"
                            :gamestarted="started" />
@@ -28,10 +27,11 @@
   import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
   import StatsPanel from './MatchCenter/StatsPanel.vue'
   import EnterScorePanel from './MatchCenter/EnterScorePanel.vue'
-  import { startGame, fetchLegs } from '@/actions/GameService'
+  import { startGame, fetchLegs, completeGame } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg } from '@/actions/LegService'
+  import { updateMatchScore } from '@/actions/MatchService'
 
   const matchDataStore = useMatchDataStore()
 
@@ -58,27 +58,77 @@
     if (matchDataStore.selectedGame.legs.length > 1) {
       const allLegsFinished = matchDataStore.selectedGame.legs.every(leg => leg.status == "Completed")
       if (allLegsFinished) {
-        return
+        //If every leg is finished then finish the game
+        finishGame()
       }
       else {
         //start the new leg
 
       }
     }
+    else {
+      // only one leg so the game has finished so complete the game
+      finishGame()
+    }
   }
 
-  async function onFinishGame() {
+  async function finishGame() {
     //if the game has finished then update the server
+    // Count wins and losses in the selected game's legs
+    const legs = matchDataStore.selectedGame?.legs ?? [];
+    const wins = legs.filter(leg => leg.result === "Win").length;
+    const losses = legs.filter(leg => leg.result === "Loss").length;
 
+    let result = "";
+    if (wins > losses) {
+      result="Win"
+    }
+    else {
+      result = "Loss"
+    }
+
+    await completeGame(result)
+    await updateMatchScore((wins > losses))
+    matchDataStore.doneWithSelectedGame()
+
+
+    //After this we are stuck on the match center screen
+    //All Game info has disappeared
+    //Still seen match center rather than holding screen
 
     //check if the match has now finished and update server if required
     finishMatch()
+    emit('back')
 
   }
 
   async function finishMatch() {
+    // Only proceed once every game in the match has been completed; this is a
+    // no-op mid-match.
+    const games = matchDataStore.match?.games ?? []
+    if (games.length === 0) return
 
+    const allGamesComplete = games.every(g => g.status === "Complete")
+    if (!allGamesComplete) return
+
+    // Derive the match result from the running games-for / games-against tally.
+    const match = matchDataStore.match
+    if (!match) return
+    const matchResult = match.gamesFor > match.gamesAgainst ? "Win" : "Loss"
+
+    // TODO (Stage 3d follow-up): the server's CompleteMatch endpoint requires a
+    // playerOfMatch GUID, but there is currently NO UI for selecting Player of
+    // the Match, so the match cannot be completed on the server from here yet.
+    // Next step: show a "Select Player of the Match" modal (same overlay pattern
+    // as WonBullControl / DoublesFinishControl), then call a match-complete
+    // action with the chosen player and matchResult.
+    console.warn(
+      `All games complete. Match result would be '${matchResult}'. ` +
+      `Player-of-the-Match selection UI is required before the match can be completed on the server.`
+    )
   }
+
+
   onMounted(() => {
     if (hasGameStarted()) {
       started.value = true

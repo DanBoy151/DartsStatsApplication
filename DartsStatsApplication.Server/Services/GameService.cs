@@ -39,7 +39,12 @@ namespace DartsStatsApplication.Server.Services
 
         public void CompleteGame(CompleteGameData data)
         {
-            _validator.IsValidToCompleteGame();
+            // Load the game's legs so the validator can stay a pure function over them.
+            var legs = _documentSession.Query<Leg>()
+                .Where(l => l.data.gameID == _game.Id)
+                .ToList();
+
+            _validator.IsValidToCompleteGame(legs, data);
             _game.data.status = GameStatus.Complete;
             _game.data.result = data.result;
             _documentSession.Store(_game);

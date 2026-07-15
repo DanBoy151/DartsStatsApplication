@@ -65,18 +65,18 @@
     return `${day} ${month} ${year}`;
   });
 
-  // Computes the current score as "home - away"
   const currentScore = computed(() => {
-    let home = 0
-    let away = 0
-    //for (const game of games) {
-    //  if (game.status === 'Completed') {
-    //    if (game.winner === 'home') home++
-    //    else if (game.winner === 'away') away++
-    //  }
-    //}
-    return `${home} - ${away}`
-  })
+    const match = matchDataStore.getMatchData();
+    if (!match) return '0 - 0';
+
+    const gamesFor = match.gamesFor ?? 0;
+    const gamesAgainst = match.gamesAgainst ?? 0;
+    const isHome = match.location === "Home";
+
+    return isHome
+      ? `${gamesFor} - ${gamesAgainst}`
+      : `${gamesAgainst} - ${gamesFor}`;
+  });
 
   function displayPlayers(game: Game): string {
     const availablePlayers = matchDataStore.getMatchAvailablePlayers();

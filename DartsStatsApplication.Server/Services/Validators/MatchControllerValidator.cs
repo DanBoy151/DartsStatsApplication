@@ -1,4 +1,4 @@
-﻿using DartsStatsApplication.Server.Models;
+using DartsStatsApplication.Server.Models;
 using Marten;
 
 namespace DartsStatsApplication.Server.Services.Validators
@@ -14,13 +14,24 @@ namespace DartsStatsApplication.Server.Services.Validators
             _documentSession = documentSession;
         }
 
-        public string IsValidToCompleteMatch()
+        /// <summary>
+        /// Validate that a match can be completed. Returns an empty string when valid, or a
+        /// descriptive error message otherwise (this validator uses the string-return
+        /// convention that MatchController.CompleteMatch already expects).
+        /// The match's games are passed in (loaded by the caller) so the rules stay pure
+        /// and unit-testable without a session.
+        /// </summary>
+        public string IsValidToCompleteMatch(List<Game> games)
         {
-            string errCode = "";
+            // Return the FIRST failing check. (Previously both results were assigned to the
+            // same variable, so the games check was silently discarded by the player check.)
+            string errCode = IsValidMatchToComplete(games);
+            if (errCode != string.Empty)
+            {
+                return errCode;
+            }
 
-            errCode = IsValidMatchToComplete();
-            errCode = IsValidPlayerOfMatch();
-
+            errCode = IsValidPlayerOfMatch(games);
             return errCode;
         }
 
@@ -64,30 +75,44 @@ namespace DartsStatsApplication.Server.Services.Validators
         }
 
         /// <summary>
-        /// Validate that the player who has been chosen for player of the match has played at least one leg within the match
+        /// Validate that the player chosen for player of the match actually played in the
+        /// match, i.e. appears in the selected players of at least one game.
         /// </summary>
-        /// <returns></returns>
-        private string IsValidPlayerOfMatch()
+        private string IsValidPlayerOfMatch(List<Game> games)
         {
-            string errCode = "Player is not a valid Player of the Match";
-            errCode = "";
-            return errCode;
+            Guid? playerOfMatch = _match.data.playerOfMatch;
+            if (playerOfMatch == null)
+            {
+                return "A Player of the Match must be selected";
+            }
+
+            bool played = games != null && games.Any(g =>
+                g.data.playerIds != null && g.data.playerIds.Contains(playerOfMatch.Value));
+
+            if (!played)
+            {
+                return "Player of the Match must have played in at least one game";
+            }
+
+            return "";
         }
 
         /// <summary>
-        /// Validate that all Legs & Games within the match have been completed
+        /// Validate that all games within the match have been completed.
         /// </summary>
-        /// <returns></returns>
-        private string IsValidMatchToComplete()
+        private string IsValidMatchToComplete(List<Game> games)
         {
-            string errCode = "It is currently invalid to complete the match";
-            errCode = "";
-            return errCode;
-        }
+            if (games == null || games.Count == 0)
+            {
+                return "Unable to complete a Match that has no Games";
+            }
 
-        public static implicit operator MatchControllerValidator(GameControllerValidator v)
-        {
-            throw new NotImplementedException();
+            if (games.Any(g => g.data.status != GameStatus.Complete))
+            {
+                return "Unable to complete a Match while it has Games that are not Complete";
+            }
+
+            return "";
         }
     }
 }

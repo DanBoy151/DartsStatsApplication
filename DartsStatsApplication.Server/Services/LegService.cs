@@ -28,7 +28,7 @@ namespace DartsStatsApplication.Server.Services
         public void CompleteLeg(CompleteLegData legData)
         {
          
-            _validator.IsValidToCompleteLeg();
+            _validator.IsValidToCompleteLeg(legData);
 
             _leg.data.finishDarts = legData.finishDarts;
             _leg.data.result = legData.result;
