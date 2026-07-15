@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  server:
+    name: Server (build & test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore DartsStatsApplication.Server.Tests/DartsStatsApplication.Server.Tests.csproj
+
+      - name: Build
+        run: dotnet build DartsStatsApplication.Server.Tests/DartsStatsApplication.Server.Tests.csproj --no-restore --no-incremental
+
+      - name: Test
+        run: dotnet test DartsStatsApplication.Server.Tests/DartsStatsApplication.Server.Tests.csproj --no-build --verbosity normal
+
+  client:
+    name: Client (build & lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dartsstatsapplication.client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: dartsstatsapplication.client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
