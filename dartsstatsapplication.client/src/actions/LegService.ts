@@ -40,7 +40,6 @@ export async function completeLeg() {
     finishDarts: matchDataStore.selectedLeg?.finishDarts ?? 0
   }
 
-  alert('Completing leg with result: ' + JSON.stringify(result))
   try {
     const response = await fetch(
       `http://localhost:5001/api/Leg/${legId}/complete`,

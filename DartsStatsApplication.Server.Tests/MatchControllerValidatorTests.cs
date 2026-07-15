@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
 using Xunit;

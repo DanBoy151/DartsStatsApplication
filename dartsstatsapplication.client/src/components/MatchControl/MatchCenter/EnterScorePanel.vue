@@ -19,8 +19,7 @@
   import { ref, computed, onMounted } from 'vue';
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import DoublesFinishControl from './DoublesFinishControl.vue'
-  import { completeLeg } from '@/actions/LegService';
-
+  
   const emit = defineEmits<{
     (e: 'legComplete'): void
   }>()
@@ -63,7 +62,6 @@
     doubleFinishResult.value = result
     showDartsDoublePopup.value = false
 
-    //Need to verify this works
     matchDataStore.completeSelectedLeg('Win', Number(doubleFinishResult.value))
 
     emit('legComplete')

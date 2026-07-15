@@ -26,7 +26,7 @@
 
   const remainingScore = computed(() => matchDataStore.getSelectedLeg()?.remainingScore ?? 0)
   
-  const emit = defineEmits(['start-match', 'finish-game', 'finish-leg', 'back-match', 'cancel-match'])
+  const emit = defineEmits(['start-match', 'finish-leg', 'back-match', 'cancel-match'])
   const props = defineProps<{
     gameType: string
     disabled?: boolean
@@ -93,11 +93,6 @@
 
   function finish() {
     finishLeg()
-    finishMatch()
-  }
-
-  function finishMatch() {
-    emit('finish-game')
   }
 
   function finishLeg() {

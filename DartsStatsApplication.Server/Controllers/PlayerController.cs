@@ -68,17 +68,24 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                var Id = Guid.NewGuid();
-                Player player = new Player
+                try
                 {
-                    Id = Id,
-                    data = data,
-                };
+                    var Id = Guid.NewGuid();
+                    Player player = new Player
+                    {
+                        Id = Id,
+                        data = data,
+                    };
 
-                session.Store(player);
-                await session.SaveChangesAsync();
+                    session.Store(player);
+                    await session.SaveChangesAsync();
 
-                return CreatedAtAction(nameof(GetPlayer), new { id = Id }, player);
+                    return CreatedAtAction(nameof(GetPlayer), new { id = Id }, player);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
             }
         }
 

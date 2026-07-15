@@ -10,8 +10,10 @@ namespace DartsStatsApplication.Server.Controllers.Models
         public Location location { get; set; }
         public Guid? playerOfMatch { get; set; }
         public MatchResult? result { get; set; }
-
         public List<Guid>? availablePlayers { get; set; }
+        public int gamesFor { get; set; }
+        public int gamesAgainst { get; set; }
+
     }
 
     public class CompleteMatchData

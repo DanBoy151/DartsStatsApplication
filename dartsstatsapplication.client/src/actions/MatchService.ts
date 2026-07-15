@@ -1,6 +1,5 @@
 import type { Match } from "@/models/MatchModel"
 import { useMatchDataStore } from "@/stores/matchDataStore"
-import type { Player } from "@/models/PlayerModel"
 import type { Game } from "@/models/GameModel"
 import { convertToGameListFromGameDataStateList } from "@/models/GameModel" 
 
@@ -17,7 +16,8 @@ async function setData(data: any): Promise<Match> {
       ? data.data.availablePlayers
       : [],
     status: data.data?.status ?? '',
-    // Add other properties as needed based on your Match type
+    gamesFor: data.data?.gamesFor ?? 0,
+    gamesAgainst: data.data?.gamesAgainst ?? 0,
   }
 
   matchDataStore.setMatchData(
@@ -26,7 +26,9 @@ async function setData(data: any): Promise<Match> {
     match.date,
     match.location,
     match.availablePlayers,
-    match.status
+    match.status,
+    match.gamesFor,
+    match.gamesAgainst
   )
 
   return match
@@ -44,6 +46,8 @@ export async function getNextMatch(): Promise<Match | null> {
       date: existingMatch.date ?? '',
       availablePlayers: existingMatch.availablePlayers ?? [],
       status: existingMatch.status ?? '',
+      gamesFor: existingMatch.gamesFor ?? 0,
+      gamesAgainst: existingMatch.gamesAgainst ?? 0,
     }
     return mappedMatch
   }
@@ -157,4 +161,21 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
     console.error(err.message || 'Error fetching match games')
     return null
   }
+}
+
+export async function updateMatchScore(result: boolean) {
+  const matchDataStore = useMatchDataStore()
+  const matchId = matchDataStore.match?.matchId
+
+  try {
+    const response = await fetch(`http://localhost:5001/api/Match/${matchId}/update-match-score?result=${result}`, { method: 'PUT' })
+    if (!response.ok) throw new Error('Failed to update Match:')
+
+    const data = await response.json()
+    await setData(data)
+
+  } catch (err) {
+    console.error('Error calling update Match API:', err)
+  }
+
 }

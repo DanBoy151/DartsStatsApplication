@@ -9,6 +9,8 @@ export interface MatchDataState {
   availablePlayers: string[]
   games: GameDataState[]
   status: string | null
+  gamesFor: number
+  gamesAgainst: number
 }
 
 export interface MatchAvailablePlayers {
@@ -55,7 +57,7 @@ export const useMatchDataStore = defineStore('leg', {
     getMemoryDateTime() {
       return this.memDateTime
     },
-    setMatchData(matchID: string, opposition: string, date: Date, location: string, availablePlayers: string[], status: string) {
+    setMatchData(matchID: string, opposition: string, date: Date, location: string, availablePlayers: string[], status: string, gamesFor: number, gamesAgainst: number) {
       this.match = {
         matchId: matchID,
         opposition: opposition,
@@ -64,6 +66,8 @@ export const useMatchDataStore = defineStore('leg', {
         availablePlayers: availablePlayers,
         games: [],
         status: status,
+        gamesFor: gamesFor,
+        gamesAgainst: gamesAgainst
       }
       this.setMemoryDateTime()
     },
@@ -214,8 +218,6 @@ export const useMatchDataStore = defineStore('leg', {
       }
     },
     completeSelectedLeg(result: string, finishDarts: number) {
-      alert(result)
-      alert(finishDarts)
       if (this.selectedLeg) {
         this.selectedLeg.result = result;
         this.selectedLeg.finishDarts = finishDarts;

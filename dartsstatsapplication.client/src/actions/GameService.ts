@@ -112,7 +112,7 @@ export async function fetchLegs() {
   }
 }
 
-export async function completeGame() {
+export async function completeGame(result: string) {
   const matchDataStore = useMatchDataStore()
   const gameId = matchDataStore.selectedGame?.gameId
 
@@ -125,10 +125,20 @@ export async function completeGame() {
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ result: matchDataStore.selectedGame?.result })
+        body: JSON.stringify({ result: result })
       }
     )
     if (!response.ok) throw new Error('Unable to complete Game')
+
+    const data = await response.json()
+    matchDataStore.setGameData(
+      data.id ?? '',
+      data.data?.playerIds ?? [],
+      data.data?.type ?? '',
+      data.data?.status ?? '',
+      data.data?.result ?? '',
+      data.data?.wonBull ?? false,
+      data.data.order ?? 0)
 
   } catch (err: any) {
     console.error(err.message || 'Error updating Game Record')

@@ -68,17 +68,24 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                var Id = Guid.NewGuid();
-                Game Game = new Game
+                try
                 {
-                    Id = Id,
-                    data = data,
-                };
+                    var Id = Guid.NewGuid();
+                    Game Game = new Game
+                    {
+                        Id = Id,
+                        data = data,
+                    };
 
-                session.Store(Game);
-                await session.SaveChangesAsync();
+                    session.Store(Game);
+                    await session.SaveChangesAsync();
+                    return CreatedAtAction(nameof(GetGame), new { id = Id }, Game);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
 
-                return CreatedAtAction(nameof(GetGame), new { id = Id }, Game);
             }
         }
 
@@ -93,18 +100,24 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                var Game = await session.LoadAsync<Game>(Id);
-                if (Game == null)
+                try
                 {
-                    return NotFound();
+                    var Game = await session.LoadAsync<Game>(Id);
+                    if (Game == null)
+                    {
+                        return NotFound();
+                    }
+
+                    GameService service = new GameService(session, Game);
+                    service.CompleteGame(data);
+
+                    await session.SaveChangesAsync();
+                    return Ok(Game);
                 }
-
-                GameService service = new GameService(session, Game);
-                service.CompleteGame(data);
-
-                await session.SaveChangesAsync();
-
-                return Ok(Game);
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
             }
         }
 
@@ -119,18 +132,24 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                var game = await session.LoadAsync<Game>(Id);
-                if (game == null)
+                try
                 {
-                    return NotFound();
+                    var game = await session.LoadAsync<Game>(Id);
+                    if (game == null)
+                    {
+                        return NotFound();
+                    }
+
+                    GameService service = new GameService(session, game);
+                    service.StartGame(wonBull);
+
+                    await session.SaveChangesAsync();
+                    return Ok(game);
                 }
-
-                GameService service = new GameService(session, game);
-                service.StartGame(wonBull);
-
-                await session.SaveChangesAsync();
-
-                return Ok(game);
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
             }
         }
 
@@ -145,14 +164,14 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                var game = await session.LoadAsync<Game>(Id);
-                if (game == null)
-                {
-                    return NotFound();
-                }
-
                 try
                 {
+                    var game = await session.LoadAsync<Game>(Id);
+                    if (game == null)
+                    {
+                        return NotFound();
+                    }
+
                     GameService service = new GameService(session, game);
                     service.UpdateAvailablePlayers(data.selectedPlayers);
 

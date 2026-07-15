@@ -78,5 +78,20 @@ namespace DartsStatsApplication.Server.Services
             _match.data.status = MatchStatus.InProgress;
             _documentSession.Store(_match);
         }
+
+
+        public void UpdateMatchScore(Boolean result)
+        {
+            if (result == true)
+            {
+                _match.data.gamesFor++;
+            }
+            else
+            {
+                _match.data.gamesAgainst++;
+            }
+
+                _documentSession.Store(_match);
+        }
     }
 }

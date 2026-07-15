@@ -7,6 +7,8 @@ export interface Match {
   opponent: string;
   availablePlayers: string[];
   status: string;
+  gamesFor: number,
+  gamesAgainst: number
 }
 
 export function convertToMatchFromMatchDataState(matchDataState: MatchDataState | null): Match | null {
@@ -19,5 +21,7 @@ export function convertToMatchFromMatchDataState(matchDataState: MatchDataState 
     opponent: matchDataState.opposition,
     availablePlayers: matchDataState.availablePlayers,
     status: matchDataState.status ?? '',
+    gamesFor: matchDataState.gamesFor ?? 0,
+    gamesAgainst: matchDataState.gamesAgainst ?? 0
   };
 }
