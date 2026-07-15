@@ -93,7 +93,10 @@ export async function fetchLegs() {
       legId: g.id,
       gameId: g.data?.gameID || '',
       status: g.data?.status || 'Unknown',
-      score: g.data?.score || {},
+      score: Object.entries(g.data?.score || {}).map(([playerId, score]) => ({
+        playerId,
+        score: Number(score)
+      })),
       result: g.data?.result || 'N/A',
       finishDarts: g.data?.finishDarts || 0,
       order: g.data?.order || 0,
@@ -101,11 +104,7 @@ export async function fetchLegs() {
     })) || []
 
     legs.forEach(leg => {
-      // Convert score object to array
-      const scoreArray = Object.entries(leg.score || {}).map(([playerId, score]) => ({
-        playerId,
-        score: Number(score)
-      }));
+      const scoreArray = leg.score;
 
       matchDataStore.setLegData(
         leg.gameId,

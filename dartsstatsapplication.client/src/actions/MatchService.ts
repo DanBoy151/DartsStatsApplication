@@ -35,7 +35,7 @@ async function setData(data: RawMatchData): Promise<Match> {
     id: data.id ?? '',
     opponent: data.data?.opponent ?? 'Unknown',
     location: data.data?.location ?? '',
-    date: data.data?.date ?? '',
+    date: new Date(data.data?.date ?? ''),
     availablePlayers: Array.isArray(data.data?.availablePlayers)
       ? data.data.availablePlayers
       : [],

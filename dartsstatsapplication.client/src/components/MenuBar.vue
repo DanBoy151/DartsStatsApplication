@@ -44,11 +44,13 @@
       };
     },
     methods: {
-      openDropdown(index) {
-        this.menuItems[index].open = true;
+      openDropdown(index: number) {
+        const item = this.menuItems[index];
+        if (item) item.open = true;
       },
-      closeDropdown(index) {
-        this.menuItems[index].open = false;
+      closeDropdown(index: number) {
+        const item = this.menuItems[index];
+        if (item) item.open = false;
       },
     },
   };

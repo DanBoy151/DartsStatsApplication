@@ -38,7 +38,7 @@
 
   const scoreValue = ref('');
   const error = ref('');
-  const doubleFinishResult = ref(null)
+  const doubleFinishResult = ref<number | null>(null)
 
   function validateScore(value: string): boolean {
     // Only allow integers between 0 and 180
