@@ -176,7 +176,7 @@ namespace DartsStatsApplication.Server.Controllers
         {
             using (var session = _documentStore.QuerySession())
             {
-                var game = session.Query<Game>().Where(x => x.Id == id).FirstOrDefault();
+                var game = await session.Query<Game>().Where(x => x.Id == id).FirstOrDefaultAsync();
 
                 if (game == null)
                 {

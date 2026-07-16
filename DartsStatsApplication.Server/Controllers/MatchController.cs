@@ -77,11 +77,11 @@ namespace DartsStatsApplication.Server.Controllers
         {
             using (var session = _documentStore.QuerySession())
             {
-                var match = session.Query<Match>().Where(x => x.data.status == MatchStatus.InProgress || x.data.status == MatchStatus.Ready).FirstOrDefault();
+                var match = await session.Query<Match>().Where(x => x.data.status == MatchStatus.InProgress || x.data.status == MatchStatus.Ready).FirstOrDefaultAsync();
 
                 if (match == null)
                 {
-                    match = session.Query<Match>().Where(x => x.data.status == MatchStatus.Scheduled).OrderBy(x=> x.data.date).First();
+                    match = await session.Query<Match>().Where(x => x.data.status == MatchStatus.Scheduled).OrderBy(x=> x.data.date).FirstOrDefaultAsync();
 
                 }
 
@@ -104,7 +104,7 @@ namespace DartsStatsApplication.Server.Controllers
         {
             using (var session = _documentStore.QuerySession())
             {
-                var match = session.Query<Match>().Where(x => x.Id == id).FirstOrDefault();
+                var match = await session.Query<Match>().Where(x => x.Id == id).FirstOrDefaultAsync();
 
                 if (match == null)
                 {
