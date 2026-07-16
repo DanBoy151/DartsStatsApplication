@@ -24,14 +24,23 @@ namespace DartsStatsApplication.Server.Controllers
         /// <summary>
         /// Get a List of All Players
         /// </summary>
+        /// <param name="skip">Number of results to skip (default 0).</param>
+        /// <param name="take">Number of results to return (default 100, capped at 500).</param>
         /// <returns></returns>
         // GET: api/<PlayerController>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Player>>> GetAllPlayers()
+        public async Task<ActionResult<IEnumerable<Player>>> GetAllPlayers(int skip = 0, int take = 100)
         {
+            skip = Math.Max(skip, 0);
+            take = Math.Clamp(take, 1, 500);
+
             using (var session = _documentStore.QuerySession())
             {
-                var allPlayers = await session.Query<Player>().ToListAsync();
+                var allPlayers = await session.Query<Player>()
+                    .OrderBy(p => p.Id)
+                    .Skip(skip)
+                    .Take(take)
+                    .ToListAsync();
                 return Ok(allPlayers);
             }
 

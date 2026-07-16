@@ -10,7 +10,11 @@
           {{ item.label }}
         </button>
         <ul v-if="item.dropdown && item.open" class="dropdown-list">
-          <li v-for="option in item.dropdown" :key="option" class="dropdown-item">
+          <li v-for="option in item.dropdown"
+              :key="option"
+              class="dropdown-item dropdown-item--disabled"
+              title="Coming soon"
+              aria-disabled="true">
             {{ option }}
           </li>
         </ul>
@@ -20,6 +24,13 @@
 </template>
 
 <script lang="ts">
+  // The dropdown items below (Fixtures, History, Team/Player/Match stats, New
+  // Player, New Match) don't have pages or routes behind them yet -- there's no
+  // vue-router wired up (see main.ts) and no corresponding components. They're
+  // kept visible as a roadmap of what's planned, but rendered disabled so the
+  // UI doesn't imply you can click through to something that doesn't exist
+  // yet. Once routing lands, drop the `dropdown-item--disabled` class (and the
+  // title/aria-disabled attributes) from whichever items get real pages.
   export default {
     name: 'MenuBar',
     data() {
@@ -117,6 +128,15 @@
 
     .dropdown-item:hover {
       background: #3d566e;
+    }
+
+  .dropdown-item--disabled {
+    color: #93a1ac;
+    cursor: not-allowed;
+  }
+
+    .dropdown-item--disabled:hover {
+      background: transparent;
     }
 
   @media (max-width: 600px) {

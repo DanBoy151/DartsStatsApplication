@@ -25,14 +25,23 @@ namespace DartsStatsApplication.Server.Controllers
         /// <summary>
         /// Get a List and Details of All Matches
         /// </summary>
+        /// <param name="skip">Number of results to skip (default 0).</param>
+        /// <param name="take">Number of results to return (default 100, capped at 500).</param>
         /// <returns></returns>
         // GET: api/<MatchController>
         [HttpGet("matches")]
-        public async Task<ActionResult<IEnumerable<Match>>> GetAllMatches()
+        public async Task<ActionResult<IEnumerable<Match>>> GetAllMatches(int skip = 0, int take = 100)
         {
+            skip = Math.Max(skip, 0);
+            take = Math.Clamp(take, 1, 500);
+
             using (var session = _documentStore.QuerySession())
             {
-                var allMatches = await session.Query<Match>().ToListAsync();
+                var allMatches = await session.Query<Match>()
+                    .OrderBy(m => m.Id)
+                    .Skip(skip)
+                    .Take(take)
+                    .ToListAsync();
                 return Ok(allMatches);
             }
 
