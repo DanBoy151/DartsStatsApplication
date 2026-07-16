@@ -1,3 +1,4 @@
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using Marten;
 
@@ -40,7 +41,7 @@ namespace DartsStatsApplication.Server.Services.Validators
             //Validate that only no other In Progress Matches Exist
             var inProgMatch = _documentSession.Query<Match>().Where(q => q.data.status == MatchStatus.InProgress).FirstOrDefault();
             if (inProgMatch != null) {
-                throw new Exception("Unable to start Match as existing In Progress Match Exists");
+                throw new ValidationException("Unable to start Match as existing In Progress Match Exists");
             }
         }
 
@@ -49,18 +50,18 @@ namespace DartsStatsApplication.Server.Services.Validators
             //Validate that we are attaching available players to an In Progress Match
             if (_match.data.status != MatchStatus.Ready && _match.data.status != MatchStatus.InProgress)
             {
-                throw new Exception("Unable to add players to a match that is not Ready");
+                throw new ValidationException("Unable to add players to a match that is not Ready");
             }
 
             //Validate that a list of available players has been passed in
             if (_match.data.availablePlayers == null || _match.data.availablePlayers.Count == 0) {
-                throw new Exception("No Players Selected");
+                throw new ValidationException("No Players Selected");
             }
 
             //Validate that there are enough players selected to play a match >5
             if (_match.data.availablePlayers.Count < 5)
             {
-                throw new Exception("Not Enough Players Selected");
+                throw new ValidationException("Not Enough Players Selected");
             }
 
             //Validate that each of the players actually exist
@@ -69,7 +70,7 @@ namespace DartsStatsApplication.Server.Services.Validators
                 var player = _documentSession.Query<Player>().Where(p => p.Id == id).First();
                 if (player == null)
                 {
-                    throw new Exception("Player doesnt exist");
+                    throw new ValidationException("Player doesnt exist");
                 }
             }
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
 using Xunit;
@@ -65,7 +66,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var game = CreateGame(GameType.Singles, GameStatus.Pending, Players(playerCount));
             var validator = new GameControllerValidator(game, null!);
 
-            Assert.Throws<Exception>(() => validator.ValidateSelectedPlayers());
+            Assert.Throws<ValidationException>(() => validator.ValidateSelectedPlayers());
         }
 
         [Fact]
@@ -87,7 +88,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var game = CreateGame(GameType.Doubles, GameStatus.Pending, Players(playerCount));
             var validator = new GameControllerValidator(game, null!);
 
-            Assert.Throws<Exception>(() => validator.ValidateSelectedPlayers());
+            Assert.Throws<ValidationException>(() => validator.ValidateSelectedPlayers());
         }
 
         [Fact]
@@ -109,7 +110,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var game = CreateGame(GameType.Trebles, GameStatus.Pending, Players(playerCount));
             var validator = new GameControllerValidator(game, null!);
 
-            Assert.Throws<Exception>(() => validator.ValidateSelectedPlayers());
+            Assert.Throws<ValidationException>(() => validator.ValidateSelectedPlayers());
         }
 
         [Theory]
@@ -123,7 +124,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var game = CreateGame(GameType.Singles, status, Players(1));
             var validator = new GameControllerValidator(game, null!);
 
-            Assert.Throws<Exception>(() => validator.ValidateSelectedPlayers());
+            Assert.Throws<ValidationException>(() => validator.ValidateSelectedPlayers());
         }
     }
 }

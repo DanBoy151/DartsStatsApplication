@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
 using Xunit;
@@ -77,7 +78,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var game = CreateGame(GameType.Singles, status, Players(1));
             var validator = new GameControllerValidator(game, null!);
 
-            Assert.Throws<Exception>(() => validator.IsValidToStartGame());
+            Assert.Throws<ValidationException>(() => validator.IsValidToStartGame());
         }
 
         [Fact]
@@ -86,7 +87,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var game = CreateGame(GameType.Trebles, GameStatus.Ready, Players(2)); // needs 3
             var validator = new GameControllerValidator(game, null!);
 
-            Assert.Throws<Exception>(() => validator.IsValidToStartGame());
+            Assert.Throws<ValidationException>(() => validator.IsValidToStartGame());
         }
 
         // ---- IsValidToCompleteGame ----
@@ -101,7 +102,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new GameControllerValidator(game, null!);
             var legs = new List<Leg> { MakeLeg(LegStatus.Completed, LegResult.Win) };
 
-            Assert.Throws<Exception>(() =>
+            Assert.Throws<ValidationException>(() =>
                 validator.IsValidToCompleteGame(legs, new CompleteGameData { result = GameResult.Win }));
         }
 
@@ -111,7 +112,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var game = CreateGame(GameType.Singles, GameStatus.InProgress, Players(1));
             var validator = new GameControllerValidator(game, null!);
 
-            Assert.Throws<Exception>(() =>
+            Assert.Throws<ValidationException>(() =>
                 validator.IsValidToCompleteGame(new List<Leg>(), new CompleteGameData { result = GameResult.Win }));
         }
 
@@ -126,7 +127,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
                 MakeLeg(LegStatus.Started, null) // still in progress
             };
 
-            Assert.Throws<Exception>(() =>
+            Assert.Throws<ValidationException>(() =>
                 validator.IsValidToCompleteGame(legs, new CompleteGameData { result = GameResult.Win }));
         }
 
@@ -161,7 +162,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             };
 
             // Majority is Win, but the submitted result says Loss.
-            Assert.Throws<Exception>(() =>
+            Assert.Throws<ValidationException>(() =>
                 validator.IsValidToCompleteGame(legs, new CompleteGameData { result = GameResult.Loss }));
         }
 

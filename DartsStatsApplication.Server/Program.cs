@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Middleware;
 using Marten;
 using NSwag;
@@ -15,6 +16,12 @@ builder.Services.AddControllers().AddJsonOptions(opts =>
 {
     opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
+
+// Centralized exception handling: replaces the per-action
+// catch (Exception ex) { return BadRequest(ex.Message); } blocks. See
+// Exceptions/ApiExceptionHandler.cs.
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 
 builder.Services.AddMarten(opts =>
@@ -48,6 +55,10 @@ app.MapOpenApi();
 app.UseOpenApi(); //http://localhost:<port>/swagger/v1/swagger.json
 app.UseSwaggerUi(); //http://localhost:<port>/swagger
 //}
+
+// Must run early so it can catch exceptions from everything downstream (CORS,
+// the API key gate, controllers, etc.). See Exceptions/ApiExceptionHandler.cs.
+app.UseExceptionHandler();
 
 // Allowed origins come from config (Cors:AllowedOrigins) so dev/docker/prod can
 // each declare their own without touching code. Falls back to the dev client

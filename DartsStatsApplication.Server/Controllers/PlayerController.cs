@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Marten;
 using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
@@ -68,24 +68,17 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var Id = Guid.NewGuid();
+                Player player = new Player
                 {
-                    var Id = Guid.NewGuid();
-                    Player player = new Player
-                    {
-                        Id = Id,
-                        data = data,
-                    };
+                    Id = Id,
+                    data = data,
+                };
 
-                    session.Store(player);
-                    await session.SaveChangesAsync();
+                session.Store(player);
+                await session.SaveChangesAsync();
 
-                    return CreatedAtAction(nameof(GetPlayer), new { id = Id }, player);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+                return CreatedAtAction(nameof(GetPlayer), new { id = Id }, player);
             }
         }
 

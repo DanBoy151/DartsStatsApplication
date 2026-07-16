@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Marten;
 using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
@@ -125,23 +125,16 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var Id = Guid.NewGuid();
+                Match match = new Match
                 {
-                    var Id = Guid.NewGuid();
-                    Match match = new Match
-                    {
-                        Id = Id,
-                        data = data,
-                    };
+                    Id = Id,
+                    data = data,
+                };
 
-                    session.Store(match);
-                    await session.SaveChangesAsync();
-                    return CreatedAtAction(nameof(GetMatch), new { id = Id }, match);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+                session.Store(match);
+                await session.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetMatch), new { id = Id }, match);
             }
         }
 
@@ -162,22 +155,9 @@ namespace DartsStatsApplication.Server.Controllers
                     return NotFound();
                 }
 
-                match.data.status = MatchStatus.Completed;
-                match.data.playerOfMatch = data.playerOfMatch;
+                MatchService service = new MatchService(session, match);
+                service.CompleteMatch(data.playerOfMatch);
 
-                // Load the match's games so the validator can stay a pure function over them.
-                var games = session.Query<Game>()
-                    .Where(g => g.data.matchId == match.Id)
-                    .ToList();
-
-                MatchControllerValidator validator = new MatchControllerValidator(match, session);
-                string err = validator.IsValidToCompleteMatch(games);
-                if (err != string.Empty)
-                {
-                    return BadRequest(err);
-                }
-
-                session.Store(match);
                 await session.SaveChangesAsync();
 
                 return Ok(match);
@@ -202,20 +182,13 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 MatchService service = new MatchService(session, match);
-                try
+                if (match.data.status == MatchStatus.Scheduled)
                 {
-                    if (match.data.status == MatchStatus.Scheduled)
-                    {
-                        service.StartMatch();
-                        await session.SaveChangesAsync();
-                    }
+                    service.StartMatch();
+                    await session.SaveChangesAsync();
+                }
 
-                    return Ok(match);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+                return Ok(match);
             }
         }
 
@@ -235,20 +208,13 @@ namespace DartsStatsApplication.Server.Controllers
                 {
                     return NotFound();
                 }
-                
-                try
-                {
-                    MatchService service = new MatchService(session, match);
-                    service.UpdateAvailablePlayers(data.availablePlayers);
 
-                    await session.SaveChangesAsync();
+                MatchService service = new MatchService(session, match);
+                service.UpdateAvailablePlayers(data.availablePlayers);
 
-                    return Ok(match);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+                await session.SaveChangesAsync();
+
+                return Ok(match);
             }
         }
 
@@ -269,19 +235,12 @@ namespace DartsStatsApplication.Server.Controllers
                     return NotFound();
                 }
 
-                try
-                {
-                    MatchService service = new MatchService(session, match);
-                    service.UpdateMatchScore(result);
+                MatchService service = new MatchService(session, match);
+                service.UpdateMatchScore(result);
 
-                    await session.SaveChangesAsync();
+                await session.SaveChangesAsync();
 
-                    return Ok(match);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+                return Ok(match);
             }
         }
 

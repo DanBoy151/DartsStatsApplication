@@ -1,4 +1,5 @@
-﻿using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
 using Marten;
@@ -92,6 +93,30 @@ namespace DartsStatsApplication.Server.Services
             }
 
                 _documentSession.Store(_match);
+        }
+
+        /// <summary>
+        /// Complete the match: marks it Completed, records the player of the match, and
+        /// validates via MatchControllerValidator (the match's games are loaded here so the
+        /// validator can stay a pure function over them). Throws ValidationException if the
+        /// match isn't eligible to be completed yet.
+        /// </summary>
+        public void CompleteMatch(Guid playerOfMatch)
+        {
+            _match.data.status = MatchStatus.Completed;
+            _match.data.playerOfMatch = playerOfMatch;
+
+            var games = _documentSession.Query<Game>()
+                .Where(g => g.data.matchId == _match.Id)
+                .ToList();
+
+            string err = _validator.IsValidToCompleteMatch(games);
+            if (err != string.Empty)
+            {
+                throw new ValidationException(err);
+            }
+
+            _documentSession.Store(_match);
         }
     }
 }

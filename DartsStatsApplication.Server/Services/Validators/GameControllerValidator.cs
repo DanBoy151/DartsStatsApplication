@@ -1,4 +1,5 @@
 using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using Marten;
 
@@ -25,7 +26,7 @@ namespace DartsStatsApplication.Server.Services.Validators
                 GameType.Singles => 1,
                 GameType.Doubles => 2,
                 GameType.Trebles => 3,
-                _ => throw new Exception("Invalid Game Type")
+                _ => throw new ValidationException("Invalid Game Type")
             };
         }
 
@@ -39,18 +40,18 @@ namespace DartsStatsApplication.Server.Services.Validators
             // The game must be in progress to be completed.
             if (_game.data.status != GameStatus.InProgress)
             {
-                throw new Exception("Unable to complete a Game that is not In Progress");
+                throw new ValidationException("Unable to complete a Game that is not In Progress");
             }
 
             // There must be legs, and every one of them must be completed.
             if (legs == null || legs.Count == 0)
             {
-                throw new Exception("Unable to complete a Game that has no Legs");
+                throw new ValidationException("Unable to complete a Game that has no Legs");
             }
 
             if (legs.Any(l => l.data.status != LegStatus.Completed))
             {
-                throw new Exception("Unable to complete a Game while it has Legs that are not Completed");
+                throw new ValidationException("Unable to complete a Game while it has Legs that are not Completed");
             }
 
             // The submitted result must match the leg majority.
@@ -62,7 +63,7 @@ namespace DartsStatsApplication.Server.Services.Validators
 
             if (data.result != expectedResult)
             {
-                throw new Exception(
+                throw new ValidationException(
                     $"Game result '{data.result}' does not match the Leg outcomes (Wins: {legWins}, Losses: {legLosses})");
             }
         }
@@ -75,14 +76,14 @@ namespace DartsStatsApplication.Server.Services.Validators
             // Players must already have been selected (which moves the game to Ready).
             if (_game.data.status != GameStatus.Ready)
             {
-                throw new Exception("Unable to start a Game that is not Ready");
+                throw new ValidationException("Unable to start a Game that is not Ready");
             }
 
             // Re-check the correct number of players is assigned for the game type.
             int requiredPlayers = RequiredPlayers();
             if (_game.data.playerIds == null || _game.data.playerIds.Count != requiredPlayers)
             {
-                throw new Exception(
+                throw new ValidationException(
                     $"Invalid number of players for a {_game.data.type} game. Required: {requiredPlayers}");
             }
         }
@@ -92,7 +93,7 @@ namespace DartsStatsApplication.Server.Services.Validators
             //Is the game in the correct status to update player selection
             if (_game.data.status != GameStatus.Pending)
             {
-                throw new Exception("Unable to add players to a Game that is not Pending");
+                throw new ValidationException("Unable to add players to a Game that is not Pending");
             }
 
             //Has the player been added to a game of the same type within the match (where 6+ players are available)
@@ -103,7 +104,7 @@ namespace DartsStatsApplication.Server.Services.Validators
 
             if(_game.data.playerIds.Count != requiredPlayers)
             {
-                throw new Exception("Invalid number of players selected for a {_game.data.type} game. Required: {requiredPlayers}");
+                throw new ValidationException("Invalid number of players selected for a {_game.data.type} game. Required: {requiredPlayers}");
             }
 
         }

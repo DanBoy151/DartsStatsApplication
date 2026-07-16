@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services;
@@ -69,24 +69,17 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var Id = Guid.NewGuid();
+                Leg Leg = new Leg
                 {
-                    var Id = Guid.NewGuid();
-                    Leg Leg = new Leg
-                    {
-                        Id = Id,
-                        data = data,
-                    };
+                    Id = Id,
+                    data = data,
+                };
 
-                    session.Store(Leg);
-                    await session.SaveChangesAsync();
+                session.Store(Leg);
+                await session.SaveChangesAsync();
 
-                    return CreatedAtAction(nameof(GetLeg), new { id = Id }, Leg);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+                return CreatedAtAction(nameof(GetLeg), new { id = Id }, Leg);
             }
         }
 
@@ -101,25 +94,18 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var existLeg = await session.LoadAsync<Leg>(id);
+                if (existLeg == null)
                 {
-                    var existLeg = await session.LoadAsync<Leg>(id);
-                    if (existLeg == null)
-                    {
-                        return NotFound();
-                    }
-
-                    LegService service = new LegService(session, existLeg);
-                    service.CompleteLeg(leg);
-
-                    await session.SaveChangesAsync();
-
-                    return Ok(leg);
+                    return NotFound();
                 }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+
+                LegService service = new LegService(session, existLeg);
+                service.CompleteLeg(leg);
+
+                await session.SaveChangesAsync();
+
+                return Ok(leg);
             }
         }
 
@@ -134,26 +120,18 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var existLeg = await session.LoadAsync<Leg>(Id);
+                if (existLeg == null)
                 {
-                    var existLeg = await session.LoadAsync<Leg>(Id);
-                    if (existLeg == null)
-                    {
-                        return NotFound();
-                    }
-
-                    LegService service = new LegService(session, existLeg);
-                    service.StartLeg();
-
-                    await session.SaveChangesAsync();
-
-                    return Ok(existLeg);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
+                    return NotFound();
                 }
 
+                LegService service = new LegService(session, existLeg);
+                service.StartLeg();
+
+                await session.SaveChangesAsync();
+
+                return Ok(existLeg);
             }
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
 using Xunit;
@@ -53,7 +54,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(status, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<Exception>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3)));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3)));
         }
 
         [Fact]
@@ -62,7 +63,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<Exception>(() => validator.IsValidToCompleteLeg(Complete(null, 501, 3)));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(null, 501, 3)));
         }
 
         [Fact]
@@ -84,7 +85,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<Exception>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, totalScored, 3)));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, totalScored, 3)));
         }
 
         [Theory]
@@ -96,7 +97,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<Exception>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, finishDarts)));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, finishDarts)));
         }
 
         [Fact]
@@ -117,7 +118,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<Exception>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 501, null)));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 501, null)));
         }
     }
 }

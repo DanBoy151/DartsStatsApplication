@@ -1,4 +1,4 @@
-﻿using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services;
 using DartsStatsApplication.Server.Services.Validators;
@@ -68,24 +68,16 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var Id = Guid.NewGuid();
+                Game Game = new Game
                 {
-                    var Id = Guid.NewGuid();
-                    Game Game = new Game
-                    {
-                        Id = Id,
-                        data = data,
-                    };
+                    Id = Id,
+                    data = data,
+                };
 
-                    session.Store(Game);
-                    await session.SaveChangesAsync();
-                    return CreatedAtAction(nameof(GetGame), new { id = Id }, Game);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
-
+                session.Store(Game);
+                await session.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetGame), new { id = Id }, Game);
             }
         }
 
@@ -100,24 +92,17 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var Game = await session.LoadAsync<Game>(Id);
+                if (Game == null)
                 {
-                    var Game = await session.LoadAsync<Game>(Id);
-                    if (Game == null)
-                    {
-                        return NotFound();
-                    }
-
-                    GameService service = new GameService(session, Game);
-                    service.CompleteGame(data);
-
-                    await session.SaveChangesAsync();
-                    return Ok(Game);
+                    return NotFound();
                 }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+
+                GameService service = new GameService(session, Game);
+                service.CompleteGame(data);
+
+                await session.SaveChangesAsync();
+                return Ok(Game);
             }
         }
 
@@ -132,24 +117,17 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var game = await session.LoadAsync<Game>(Id);
+                if (game == null)
                 {
-                    var game = await session.LoadAsync<Game>(Id);
-                    if (game == null)
-                    {
-                        return NotFound();
-                    }
-
-                    GameService service = new GameService(session, game);
-                    service.StartGame(wonBull);
-
-                    await session.SaveChangesAsync();
-                    return Ok(game);
+                    return NotFound();
                 }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+
+                GameService service = new GameService(session, game);
+                service.StartGame(wonBull);
+
+                await session.SaveChangesAsync();
+                return Ok(game);
             }
         }
 
@@ -164,25 +142,18 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
-                try
+                var game = await session.LoadAsync<Game>(Id);
+                if (game == null)
                 {
-                    var game = await session.LoadAsync<Game>(Id);
-                    if (game == null)
-                    {
-                        return NotFound();
-                    }
-
-                    GameService service = new GameService(session, game);
-                    service.UpdateAvailablePlayers(data.selectedPlayers);
-
-                    await session.SaveChangesAsync();
-
-                    return Ok(game);
+                    return NotFound();
                 }
-                catch (Exception ex)
-                {
-                    return BadRequest(ex.Message);
-                }
+
+                GameService service = new GameService(session, game);
+                service.UpdateAvailablePlayers(data.selectedPlayers);
+
+                await session.SaveChangesAsync();
+
+                return Ok(game);
             }
         }
 
