@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DartsStatsApplication.Server.Middleware;
 using Marten;
 using NSwag;
 
@@ -48,13 +49,27 @@ app.UseOpenApi(); //http://localhost:<port>/swagger/v1/swagger.json
 app.UseSwaggerUi(); //http://localhost:<port>/swagger
 //}
 
+// Allowed origins come from config (Cors:AllowedOrigins) so dev/docker/prod can
+// each declare their own without touching code. Falls back to the dev client
+// origin if nothing is configured, so local runs keep working out of the box.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins is null || allowedOrigins.Length == 0)
+{
+    allowedOrigins = new[] { "http://localhost" };
+}
+
 app.UseCors(policy =>
-    policy.WithOrigins("http://localhost") // Use your actual client port
+    policy.WithOrigins(allowedOrigins)
           .AllowAnyHeader()
           .AllowAnyMethod()
 );
 
 app.UseHttpsRedirection();
+
+// Lightweight API key gate: a no-op until ApiSecurity:ApiKey is configured, so
+// this doesn't change behavior until you actually set one. See
+// Middleware/ApiKeyMiddleware.cs.
+app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseAuthorization();
 

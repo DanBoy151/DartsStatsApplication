@@ -1,6 +1,7 @@
 import { useMatchDataStore } from '@/stores/matchDataStore'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
+const API_KEY = import.meta.env.VITE_API_KEY
 
 /**
  * Thrown when the server responds with a non-2xx status. Carries the path and
@@ -35,7 +36,11 @@ async function handleResponse<T>(path: string, response: Response): Promise<T> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const matchDataStore = useMatchDataStore()
   try {
-    const response = await fetch(`${BASE_URL}${path}`, init)
+    const headers = new Headers(init?.headers)
+    if (API_KEY) {
+      headers.set('X-Api-Key', API_KEY)
+    }
+    const response = await fetch(`${BASE_URL}${path}`, { ...init, headers })
     const result = await handleResponse<T>(path, response)
     matchDataStore.clearError()
     return result

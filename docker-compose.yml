@@ -22,6 +22,8 @@
           - ConnectionStrings__Database=Host=postgresdb;Port=5432;Database=dartsStats;Username=postgres;Password=postgres
           - ASPNETCORE_ENVIRONMENT=Development
           - ASPNETCORE_HTTP_PORTS=8080
+          # Uncomment to require an API key once this is reachable from outside your machine:
+          # - ApiSecurity__ApiKey=change-me
       postgresdb:
         image: postgres:latest
         environment:
