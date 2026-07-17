@@ -49,7 +49,11 @@
   async function onFinishLeg() {
     started.value= false
     //update the leg information within the store and the server
-    completeLeg()
+    // Must await: finishGame() (below) may call completeGame(), and the
+    // server rejects completing a game while any of its legs aren't yet
+    // marked Completed - racing ahead of this PUT resolving meant that
+    // check always failed.
+    await completeLeg()
     matchDataStore.doneWithSelectedLeg()
 
     if (!matchDataStore.selectedGame) return;

@@ -59,13 +59,21 @@ export const useMatchDataStore = defineStore('leg', {
       return this.memDateTime
     },
     setMatchData(matchID: string, opposition: string, date: Date, location: string, availablePlayers: string[], status: string, gamesFor: number, gamesAgainst: number) {
+      // Preserve already-loaded games when this is an update to the SAME
+      // match (e.g. updateMatchScore() after completing a game) - only reset
+      // to empty when switching to a genuinely different match. Otherwise
+      // every call here (including ones mid-match, after games have already
+      // been fetched) wipes the games list back to [], which is what made
+      // GameSummaryPanel go blank right after completing a game.
+      const existingGames = this.match?.matchId === matchID ? this.match.games : []
+
       this.match = {
         matchId: matchID,
         opposition: opposition,
         date: date,
         location: location,
         availablePlayers: availablePlayers,
-        games: [],
+        games: existingGames,
         status: status,
         gamesFor: gamesFor,
         gamesAgainst: gamesAgainst
@@ -160,9 +168,23 @@ export const useMatchDataStore = defineStore('leg', {
       if (!this.match || !this.selectedGame) return;
 
       const existingIndex = this.match.games.findIndex(g => g.gameId === this.selectedGame?.gameId);
-      if (existingIndex !== -1) {
-        // Update existing game
-        this.match.games[existingIndex] = this.selectedGame;
+      const existingGame = existingIndex !== -1 ? this.match.games[existingIndex] : undefined;
+      if (existingGame) {
+        // setGameData() (called after completing the game, via GameService's
+        // completeGame()) already wrote the authoritative status/result into
+        // match.games[existingIndex] - it just can't carry `legs` too, since
+        // that's client-only state the server response doesn't include.
+        // selectedGame is the other way around: it accumulated the real legs
+        // during play, but setGameData() replaces the array entry with a new
+        // object rather than updating selectedGame's reference, so it never
+        // saw that status/result change. Take legs from selectedGame and
+        // everything else from what's already in the array, rather than
+        // blindly overwriting one with the other (which previously reverted
+        // a just-completed game back to its pre-completion status).
+        this.match.games[existingIndex] = {
+          ...existingGame,
+          legs: this.selectedGame.legs,
+        };
       }
       this.selectedGame = null;
     },
@@ -229,17 +251,14 @@ export const useMatchDataStore = defineStore('leg', {
       }
     },
     doneWithSelectedLeg() {
-      if (!this.match || !this.selectedLeg) return;
-
-      const game = this.match.games.find(g => g.gameId === this.selectedLeg?.gameId);
-      if (!game) return;
-
-      const existingIndex = game.legs.findIndex(l => l.legId === this.selectedLeg?.legId);
-
-      if (existingIndex !== -1) {
-        // Update existing leg
-        game.legs[existingIndex] = this.selectedLeg;
-      }
+      // Unlike doneWithSelectedGame(), this doesn't need to merge anything
+      // back into game.legs: setLegData() (called after completing the leg,
+      // via LegService's completeLeg()) already wrote the complete,
+      // authoritative leg - status, score, result, and finishDarts all come
+      // straight from that server response, with no client-only field (like
+      // a game's `legs`) that would be lost by leaving it alone. Overwriting
+      // it here with the stale selectedLeg reference (which never saw that
+      // update) previously reverted a just-completed leg back to Started.
       this.selectedLeg = null;
     },
     setNextPlayerTurn(playerId: string) {

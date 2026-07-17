@@ -135,6 +135,73 @@ until now. See `DartsStatsApplication.Server.Tests/README.md` for where the
 remaining session-querying code that still isn't unit-tested lives, in case
 the same mistake is lurking there too.
 
+### 11. Completing a game left the game summary panel blank
+Reported directly by the user ("completing a game causes a bug where the
+game summary panel ends up blank"). Root cause was in `matchDataStore.ts`:
+`setMatchData()` unconditionally reset `this.match.games` to `[]` on every
+call - including the one `MatchService.ts`'s `updateMatchScore()` makes right
+after `MatchCenter.vue`'s `finishGame()` completes a game, which is exactly
+what wiped the list `GameSummaryPanel.vue` renders. Fixed by only resetting
+`games` when switching to a genuinely different match (`matchId` differs);
+an update for the same match now preserves whatever was already loaded.
+
+While tracing the actual `finishGame()` call sequence to reproduce this,
+found two more bugs in the same store, both from the same pattern as
+#9 - a `doneWithSelected*()` method blindly overwriting an array entry with
+a stale reference instead of the fresh data another action had *just*
+written:
+- `doneWithSelectedGame()` overwrote `match.games[i]` (correctly updated to
+  `Complete`/`Win` moments earlier by `completeGame()`'s `setGameData()`
+  call) with the stale `selectedGame` object, reverting the just-completed
+  game's displayed status back to `InProgress`. Fixed to merge: keep the
+  status/result `setGameData()` already wrote, take only `legs` (which
+  `setGameData()` can't carry - it's client-only state) from `selectedGame`.
+- `doneWithSelectedLeg()` did the same thing to `game.legs[i]` after
+  completing a leg. Unlike the game case there's nothing worth preserving
+  from `selectedLeg` here - `setLegData()`'s fresh data already has
+  everything (status/score/result/finishDarts all come straight from the
+  server response) - so this one is simply not needed and was removed
+  (just clears `selectedLeg` now).
+
+Verified with a full Playwright-driven browser walkthrough against the
+isolated e2e stack (start a match, select a Doubles game, assign players,
+start it, enter throws to check out, confirm the finish, and check the
+summary panel afterwards) - not just a store-level check, since the bug was
+about what actually renders.
+Covered by `dartsstatsapplication.client/src/stores/__tests__/matchDataStore.spec.ts`
+(`setMatchData`, `doneWithSelectedGame`, `doneWithSelectedLeg` describe
+blocks) and by a step in the critical-path E2E test that plays a Doubles
+game through to completion and asserts the panel still shows all 11 games,
+with the completed one showing `Complete`.
+
+### 12. Completing a game could 400 with "Legs that are not Completed"
+Found while verifying #11's fix in a real browser - even after the panel
+stopped going blank, completing a game still failed. `MatchCenter.vue`'s
+`onFinishLeg()` called `completeLeg()` without `await`, so `finishGame()` -
+which calls `completeGame()` and validates every leg is `Completed` - could
+run before the leg's own `PUT /Leg/{id}/complete` had actually persisted
+server-side. Same bug class as #6 (`AvailablePlayersControl.proceed()`).
+Fixed by awaiting it.
+Covered by the same E2E step as #11 - this race is exactly what made that
+step flaky/failing before the fix.
+
+### 13. `LegController.CompleteLeg` returned the wrong object
+Found immediately after fixing #12, which surfaced a *different* 400:
+`"Game result 'Loss' does not match the Leg outcomes (Wins: 1, Losses: 0)"` -
+the server had the leg correctly recorded as a Win, but the client sent
+`Loss`. `LegController.cs`'s `complete` action returned `Ok(leg)` - the
+request DTO (`CompleteLegData`, which only has `score`/`result`/
+`finishDarts`) - instead of `Ok(existLeg)`, the actual updated `Leg`
+document. The client's `completeLeg()` reads `data.data?.gameID` from that
+response to resync the leg into `matchDataStore`'s `game.legs` array; since
+the DTO has no `data.gameID` at all, that call was a silent no-op, so
+`game.legs` never saw the real result. `MatchCenter.vue`'s win/loss tally
+reads `matchDataStore.selectedGame.legs` (not the leg directly), so it
+computed the count from stale, pre-completion data and sent the wrong
+result to `completeGame()`. Fixed by returning `existLeg`.
+Covered by the same E2E step as #11 - this mismatch is what the step caught
+next, after #12 was fixed.
+
 ## Documented, not fixed (out of scope for this change, tracked here)
 
 ### 7. "View Statistics" button does nothing
@@ -143,6 +210,20 @@ button is fully styled and hoverable but has no `@click` handler at all -
 unlike the menu bar's dropdown items, which are explicitly marked
 `disabled`/`title="Coming soon"`. Clicking it does nothing, with no
 affordance telling the user it's not implemented yet.
+
+### 14. A throw entered immediately after starting a game can be silently dropped
+Found while verifying #11 in a real browser. `MatchCenter.vue`'s
+`onStartMatch()` sets `started.value = true` (which clears the score panel's
+`disabled` styling) *before* its async chain - `startGame()` →
+`fetchLegs()` → `setSelectedLeg()` → `startLeg()` - finishes populating
+`matchDataStore.selectedLeg`/`currentPlayer`. The panel looks interactive
+immediately, but `EnterScorePanel.vue`'s `submit()` silently no-ops
+(`if (!matchDataStore.currentPlayer || !matchDataStore.selectedLeg) return`)
+if a throw is entered in that window - no error, the score is just lost.
+Not fixed: a real fix needs `onStartMatch()` to gate the panel's readiness on
+something more specific than `started`, which is a small but genuine
+behavioural change beyond this session's scope. `pages/MatchCenterScreen.ts`'s
+`startGame()` works around it with a fixed wait, documented there.
 
 ## Recommendations (not bugs)
 

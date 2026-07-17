@@ -38,6 +38,8 @@ test.describe.serial('Start next match', () => {
     availablePlayersScreen,
     holdingScreen,
     gameSummaryPanel,
+    selectPlayersGameScreen,
+    matchCenterScreen,
   }) => {
     const { match, players } = seededMatch
 
@@ -120,9 +122,66 @@ test.describe.serial('Start next match', () => {
     })
 
     await test.step('selecting a pending game opens player selection for it', async () => {
-      await gameSummaryPanel.selectGame(0)
-      await expect(page.locator('.select-players-game-control')).toBeVisible()
-      await expect(page.locator('.select-players-game-control .player-list-heading')).toHaveText('Select Players')
+      await gameSummaryPanel.gameBoxByType('Doubles').click()
+      await expect(selectPlayersGameScreen.root).toBeVisible()
+      await expect(selectPlayersGameScreen.heading).toHaveText('Select Players')
+      await expect(selectPlayersGameScreen.playerDropdowns).toHaveCount(2)
+    })
+
+    await test.step('assigning players and saving returns to the holding screen', async () => {
+      await selectPlayersGameScreen.selectPlayer(0, players[0]!.name)
+      await selectPlayersGameScreen.selectPlayer(1, players[1]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+
+      await expect(holdingScreen.root).toBeVisible()
+    })
+
+    await test.step('playing a game through to completion keeps the summary panel populated (BUGS.md #11-13)', async () => {
+      // Regression test for the reported bug: "completing a game causes the
+      // game summary panel to end up blank". Root cause chain, all fixed
+      // together since none of them individually get you to a working
+      // "complete a game" flow:
+      //
+      // #11 matchDataStore.setMatchData() unconditionally reset games to []
+      //     on every call - including the one updateMatchScore() makes right
+      //     after completing a game - which is what actually blanked the
+      //     panel. doneWithSelectedGame()/doneWithSelectedLeg() also each
+      //     independently overwrote the fresh, correct data setGameData()/
+      //     setLegData() had just written with a stale local reference,
+      //     reverting a just-completed game/leg's status.
+      // #12 MatchCenter's onFinishLeg() didn't await completeLeg(), so
+      //     finishGame() could call completeGame() before the leg's PUT had
+      //     actually persisted server-side - "Unable to complete a Game
+      //     while it has Legs that are not Completed".
+      // #13 LegController.CompleteLeg returned the request DTO instead of
+      //     the updated Leg document, so the client's local game.legs never
+      //     saw the real result - MatchCenter's win/loss tally (read from
+      //     game.legs, not the leg the score was entered against) then sent
+      //     the wrong result to completeGame() - "Game result 'Loss' does
+      //     not match the Leg outcomes (Wins: 1, Losses: 0)".
+      await gameSummaryPanel.gameBoxByType('Doubles').click()
+      await expect(matchCenterScreen.root).toBeVisible()
+
+      await matchCenterScreen.startGame()
+
+      // Doubles starts at 601. A single throw is capped at 180 (three darts,
+      // max 60 each), so check out across several realistic throws.
+      for (const throwScore of [180, 180, 180]) {
+        await matchCenterScreen.enterScore(throwScore)
+      }
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('61')
+      await matchCenterScreen.enterScore(61)
+      await matchCenterScreen.finishLeg(2)
+
+      // Doubles is single-leg, so finishing it finishes the game and returns
+      // to the holding screen automatically.
+      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      await expect(page.locator('.error-toast')).not.toBeVisible()
+
+      await expect(gameSummaryPanel.gameBoxes).toHaveCount(11)
+      const completedBox = gameSummaryPanel.gameBoxByType('Doubles')
+      await expect(completedBox).toContainText('Complete')
+      await expect(completedBox).toContainText(`${players[0]!.name}/${players[1]!.name}`)
     })
 
     await test.step('completing a game reaches validation instead of crashing (BUGS.md #10)', async () => {

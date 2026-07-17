@@ -15,4 +15,9 @@ export class SelectPlayersGameScreen {
     this.saveButton = this.root.getByRole('button', { name: 'Save' })
     this.cancelButton = this.root.getByRole('button', { name: 'Cancel' })
   }
+
+  /** Picks a player by name in the dropdown at the given position (0-based). */
+  async selectPlayer(dropdownIndex: number, playerName: string) {
+    await this.playerDropdowns.nth(dropdownIndex).selectOption({ label: playerName })
+  }
 }

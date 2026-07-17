@@ -114,7 +114,7 @@ namespace DartsStatsApplication.Server.Controllers
 
                 await session.SaveChangesAsync();
 
-                return Ok(leg);
+                return Ok(existLeg);
             }
         }
 
