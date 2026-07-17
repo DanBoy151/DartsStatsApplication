@@ -150,6 +150,64 @@ namespace DartsStatsApplication.Server.Controllers
         }
 
         /// <summary>
+        /// Edit a Scheduled match's opponent, date, and location. Only opponent/date/location
+        /// are taken from the request body - status and everything else about the match's
+        /// lifecycle can't be changed through this endpoint.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [HttpPut("{id}")]
+        public async Task<ActionResult<Match>> PutMatch(Guid id, MatchData data)
+        {
+            using (var session = _documentStore.LightweightSession())
+            {
+                var match = await session.LoadAsync<Match>(id);
+                if (match == null)
+                {
+                    return NotFound();
+                }
+
+                MatchControllerValidator.ValidateEditMatch(match, data);
+
+                match.data.opponent = data.opponent.Trim();
+                match.data.date = data.date;
+                match.data.location = data.location;
+
+                session.Store(match);
+                await session.SaveChangesAsync();
+
+                return Ok(match);
+            }
+        }
+
+        /// <summary>
+        /// Delete a Scheduled match. Matches that have progressed past Scheduled can't be
+        /// deleted through this endpoint - that would destroy a record of what was played.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteMatch(Guid id)
+        {
+            using (var session = _documentStore.LightweightSession())
+            {
+                var match = await session.LoadAsync<Match>(id);
+                if (match == null)
+                {
+                    return NotFound();
+                }
+
+                MatchControllerValidator.ValidateCanDeleteMatch(match);
+
+                session.Delete<Match>(id);
+                await session.SaveChangesAsync();
+
+                return NoContent();
+            }
+        }
+
+        /// <summary>
         /// Complete a Match
         /// </summary>
         /// <param name="data"></param>

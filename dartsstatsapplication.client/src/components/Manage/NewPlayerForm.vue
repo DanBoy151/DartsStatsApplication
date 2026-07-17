@@ -1,7 +1,68 @@
 <template>
   <div class="center-content">
-    <div class="new-player-form">
-      <h2 class="form-heading">New Player</h2>
+    <div class="manage-players">
+      <h2 class="form-heading">Players</h2>
+
+      <div class="table-wrap">
+        <div v-if="loadingTable" class="loading-indicator">
+          <span class="spinner"></span>
+        </div>
+        <table v-else class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th class="actions-col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="players.length === 0">
+              <td colspan="2" class="empty-row">No players yet.</td>
+            </tr>
+            <tr v-for="player in players" :key="player.playerId" class="data-row" data-testid="player-row">
+              <td>{{ player.name }}</td>
+              <td class="actions-col">
+                <template v-if="deletingId === player.playerId">
+                  <span class="confirm-text">Delete "{{ player.name }}"?</span>
+                  <button type="button" class="link-btn danger" @click="doDelete(player)" data-testid="player-confirm-delete">
+                    Yes
+                  </button>
+                  <button type="button" class="link-btn" @click="deletingId = null" data-testid="player-cancel-delete">
+                    No
+                  </button>
+                </template>
+                <template v-else>
+                  <button type="button" class="link-btn" @click="startEdit(player)" data-testid="player-edit-btn">
+                    Edit
+                  </button>
+                  <button type="button" class="link-btn danger" @click="deletingId = player.playerId" data-testid="player-delete-btn">
+                    Delete
+                  </button>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="pagination">
+          <button type="button"
+                  class="control-btn back-btn"
+                  :disabled="pageIndex === 0 || loadingTable"
+                  @click="prevPage"
+                  data-testid="player-prev-page">
+            Previous
+          </button>
+          <span class="page-indicator" data-testid="player-page-indicator">Page {{ pageIndex + 1 }}</span>
+          <button type="button"
+                  class="control-btn back-btn"
+                  :disabled="!hasNextPage || loadingTable"
+                  @click="nextPage"
+                  data-testid="player-next-page">
+            Next
+          </button>
+        </div>
+      </div>
+
+      <h3 class="form-subheading">{{ isEditing ? 'Edit Player' : 'Add Player' }}</h3>
 
       <form @submit.prevent="submit" novalidate>
         <label class="field">
@@ -24,7 +85,10 @@
 
         <div class="button-row">
           <button type="submit" class="control-btn" :disabled="submitting" data-testid="new-player-submit">
-            {{ submitting ? 'Adding…' : 'Add Player' }}
+            {{ submitButtonLabel }}
+          </button>
+          <button v-if="isEditing" type="button" class="control-btn back-btn" @click="cancelEdit" data-testid="new-player-cancel-edit">
+            Cancel
           </button>
           <button type="button" class="control-btn back-btn" @click="$emit('done')" data-testid="new-player-done">
             Done
@@ -36,18 +100,75 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
+  import { computed, onMounted, ref } from 'vue'
   import { validatePlayerName } from '@/validation/playerValidation'
-  import { createPlayer } from '@/actions/PlayerService'
+  import { createPlayer, deletePlayer, fetchPlayersPage, updatePlayer } from '@/actions/PlayerService'
+  import { pageAfterDelete } from '@/pagination/page'
+  import type { Player } from '@/models/PlayerModel'
 
   defineEmits<{
     (e: 'done'): void
   }>()
 
+  const players = ref<Player[]>([])
+  const pageIndex = ref(0)
+  const hasNextPage = ref(false)
+  const loadingTable = ref(true)
+  const deletingId = ref<string | null>(null)
+
+  const editingPlayerId = ref<string | null>(null)
+  const isEditing = computed(() => editingPlayerId.value !== null)
+  const submitButtonLabel = computed(() => {
+    if (submitting.value) return isEditing.value ? 'Saving…' : 'Adding…'
+    return isEditing.value ? 'Save Changes' : 'Add Player'
+  })
+
   const name = ref('')
   const fieldError = ref<string | null>(null)
   const successMessage = ref<string | null>(null)
   const submitting = ref(false)
+
+  async function loadPage(index: number) {
+    loadingTable.value = true
+    const page = await fetchPlayersPage(index)
+    players.value = page.items
+    hasNextPage.value = page.hasNextPage
+    pageIndex.value = index
+    loadingTable.value = false
+  }
+
+  function nextPage() {
+    if (hasNextPage.value) loadPage(pageIndex.value + 1)
+  }
+
+  function prevPage() {
+    if (pageIndex.value > 0) loadPage(pageIndex.value - 1)
+  }
+
+  function startEdit(player: Player) {
+    editingPlayerId.value = player.playerId
+    name.value = player.name
+    fieldError.value = null
+    successMessage.value = null
+    deletingId.value = null
+  }
+
+  function cancelEdit() {
+    editingPlayerId.value = null
+    name.value = ''
+    fieldError.value = null
+  }
+
+  async function doDelete(player: Player) {
+    deletingId.value = null
+    const deleted = await deletePlayer(player.playerId)
+    // On failure, apiClient already surfaced why via the global error toast
+    // (most commonly: this player is already on a Match roster or Game).
+    if (deleted) {
+      if (editingPlayerId.value === player.playerId) cancelEdit()
+      await loadPage(pageAfterDelete(pageIndex.value, players.value.length))
+    }
+  }
 
   async function submit() {
     successMessage.value = null
@@ -58,30 +179,43 @@
 
     submitting.value = true
     try {
-      const player = await createPlayer(name.value.trim())
-      // On failure, apiClient already surfaced the reason via the global error
-      // toast (see actions/apiClient.ts) - nothing extra to show here.
-      if (player) {
-        successMessage.value = `"${player.name}" added.`
-        name.value = ''
+      if (isEditing.value) {
+        const player = await updatePlayer(editingPlayerId.value!, name.value.trim())
+        if (player) {
+          successMessage.value = `"${player.name}" saved.`
+          cancelEdit()
+          await loadPage(pageIndex.value)
+        }
+      } else {
+        const player = await createPlayer(name.value.trim())
+        if (player) {
+          successMessage.value = `"${player.name}" added.`
+          name.value = ''
+          await loadPage(0)
+        }
       }
     } finally {
       submitting.value = false
     }
   }
+
+  onMounted(() => {
+    loadPage(0)
+  })
 </script>
 
 <style scoped>
   .center-content {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 60vh;
     width: 100%;
+    padding: 2rem 0;
   }
 
-  .new-player-form {
-    width: 400px;
+  .manage-players {
+    width: 520px;
     max-width: 90vw;
     padding: 2rem;
     padding-bottom: 2.5rem;
@@ -95,6 +229,102 @@
     margin: 0 0 1.5rem 0;
     color: #2c3e50;
     text-align: center;
+  }
+
+  .form-subheading {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin: 2rem 0 1rem 0;
+    color: #2c3e50;
+  }
+
+  .table-wrap {
+    min-height: 4rem;
+  }
+
+  .loading-indicator {
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem 0;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 5px solid #2c3e50;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table th {
+    text-align: left;
+    font-size: 0.85rem;
+    color: #7f8c9a;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #e1e6ea;
+  }
+
+  .data-row td {
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid #eef1f3;
+  }
+
+  .actions-col {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .empty-row {
+    text-align: center;
+    color: #7f8c9a;
+    padding: 1.5rem 0;
+  }
+
+  .confirm-text {
+    font-size: 0.85rem;
+    color: #2c3e50;
+    margin-right: 0.5rem;
+  }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+    .link-btn:hover {
+      text-decoration: underline;
+    }
+
+    .link-btn.danger {
+      color: #e74c3c;
+    }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .page-indicator {
+    font-size: 0.9rem;
+    color: #2c3e50;
   }
 
   .field {
@@ -168,7 +398,7 @@
     color: #fff;
   }
 
-    .back-btn:hover {
+    .back-btn:hover:not(:disabled) {
       background: #555;
     }
 </style>

@@ -38,6 +38,11 @@ async function handleResponse<T>(path: string, response: Response): Promise<T> {
     const detail = await extractProblemDetail(response)
     throw new ApiError(path, response.status, response.statusText, detail)
   }
+  // 204 No Content (e.g. successful DELETEs) has no body - response.json() would
+  // throw trying to parse an empty string as JSON.
+  if (response.status === 204) {
+    return undefined as T
+  }
   return response.json() as Promise<T>
 }
 

@@ -40,11 +40,9 @@ namespace DartsStatsApplication.Server.Services.Validators
         private const int OpponentMaxLength = 200;
 
         /// <summary>
-        /// Validate that a new match can be created. Throws on any rule violation.
-        /// Pure over the submitted data (no existing Match, no session needed), so this is
-        /// static rather than an instance method like the others here.
+        /// Opponent/date checks shared by create and edit. Pure over the submitted data.
         /// </summary>
-        public static void ValidateNewMatch(MatchData data)
+        private static void ValidateOpponentAndDate(MatchData data)
         {
             if (data == null || string.IsNullOrWhiteSpace(data.opponent))
             {
@@ -60,6 +58,16 @@ namespace DartsStatsApplication.Server.Services.Validators
             {
                 throw new ValidationException("Date is required");
             }
+        }
+
+        /// <summary>
+        /// Validate that a new match can be created. Throws on any rule violation.
+        /// Pure over the submitted data (no existing Match, no session needed), so this is
+        /// static rather than an instance method like the others here.
+        /// </summary>
+        public static void ValidateNewMatch(MatchData data)
+        {
+            ValidateOpponentAndDate(data);
 
             // A newly created match hasn't been played yet - reject a client trying to
             // hand-craft one that's already Ready/InProgress/Completed and skip the normal
@@ -67,6 +75,35 @@ namespace DartsStatsApplication.Server.Services.Validators
             if (data.status != MatchStatus.Scheduled)
             {
                 throw new ValidationException("New matches must be created with Scheduled status");
+            }
+        }
+
+        /// <summary>
+        /// Validate that an existing match's opponent/date/location can be edited. Throws on
+        /// any rule violation. Only Scheduled matches are editable - once a match has moved
+        /// on (roster set, played, completed), its record of what actually happened shouldn't
+        /// be rewritten via this endpoint.
+        /// </summary>
+        public static void ValidateEditMatch(Match existingMatch, MatchData data)
+        {
+            if (existingMatch.data.status != MatchStatus.Scheduled)
+            {
+                throw new ValidationException("Unable to edit a Match that is not Scheduled");
+            }
+
+            ValidateOpponentAndDate(data);
+        }
+
+        /// <summary>
+        /// Validate that a match can be deleted. Same Scheduled-only restriction as editing,
+        /// for the same reason - and a Scheduled match never has Games yet (those are only
+        /// created on start), so there's nothing to cascade-delete.
+        /// </summary>
+        public static void ValidateCanDeleteMatch(Match existingMatch)
+        {
+            if (existingMatch.data.status != MatchStatus.Scheduled)
+            {
+                throw new ValidationException("Unable to delete a Match that is not Scheduled");
             }
         }
 

@@ -1,6 +1,7 @@
 import type { Player, RawPlayer } from '@/models/PlayerModel'
 import { useMatchDataStore } from '@/stores/matchDataStore'
 import { apiGet, apiRequest } from '@/actions/apiClient'
+import { skipFor, takeForFetch, splitPage, type Page } from '@/pagination/page'
 
 export async function getPlayers(): Promise<Player[]> {
   const matchDataStore = useMatchDataStore()
@@ -52,5 +53,53 @@ export async function createPlayer(name: string): Promise<Player | null> {
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error creating player')
     return null
+  }
+}
+
+/** Fetches one (0-based) page of players for the player management table. Not cached. */
+export async function fetchPlayersPage(pageIndex: number): Promise<Page<Player>> {
+  try {
+    const data = await apiGet<RawPlayer[]>(`/api/Player?skip=${skipFor(pageIndex)}&take=${takeForFetch()}`)
+    const page = splitPage(data)
+    return {
+      items: page.items.map((p) => ({ playerId: p.id ?? '', name: p.data?.name ?? '' })),
+      hasNextPage: page.hasNextPage,
+    }
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching players')
+    return { items: [], hasNextPage: false }
+  }
+}
+
+export async function updatePlayer(playerId: string, name: string): Promise<Player | null> {
+  try {
+    const data = await apiRequest<RawPlayer>(`/api/Player/${playerId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    })
+
+    return {
+      playerId: data.id ?? playerId,
+      name: data.data?.name ?? name,
+    }
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error updating player')
+    return null
+  }
+}
+
+/**
+ * Delete a player. Returns false (and leaves the usual error toast to explain why) if the
+ * server rejects it - most commonly because the player is already part of a Match roster
+ * or Game.
+ */
+export async function deletePlayer(playerId: string): Promise<boolean> {
+  try {
+    await apiRequest<void>(`/api/Player/${playerId}`, { method: 'DELETE' })
+    return true
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error deleting player')
+    return false
   }
 }

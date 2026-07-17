@@ -10,10 +10,12 @@ Unit test project for the server, covering the `Services/Validators` business-ru
 - `MatchControllerValidatorTests.cs` —
   - `IsValidToCompleteMatch(List<Game>)`: all-games-complete, player-of-the-match participation, and a regression guard for the aggregation bug where the games check used to be overwritten by the player check.
   - `ValidateNewMatch(MatchData)`: opponent required/max length, date required, and that a newly created match must be `Scheduled`.
-- `PlayerControllerValidatorTests.cs` — `PlayerControllerValidator.ValidateNewPlayer(PlayerData)`: name required (including whitespace-only), max length, and that surrounding whitespace doesn't itself fail validation (trimming happens in the controller, after validation).
+  - `ValidateEditMatch(Match, MatchData)`: only a Scheduled match is editable, plus the same opponent/date checks as create.
+  - `ValidateCanDeleteMatch(Match)`: only a Scheduled match can be deleted.
+- `PlayerControllerValidatorTests.cs` — `PlayerControllerValidator.ValidateName(PlayerData)` (shared by create and rename): name required (including whitespace-only), max length, and that surrounding whitespace doesn't itself fail validation (trimming happens in the controller, after validation).
 
-All of the above are unit-testable with a `null` session because the rules were written as pure functions over in-memory data — where a rule needs related records (a game's legs, a match's games), the caller loads them and passes them in. `ValidateNewMatch` and `ValidateNewPlayer` are `static` for the same reason: they validate submitted data directly, with no existing document or session involved at all.
+All of the above are unit-testable with a `null` session because the rules were written as pure functions over in-memory data — where a rule needs related records (a game's legs, a match's games), or an existing document (the match being edited/deleted), the caller loads it and passes it in. `ValidateNewMatch`, `ValidateEditMatch`, `ValidateCanDeleteMatch`, and `ValidateName` are `static` for the same reason: no session involved at all.
 
 ## What's still intentionally not covered
 
-- `MatchControllerValidator.IsValidToStartMatch()` and `ValidateAvailablePlayers()` query `_documentSession` directly, so testing them properly needs a real Marten/Postgres-backed session (e.g. via Testcontainers). Deferred until/unless database-backed integration tests are added. (The end-to-end `PUT /Match/{id}/start` and `PUT /Match/{id}/update-available-players` flows they guard are covered instead by the Playwright suite in `e2e/`, which runs against a real Postgres.)
+- `MatchControllerValidator.IsValidToStartMatch()` and `ValidateAvailablePlayers()`, and `PlayerControllerValidator.ValidateCanDeletePlayer()`, query `_documentSession` directly, so testing them properly needs a real Marten/Postgres-backed session (e.g. via Testcontainers). Deferred until/unless database-backed integration tests are added. (The end-to-end flows they guard - starting a match, setting its roster, deleting a player - are covered instead by the Playwright suite in `e2e/`, which runs against a real Postgres.)

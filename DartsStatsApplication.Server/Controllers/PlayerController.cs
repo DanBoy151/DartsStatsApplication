@@ -75,7 +75,7 @@ namespace DartsStatsApplication.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<Player>> PostPlayer(PlayerData data)
         {
-            PlayerControllerValidator.ValidateNewPlayer(data);
+            PlayerControllerValidator.ValidateName(data);
             data.name = data.name.Trim();
 
             using (var session = _documentStore.LightweightSession())
@@ -91,6 +91,59 @@ namespace DartsStatsApplication.Server.Controllers
                 await session.SaveChangesAsync();
 
                 return CreatedAtAction(nameof(GetPlayer), new { id = Id }, player);
+            }
+        }
+
+        /// <summary>
+        /// Rename an existing player
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [HttpPut("{id}")]
+        public async Task<ActionResult<Player>> PutPlayer(Guid id, PlayerData data)
+        {
+            PlayerControllerValidator.ValidateName(data);
+            data.name = data.name.Trim();
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var player = await session.LoadAsync<Player>(id);
+                if (player == null)
+                {
+                    return NotFound();
+                }
+
+                player.data = data;
+                session.Store(player);
+                await session.SaveChangesAsync();
+
+                return Ok(player);
+            }
+        }
+
+        /// <summary>
+        /// Delete a player, as long as they haven't already been used in a Match or Game
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePlayer(Guid id)
+        {
+            using (var session = _documentStore.LightweightSession())
+            {
+                var player = await session.LoadAsync<Player>(id);
+                if (player == null)
+                {
+                    return NotFound();
+                }
+
+                await PlayerControllerValidator.ValidateCanDeletePlayer(id, session);
+
+                session.Delete<Player>(id);
+                await session.SaveChangesAsync();
+
+                return NoContent();
             }
         }
 

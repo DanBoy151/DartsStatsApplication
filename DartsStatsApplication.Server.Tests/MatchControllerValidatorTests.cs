@@ -187,5 +187,78 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateNewMatch(data));
             Assert.Equal("New matches must be created with Scheduled status", ex.Message);
         }
+
+        private static Match ScheduledMatch()
+        {
+            return new Match { Id = Guid.NewGuid(), data = ValidNewMatchData() };
+        }
+
+        [Fact]
+        public void ValidateEditMatch_ScheduledMatchValidData_DoesNotThrow()
+        {
+            var match = ScheduledMatch();
+
+            var ex = Record.Exception(() => MatchControllerValidator.ValidateEditMatch(match, ValidNewMatchData()));
+
+            Assert.Null(ex);
+        }
+
+        [Theory]
+        [InlineData(MatchStatus.Ready)]
+        [InlineData(MatchStatus.InProgress)]
+        [InlineData(MatchStatus.Completed)]
+        public void ValidateEditMatch_MatchNotScheduled_Throws(MatchStatus status)
+        {
+            var match = ScheduledMatch();
+            match.data.status = status;
+
+            var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateEditMatch(match, ValidNewMatchData()));
+            Assert.Equal("Unable to edit a Match that is not Scheduled", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateEditMatch_BlankOpponent_Throws()
+        {
+            var match = ScheduledMatch();
+            var data = ValidNewMatchData();
+            data.opponent = "";
+
+            var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateEditMatch(match, data));
+            Assert.Equal("Opponent is required", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateEditMatch_DateNotSet_Throws()
+        {
+            var match = ScheduledMatch();
+            var data = ValidNewMatchData();
+            data.date = default;
+
+            var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateEditMatch(match, data));
+            Assert.Equal("Date is required", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateCanDeleteMatch_Scheduled_DoesNotThrow()
+        {
+            var match = ScheduledMatch();
+
+            var ex = Record.Exception(() => MatchControllerValidator.ValidateCanDeleteMatch(match));
+
+            Assert.Null(ex);
+        }
+
+        [Theory]
+        [InlineData(MatchStatus.Ready)]
+        [InlineData(MatchStatus.InProgress)]
+        [InlineData(MatchStatus.Completed)]
+        public void ValidateCanDeleteMatch_NotScheduled_Throws(MatchStatus status)
+        {
+            var match = ScheduledMatch();
+            match.data.status = status;
+
+            var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateCanDeleteMatch(match));
+            Assert.Equal("Unable to delete a Match that is not Scheduled", ex.Message);
+        }
     }
 }

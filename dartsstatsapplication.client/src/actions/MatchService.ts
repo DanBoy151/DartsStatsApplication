@@ -3,11 +3,10 @@ import { useMatchDataStore } from "@/stores/matchDataStore"
 import type { Game, RawGameData } from "@/models/GameModel"
 import { convertToGameListFromGameDataStateList } from "@/models/GameModel"
 import { apiGet, apiRequest, ApiError } from "@/actions/apiClient"
+import { skipFor, takeForFetch, splitPage, type Page } from "@/pagination/page"
 
-async function setData(data: RawMatchData): Promise<Match> {
-  const matchDataStore = useMatchDataStore()
-  // Construct and return a Match object
-  const match: Match = {
+function mapRawMatch(data: RawMatchData): Match {
+  return {
     id: data.id ?? '',
     opponent: data.data?.opponent ?? 'Unknown',
     location: data.data?.location ?? '',
@@ -19,6 +18,11 @@ async function setData(data: RawMatchData): Promise<Match> {
     gamesFor: data.data?.gamesFor ?? 0,
     gamesAgainst: data.data?.gamesAgainst ?? 0,
   }
+}
+
+async function setData(data: RawMatchData): Promise<Match> {
+  const matchDataStore = useMatchDataStore()
+  const match: Match = mapRawMatch(data)
 
   matchDataStore.setMatchData(
     match.id,
@@ -109,6 +113,55 @@ export async function createMatch(input: CreateMatchInput): Promise<CreatedMatch
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error creating match')
     return null
+  }
+}
+
+/** Fetches one (0-based) page of matches for the match management table. Not cached. */
+export async function fetchMatchesPage(pageIndex: number): Promise<Page<Match>> {
+  try {
+    const data = await apiGet<RawMatchData[]>(`/api/Match/matches?skip=${skipFor(pageIndex)}&take=${takeForFetch()}`)
+    const page = splitPage(data)
+    return {
+      items: page.items.map(mapRawMatch),
+      hasNextPage: page.hasNextPage,
+    }
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching matches')
+    return { items: [], hasNextPage: false }
+  }
+}
+
+/** Edit a Scheduled match's opponent/date/location. The server rejects this for any other status. */
+export async function updateMatch(matchId: string, input: CreateMatchInput): Promise<CreatedMatch | null> {
+  try {
+    const data = await apiRequest<RawMatchData>(`/api/Match/${matchId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        opponent: input.opponent,
+        date: input.date,
+        location: input.location,
+      })
+    })
+
+    return { id: data.id ?? matchId, opponent: data.data?.opponent ?? input.opponent }
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error updating match')
+    return null
+  }
+}
+
+/**
+ * Delete a Scheduled match. Returns false (and leaves the usual error toast to explain why)
+ * if the server rejects it - most commonly because the match has moved past Scheduled.
+ */
+export async function deleteMatch(matchId: string): Promise<boolean> {
+  try {
+    await apiRequest<void>(`/api/Match/${matchId}`, { method: 'DELETE' })
+    return true
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error deleting match')
+    return false
   }
 }
 

@@ -41,6 +41,7 @@
   import { ref, defineProps, computed, onMounted, watch } from 'vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { getMatchGames } from "@/actions/MatchService"
+  import { formatDisplayDate } from '@/utils/dateFormat'
   import type { Game } from '@/models/GameModel'
   import { convertToGameListFromGameDataStateList } from '@/models/GameModel'
 
@@ -54,16 +55,7 @@
     disabled?: boolean
   }>()
 
-  const formattedDate = computed(() => {
-    const date = matchDataStore.getMatchData()?.date;
-    if (!date) return '';
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(dateObj.getTime())) return String(date);
-    const day = dateObj.getDate().toString().padStart(2, '0');
-    const month = dateObj.toLocaleString('default', { month: 'long' });
-    const year = dateObj.getFullYear();
-    return `${day} ${month} ${year}`;
-  });
+  const formattedDate = computed(() => formatDisplayDate(matchDataStore.getMatchData()?.date))
 
   const currentScore = computed(() => {
     const match = matchDataStore.getMatchData();
