@@ -184,6 +184,118 @@ test.describe.serial('Start next match', () => {
       await expect(completedBox).toContainText(`${players[0]!.name}/${players[1]!.name}`)
     })
 
+    await test.step('Finish completes a leg as a Loss when clicked before checking out', async () => {
+      // Product requirement: hitting Finish should always complete the leg -
+      // at remaining=0 that's the existing checkout/Win flow (covered
+      // above); at any other remaining score it's a Loss, immediately, no
+      // darts-count prompt.
+      await gameSummaryPanel.gameBoxByType('Trebles').click()
+      await selectPlayersGameScreen.selectPlayer(0, players[0]!.name)
+      await selectPlayersGameScreen.selectPlayer(1, players[1]!.name)
+      await selectPlayersGameScreen.selectPlayer(2, players[2]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+
+      await gameSummaryPanel.gameBoxByType('Trebles').click()
+      await matchCenterScreen.startGame()
+
+      await matchCenterScreen.enterScore(100)
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('601')
+
+      await matchCenterScreen.clickFinish()
+      await expect(matchCenterScreen.doublesFinishDialog).not.toBeVisible()
+
+      // Trebles is single-leg, so a Loss here decides the game too.
+      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      const trebles = gameSummaryPanel.gameBoxByType('Trebles')
+      await expect(trebles).toContainText('Complete')
+    })
+
+    await test.step('a best-of-3 Singles game finishes early once the outcome is mathematically decided', async () => {
+      // Product requirement: with 2 of 3 legs won, the 3rd leg can't change
+      // the outcome - the game should complete without playing it out.
+      await gameSummaryPanel.gameBoxByType('Singles').click()
+      await selectPlayersGameScreen.selectPlayer(0, players[0]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+
+      await gameSummaryPanel.gameBoxByType('Singles').click()
+      await matchCenterScreen.startGame()
+
+      // Leg 1 (Win): checkout across realistic throws (single-throw cap 180).
+      for (const throwScore of [180, 180, 141]) {
+        await matchCenterScreen.enterScore(throwScore)
+      }
+      await matchCenterScreen.finishLeg(3)
+
+      // 1-0: not decided yet (best of 3 needs 2) - still on this game, next
+      // leg already under way at a fresh 501.
+      await expect(matchCenterScreen.root).toBeVisible()
+      await expect(holdingScreen.root).not.toBeVisible()
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('501')
+
+      // Leg 2 (Win): 2-0 now decides it outright - leg 3 is never played.
+      for (const throwScore of [180, 180, 141]) {
+        await matchCenterScreen.enterScore(throwScore)
+      }
+      await matchCenterScreen.finishLeg(3)
+
+      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      const singles = gameSummaryPanel.gameBoxByType('Singles')
+      await expect(singles).toContainText('Complete')
+    })
+
+    await test.step('viewing a Complete game shows its last leg, read-only', async () => {
+      // Reopens the Singles game finished in the previous step.
+      await gameSummaryPanel.gameBoxByType('Singles').click()
+      await expect(matchCenterScreen.root).toBeVisible()
+
+      expect(await matchCenterScreen.isReadonly()).toBe(true)
+      // Leg 2 (the last one actually played - leg 3 stayed Pending) was
+      // checked out, so its final remaining score was 0.
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('0')
+
+      await matchCenterScreen.backButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+    })
+
+    await test.step('viewing an In Progress game resumes on the current leg, not a fresh one', async () => {
+      const secondSingles = gameSummaryPanel.gameBoxByType('Singles', 1)
+      await secondSingles.click()
+      await selectPlayersGameScreen.selectPlayer(0, players[1]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+
+      await gameSummaryPanel.gameBoxByType('Singles', 1).click()
+      await matchCenterScreen.startGame()
+
+      // Win leg 1 (1-0, not decided), then make partial progress into leg 2
+      // and leave without finishing it.
+      for (const throwScore of [180, 180, 141]) {
+        await matchCenterScreen.enterScore(throwScore)
+      }
+      await matchCenterScreen.finishLeg(3)
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('501')
+
+      await matchCenterScreen.enterScore(100)
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('401')
+
+      // Leave mid-leg via Back (available while started, not just in the
+      // read-only view) - the leg stays Started server-side, unfinished.
+      await matchCenterScreen.backButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+
+      // Reopening must resume on leg 2's actual progress (401), not reset to
+      // a fresh leg (501) or leg 1's now-irrelevant final state (0).
+      await gameSummaryPanel.gameBoxByType('Singles', 1).click()
+      await expect(matchCenterScreen.root).toBeVisible()
+      expect(await matchCenterScreen.isReadonly()).toBe(false)
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('401')
+
+      await matchCenterScreen.backButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+    })
+
     await test.step('completing a game reaches validation instead of crashing (BUGS.md #10)', async () => {
       // API-level regression test: GameService.CompleteGame ran the exact
       // same kind of synchronous Marten query (`.ToList()` directly on the

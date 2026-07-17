@@ -36,7 +36,8 @@ export async function completeLeg() {
   const result: LegResult = {
     score: scoreToArray(matchDataStore.selectedLeg?.score),
     result: matchDataStore.selectedLeg?.result ?? '',
-    finishDarts: matchDataStore.selectedLeg?.finishDarts ?? 0
+    finishDarts: matchDataStore.selectedLeg?.finishDarts ?? 0,
+    remainingScore: matchDataStore.selectedLeg?.remainingScore ?? 0
   }
 
   try {

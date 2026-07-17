@@ -32,6 +32,8 @@ namespace DartsStatsApplication.Server.Controllers.Models
         public LegResult? result { get; set; }
 
         public int? finishDarts { get; set; }
+
+        public int remainingScore { get; set; }
     }
 
 }

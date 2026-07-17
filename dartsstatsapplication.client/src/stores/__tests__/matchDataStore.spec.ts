@@ -160,3 +160,37 @@ describe('matchDataStore.doneWithSelectedLeg', () => {
     expect(store.selectedLeg).toBeNull()
   })
 })
+
+describe('matchDataStore.setLegData resyncing selectedLeg', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('keeps selectedLeg pointing at the live leg object after setSelectedLeg() is called before a setLegData() update (e.g. startLeg() resolving)', () => {
+    // Regression test: MatchCenter.vue's startNextLeg() calls
+    // setSelectedLeg(legId) and THEN awaits startLeg(), whose response
+    // triggers setLegData() - which replaces game.legs[i] with a new
+    // object. Without resyncing selectedLeg the same way selectedGame
+    // already is, selectedLeg is left pointing at the orphaned pre-start
+    // copy: further mutations (e.g. updateSelectedLegScore(), as
+    // EnterScorePanel calls on every throw) land on that orphan and never
+    // reach match.games[].legs[], so progress silently vanishes the moment
+    // a leg is left mid-play (Back) rather than completed.
+    const store = useMatchDataStore()
+    store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'InProgress', '', false, 0)
+    store.setLegData('game-1', 'leg-1', 'Pending', [], '', 0, 0, 501)
+    store.setSelectedGame('game-1')
+
+    store.setSelectedLeg('leg-1')
+    // Simulates startLeg()'s response arriving after setSelectedLeg() was
+    // already called, replacing the leg object in game.legs[].
+    store.setLegData('game-1', 'leg-1', 'Started', [], '', 0, 0, 501)
+
+    store.updateSelectedLegScore({ 'player-1': 100 })
+
+    const leg = store.match?.games[0]?.legs.find(l => l.legId === 'leg-1')
+    expect(leg?.remainingScore).toBe(401)
+    expect(store.selectedLeg?.remainingScore).toBe(401)
+  })
+})

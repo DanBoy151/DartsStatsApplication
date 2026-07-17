@@ -1,7 +1,7 @@
 <template>
   <div class="match-center-grid">
-    <div class="quarter score-ledger" :class="{ disabled: !started }">
-      <ScoreLedgerPanel :disabled="!started" />
+    <div class="quarter score-ledger" :class="{ disabled: !started || isComplete }">
+      <ScoreLedgerPanel :disabled="!started || isComplete" />
     </div>
     <div class="quarter remaining-score">
       <RemainingScorePanel @start-match="onStartMatch"
@@ -9,19 +9,20 @@
                            @cancel-match="$emit('back')"
                            @finish-leg="onFinishLeg"
                            :game-type="selectedGame?.type"
-                           :gamestarted="started" />
+                           :gamestarted="started"
+                           :readonly="isComplete" />
     </div>
-    <div class="quarter enter-score" :class="{ disabled: !started }">
-      <EnterScorePanel @legComplete="onFinishLeg" :disabled="!started" />
+    <div class="quarter enter-score" :class="{ disabled: !started || isComplete }">
+      <EnterScorePanel @legComplete="onFinishLeg" :disabled="!started || isComplete" />
     </div>
-    <div class="quarter stats" :class="{ disabled: !started }">
-      <StatsPanel :disabled="!started" />
+    <div class="quarter stats" :class="{ disabled: !started || isComplete }">
+      <StatsPanel :disabled="!started || isComplete" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
+  import { computed, ref, onMounted } from 'vue'
   import { defineProps, defineEmits } from 'vue'
   import ScoreLedgerPanel from './MatchCenter/ScoreLedgerPanel.vue'
   import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
@@ -32,6 +33,7 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg } from '@/actions/LegService'
   import { updateMatchScore } from '@/actions/MatchService'
+  import { isGameDecided } from '@/models/gameProgress'
 
   const matchDataStore = useMatchDataStore()
 
@@ -45,6 +47,7 @@
 
   const started = ref(false)
   const wonBull = ref<boolean | null>(null)
+  const isComplete = computed(() => matchDataStore.getSelectedGame()?.status === 'Complete')
 
   async function onFinishLeg() {
     started.value= false
@@ -58,22 +61,29 @@
 
     if (!matchDataStore.selectedGame) return;
 
-    //identify if a new leg is required to be started
-    if (matchDataStore.selectedGame.legs.length > 1) {
-      const allLegsFinished = matchDataStore.selectedGame.legs.every(leg => leg.status == "Completed")
-      if (allLegsFinished) {
-        //If every leg is finished then finish the game
-        finishGame()
-      }
-      else {
-        //start the new leg
-
-      }
+    // The game is over once every leg has been played, or one side has
+    // already won enough legs that the outcome can't change (e.g. 2-0 in a
+    // best-of-3 Singles game - the 3rd leg would be pointless).
+    if (isGameDecided(matchDataStore.selectedGame.legs, matchDataStore.selectedGame.type)) {
+      await finishGame()
     }
     else {
-      // only one leg so the game has finished so complete the game
-      finishGame()
+      await startNextLeg()
     }
+  }
+
+  async function startNextLeg() {
+    const nextLeg = matchDataStore.selectedGame?.legs.find(leg => leg.status === 'Pending')
+    if (!nextLeg) return;
+
+    matchDataStore.setSelectedLeg(nextLeg.legId)
+    await startLeg()
+
+    const game = matchDataStore.selectedGame;
+    if (!game) return;
+    const firstPlayer = game.players[0] ?? ''
+    matchDataStore.setNextPlayerTurn(firstPlayer)
+    started.value = true
   }
 
   async function finishGame() {
@@ -94,11 +104,6 @@
     await completeGame(result)
     await updateMatchScore((wins > losses))
     matchDataStore.doneWithSelectedGame()
-
-
-    //After this we are stuck on the match center screen
-    //All Game info has disappeared
-    //Still seen match center rather than holding screen
 
     //check if the match has now finished and update server if required
     finishMatch()

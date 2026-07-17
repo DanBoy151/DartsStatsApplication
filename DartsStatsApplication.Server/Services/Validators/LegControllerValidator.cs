@@ -53,6 +53,16 @@ namespace DartsStatsApplication.Server.Services.Validators
                 }
             }
 
+            // The submitted remainingScore must itself be consistent with the submitted
+            // score history - it's persisted as sent (see LegService.CompleteLeg), not
+            // recomputed, so this is what keeps it from drifting away from the truth.
+            int expectedRemaining = startingScore - totalScored;
+            if (legData.remainingScore != expectedRemaining)
+            {
+                throw new ValidationException(
+                    $"remainingScore does not reconcile with the submitted score. Expected {expectedRemaining}, got {legData.remainingScore}");
+            }
+
             if (legData.result == LegResult.Win)
             {
                 // A won leg must reconcile exactly to the starting score (checked out to zero).

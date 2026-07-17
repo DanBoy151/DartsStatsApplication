@@ -14,6 +14,7 @@ export interface LegResult {
   score: { playerId: string; score: number }[];
   result: string
   finishDarts: number
+  remainingScore: number
 }
 
 /**

@@ -10,7 +10,7 @@
                                 @save="handleSave"
                                 @cancel="handleCancel" />
 
-      <MatchCenter v-else-if="selectedGameId && selectedGame && (selectedGame?.status=='Ready' || selectedGame?.status=='InProgress') "
+      <MatchCenter v-else-if="selectedGameId && selectedGame && (selectedGame?.status=='Ready' || selectedGame?.status=='InProgress' || selectedGame?.status=='Complete') "
                    class="match-center"
                    :game="selectedGame"
                    @back="handleMatchCenterBack"
@@ -37,13 +37,15 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import type { Game } from '@/models/GameModel'
   import { convertToGameFromGameDataState } from '@/models/GameModel'
+  import { lastTouchedLeg } from '@/models/gameProgress'
+  import { fetchLegs } from '@/actions/GameService'
 
   const matchDataStore = useMatchDataStore()
 
   const showHoldingScreen = ref(false)
   const selectedGameId = ref<string | null>(null)
   const selectedGame = ref<Game | null > (null)
- 
+
 
   //Need to update this and the Prop into the next screen
   function handleProceed() {
@@ -55,6 +57,19 @@
     selectedGame.value =  convertToGameFromGameDataState(matchDataStore.getSelectedGame())
 
     showHoldingScreen.value = false
+
+    // A game that's already been played (Ready/InProgress/Complete) has legs
+    // worth showing - fetchLegs() no-ops if they're already loaded. Select
+    // the last one actually played so MatchCenter opens on where things
+    // stand, rather than a blank/default leg.
+    if (selectedGame.value && selectedGame.value.status !== 'Pending') {
+      await fetchLegs()
+      const legs = matchDataStore.getSelectedGame()?.legs ?? []
+      const leg = lastTouchedLeg(legs)
+      if (leg) {
+        matchDataStore.setSelectedLeg(leg.legId)
+      }
+    }
   }
   function handleSave() {
     selectedGameId.value = null

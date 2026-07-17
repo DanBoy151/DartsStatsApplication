@@ -43,13 +43,23 @@ namespace DartsStatsApplication.Server.Services.Validators
                 throw new ValidationException("Unable to complete a Game that is not In Progress");
             }
 
-            // There must be legs, and every one of them must be completed.
+            // There must be legs.
             if (legs == null || legs.Count == 0)
             {
                 throw new ValidationException("Unable to complete a Game that has no Legs");
             }
 
-            if (legs.Any(l => l.data.status != LegStatus.Completed))
+            // Every leg must be completed, UNLESS the outcome is already
+            // mathematically decided (a player has enough leg wins/losses that
+            // the remaining, still-Pending legs can no longer change the result -
+            // e.g. a best-of-3 Singles game won/lost 2-0).
+            int legWins = legs.Count(l => l.data.result == LegResult.Win);
+            int legLosses = legs.Count(l => l.data.result == LegResult.Loss);
+            int legsNeededToWin = (legs.Count + 1) / 2; // ceil(count / 2)
+            bool decided = legWins >= legsNeededToWin || legLosses >= legsNeededToWin;
+            bool allLegsCompleted = legs.All(l => l.data.status == LegStatus.Completed);
+
+            if (!allLegsCompleted && !decided)
             {
                 throw new ValidationException("Unable to complete a Game while it has Legs that are not Completed");
             }
@@ -57,8 +67,6 @@ namespace DartsStatsApplication.Server.Services.Validators
             // The submitted result must match the leg majority.
             // Singles is best-of-3 (more leg wins than losses -> game Win); Doubles/Trebles
             // are a single leg (that leg's result -> game result). Both collapse to wins > losses.
-            int legWins = legs.Count(l => l.data.result == LegResult.Win);
-            int legLosses = legs.Count(l => l.data.result == LegResult.Loss);
             GameResult expectedResult = legWins > legLosses ? GameResult.Win : GameResult.Loss;
 
             if (data.result != expectedResult)

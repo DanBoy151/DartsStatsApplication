@@ -124,7 +124,47 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var legs = new List<Leg>
             {
                 MakeLeg(LegStatus.Completed, LegResult.Win),
-                MakeLeg(LegStatus.Started, null) // still in progress
+                MakeLeg(LegStatus.Started, null), // still in progress
+                MakeLeg(LegStatus.Pending, null)
+            };
+
+            // 1-0 in a best-of-3 isn't decided yet, so the incomplete legs still matter.
+            Assert.Throws<ValidationException>(() =>
+                validator.IsValidToCompleteGame(legs, new CompleteGameData { result = GameResult.Win }));
+        }
+
+        [Fact]
+        public void IsValidToCompleteGame_SinglesDecidedTwoNilWithPendingThirdLeg_DoesNotThrow()
+        {
+            // A best-of-3 Singles game won 2-0: the 3rd leg is still Pending
+            // (never played) but the outcome can no longer change, so the game
+            // should be completable without it.
+            var game = CreateGame(GameType.Singles, GameStatus.InProgress, Players(1));
+            var validator = new GameControllerValidator(game, null!);
+            var legs = new List<Leg>
+            {
+                MakeLeg(LegStatus.Completed, LegResult.Win),
+                MakeLeg(LegStatus.Completed, LegResult.Win),
+                MakeLeg(LegStatus.Pending, null)
+            };
+
+            var exception = Record.Exception(() =>
+                validator.IsValidToCompleteGame(legs, new CompleteGameData { result = GameResult.Win }));
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void IsValidToCompleteGame_SinglesOneAllWithThirdLegPending_Throws()
+        {
+            // 1-1 in a best-of-3 Singles game is not decided - the 3rd leg must be played.
+            var game = CreateGame(GameType.Singles, GameStatus.InProgress, Players(1));
+            var validator = new GameControllerValidator(game, null!);
+            var legs = new List<Leg>
+            {
+                MakeLeg(LegStatus.Completed, LegResult.Win),
+                MakeLeg(LegStatus.Completed, LegResult.Loss),
+                MakeLeg(LegStatus.Pending, null)
             };
 
             Assert.Throws<ValidationException>(() =>

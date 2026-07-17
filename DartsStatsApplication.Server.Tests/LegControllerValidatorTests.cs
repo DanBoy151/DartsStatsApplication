@@ -32,7 +32,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             };
         }
 
-        private static CompleteLegData Complete(LegResult? result, int totalScored, int? finishDarts)
+        private static CompleteLegData Complete(LegResult? result, int totalScored, int? finishDarts, int? remainingScore = null)
         {
             return new CompleteLegData
             {
@@ -42,7 +42,10 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
                     new PlayerScore { playerId = Guid.NewGuid(), score = totalScored }
                 },
                 result = result,
-                finishDarts = finishDarts
+                finishDarts = finishDarts,
+                // Every test here uses a 501 starting score; default to the value that
+                // actually reconciles unless a test explicitly wants a mismatch.
+                remainingScore = remainingScore ?? (501 - totalScored)
             };
         }
 
@@ -119,6 +122,34 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new LegControllerValidator(leg, null!);
 
             Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 501, null)));
+        }
+
+        [Fact]
+        public void IsValidToCompleteLeg_RemainingScoreDoesNotReconcileWithScoreHistory_Throws()
+        {
+            // 420 scored against a 501 start reconciles to 81 remaining, not 0 - as if
+            // the client sent a stale/wrong remainingScore alongside a correct score history.
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+
+            var ex = Assert.Throws<ValidationException>(
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 0)));
+            Assert.Contains("remainingScore does not reconcile", ex.Message);
+        }
+
+        [Fact]
+        public void IsValidToCompleteLeg_RemainingScoreReconcilesForALoss_DoesNotThrow()
+        {
+            // Regression test for the "remainingScore is hardcoded to 0" bug: a Loss
+            // leaves real, non-zero darts remaining, and the validator must accept -
+            // not just tolerate - that non-zero value when it's the correct one.
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+
+            var ex = Record.Exception(
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 81)));
+
+            Assert.Null(ex);
         }
     }
 }

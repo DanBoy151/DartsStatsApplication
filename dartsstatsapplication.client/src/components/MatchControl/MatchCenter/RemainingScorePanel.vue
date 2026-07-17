@@ -7,25 +7,33 @@
       {{ score }}
     </div>
     <div class="button-row">
-      <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
-      <button v-else class="finish-btn" @click="finish">Finish</button>
-      <button v-if="!started" class="cancel-btn" @click="cancelMatch">Cancel</button>
-      <button v-else class="back-btn" @click="backMatch">Back</button>
+      <template v-if="readonly">
+        <button class="back-btn" @click="backMatch">Back</button>
+      </template>
+      <template v-else>
+        <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
+        <button v-else class="finish-btn" @click="finish">Finish</button>
+        <button v-if="!started" class="cancel-btn" @click="cancelMatch">Cancel</button>
+        <button v-else class="back-btn" @click="backMatch">Back</button>
+      </template>
     </div>
     <WonBullControl v-if="showBullPopup"
                     @result="onBullResult" />
+    <DoublesFinishControl v-if="showFinishDartsPopup"
+                          @result="onFinishDartsResult" />
   </div>
 </template>
 
 <script setup lang="ts">
   import { computed, ref, watch, defineEmits, defineProps } from 'vue'
   import WonBullControl from './WonBullControl.vue'
+  import DoublesFinishControl from './DoublesFinishControl.vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
 
   const matchDataStore = useMatchDataStore()
 
   const remainingScore = computed(() => matchDataStore.getSelectedLeg()?.remainingScore ?? 0)
-  
+
   const emit = defineEmits(['start-match', 'finish-leg', 'back-match', 'cancel-match'])
   const props = defineProps<{
     gameType: string
@@ -33,13 +41,16 @@
     gamestarted?: boolean
     currentLegId?: string
     currentPlayerId?: string
+    /** Viewing a Complete game: show the last leg's result only, no scoring controls. */
+    readonly?: boolean
   }>()
 
 
   const started = ref(!!props.gamestarted || hasMatchStarted())
   const showBullPopup = ref(false)
+  const showFinishDartsPopup = ref(false)
   const wonBull = ref<boolean | null>(null)
-  const score = ref<number | string>(getInitialScore()) 
+  const score = ref<number | string>(getInitialScore())
 
   watch(remainingScore, (newScore) => {
     score.value = newScore
@@ -68,13 +79,13 @@
   function getInitialScore() {
     const score = 0
 
-    if (hasMatchStarted()) {
+    if (hasMatchStarted() || props.readonly) {
       return remainingScore.value
-    } 
+    }
     const type = props.gameType?.toLowerCase()
-    if (type === 'trebles' || type === 'treble') return 701 
-    if (type === 'doubles' || type === 'double') return 601 
-    if (type === 'singles' || type === 'single') return 501 
+    if (type === 'trebles' || type === 'treble') return 701
+    if (type === 'doubles' || type === 'double') return 601
+    if (type === 'singles' || type === 'single') return 501
     return score
   }
 
@@ -91,7 +102,25 @@
     emit('back-match')
   }
 
+  /**
+   * Reaching exactly 0 is a genuine checkout - same as the automatic popup
+   * EnterScorePanel triggers when a throw brings the score to 0 - so ask how
+   * many darts it took and record a Win. Otherwise, the leg is being ended
+   * without checking out, which can only mean a Loss - complete it
+   * immediately, no dart count to ask for.
+   */
   function finish() {
+    if (remainingScore.value === 0) {
+      showFinishDartsPopup.value = true
+    } else {
+      matchDataStore.completeSelectedLeg('Loss', 0)
+      finishLeg()
+    }
+  }
+
+  function onFinishDartsResult(darts: number) {
+    showFinishDartsPopup.value = false
+    matchDataStore.completeSelectedLeg('Win', darts)
     finishLeg()
   }
 

@@ -67,9 +67,28 @@ export class MatchCenterScreen {
     await this.submitScoreButton.click()
   }
 
-  /** Answers the "how many darts to finish?" popup that appears once a throw checks a leg out. */
+  /** Answers the "how many darts to finish?" popup that appears once a throw checks a leg out (a Win). */
   async finishLeg(darts: 1 | 2 | 3) {
     await this.doublesFinishDialog.waitFor({ state: 'visible' })
     await this.doublesFinishDialog.getByRole('button', { name: String(darts), exact: true }).click()
+  }
+
+  /**
+   * Clicks Finish directly. At remaining=0 this behaves like finishLeg() (a
+   * checkout Win, via the same darts-count popup); at any other remaining
+   * score it completes the leg immediately as a Loss, no popup.
+   */
+  async clickFinish() {
+    await this.finishButton.click()
+  }
+
+  /** True once a game is fully played out: no Start/Finish, just Back to leave the read-only view. */
+  async isReadonly(): Promise<boolean> {
+    const [start, finish, back] = await Promise.all([
+      this.startButton.isVisible(),
+      this.finishButton.isVisible(),
+      this.backButton.isVisible(),
+    ])
+    return !start && !finish && back
   }
 }

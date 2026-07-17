@@ -25,8 +25,12 @@ export class GameSummaryPanel {
   }
 
   /** Games are listed in a fixed order (2 Trebles, 3 Doubles, 6 Singles - see MatchService.CreatePendingGames), not by type. */
-  gameBoxByType(type: 'Trebles' | 'Doubles' | 'Singles'): Locator {
-    return this.gameBoxes.filter({ hasText: type }).first()
+  gameBoxesByType(type: 'Trebles' | 'Doubles' | 'Singles'): Locator {
+    return this.gameBoxes.filter({ hasText: type })
+  }
+
+  gameBoxByType(type: 'Trebles' | 'Doubles' | 'Singles', index = 0): Locator {
+    return this.gameBoxesByType(type).nth(index)
   }
 
   async selectGame(index: number) {

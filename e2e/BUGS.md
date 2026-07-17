@@ -202,6 +202,54 @@ result to `completeGame()`. Fixed by returning `existLeg`.
 Covered by the same E2E step as #11 - this mismatch is what the step caught
 next, after #12 was fixed.
 
+### 15. A mathematically-decided game could never actually complete
+Part of implementing the "Finish leg / complete game" flow: a best-of-3
+Singles game won or lost 2-0 should complete immediately (the 3rd leg is
+pointless), but `PUT /Game/{id}/complete` always 400'd with `"Unable to
+complete a Game while it has Legs that are not Completed"`.
+`GameControllerValidator.IsValidToCompleteGame()`
+(`DartsStatsApplication.Server/Services/Validators/GameControllerValidator.cs`)
+required literally every leg to be `Completed`, with no allowance for a leg
+that's staying `Pending` forever because the outcome no longer depends on it.
+The client's `isGameDecided()` helper (`gameProgress.ts`) already knew the
+game was over and called `completeGame()` accordingly - the server just
+rejected it. Fixed by extending the check: a game can complete once either
+every leg is `Completed`, *or* one side already has enough leg wins/losses
+(`>= ceil(totalLegs / 2)`) that the remaining `Pending` legs can't change the
+result - matching the client's `legsRequiredToWin()` semantics exactly.
+Found via a real-browser walkthrough (Playwright script driving the UI
+end-to-end against the isolated e2e stack, with network/console logging) after
+this exact scenario failed inside the E2E critical-path test.
+Covered by `DartsStatsApplication.Server.Tests/GameCompletionValidatorTests.cs`
+(`IsValidToCompleteGame_SinglesDecidedTwoNilWithPendingThirdLeg_DoesNotThrow`,
+`IsValidToCompleteGame_SinglesOneAllWithThirdLegPending_Throws`) and by a step
+in `tests/01-start-next-match.spec.ts` ("a best-of-3 Singles game finishes
+early once the outcome is mathematically decided").
+
+### 16. Leaving a leg mid-play (Back) and reopening it lost all progress
+Same root cause family as #11/#12/#13: `matchDataStore.ts`'s `setLegData()`
+already resyncs `selectedGame` when a server response replaces the matching
+entry in `match.games[].legs[]`, but never did the same for `selectedLeg`.
+`MatchCenter.vue`'s `startNextLeg()` (and `onStartMatch()`) calls
+`setSelectedLeg(legId)` and *then* awaits `startLeg()` - whose response
+triggers `setLegData()`, which replaces that leg's object in `game.legs[]`
+with a fresh one. `selectedLeg` is left pointing at the orphaned pre-start
+copy. Every throw afterwards (`EnterScorePanel`'s `updateSelectedLegScore()`)
+mutates that orphan, not the array entry - invisible as long as the leg is
+completed normally (`completeLeg()` reads from the same orphaned-but-mutated
+`selectedLeg`, so the correct data still reaches the server), but the moment a
+leg is abandoned mid-play via **Back** rather than finished, reopening that
+game resumes from the array's stale, never-updated entry (a fresh
+501/601/701) instead of the actual progress made. Fixed by mirroring the
+existing `selectedGame` resync: `setLegData()` now also reassigns
+`selectedLeg` whenever the leg it just wrote matches `selectedLeg.legId`.
+Found the same way as #15 - the real-browser walkthrough resolved #15's
+failure, which unblocked a downstream E2E step that then caught this one.
+Covered by `matchDataStore.spec.ts` ("keeps selectedLeg pointing at the live
+leg object after setSelectedLeg() is called before a setLegData() update") and
+by the "viewing an In Progress game resumes on the current leg, not a fresh
+one" step in `tests/01-start-next-match.spec.ts`.
+
 ## Documented, not fixed (out of scope for this change, tracked here)
 
 ### 7. "View Statistics" button does nothing

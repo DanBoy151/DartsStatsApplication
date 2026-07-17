@@ -227,6 +227,17 @@ export const useMatchDataStore = defineStore('leg', {
         this.selectedGame = game;
       }
 
+      // Mirrors the selectedGame resync above: setSelectedLeg() is called
+      // right before startLeg()/completeLeg() resolve, so selectedLeg can
+      // already be pointing at the leg this update just replaced in
+      // game.legs[] - without this, further mutations (e.g.
+      // updateSelectedLegScore()) land on an orphaned copy that never makes
+      // it back into the array, which only surfaces when a leg is abandoned
+      // mid-play (Back) and reopened rather than completed.
+      if (this.selectedLeg && this.selectedLeg.legId === legId) {
+        this.selectedLeg = newLeg;
+      }
+
     },
     setSelectedLeg(legID: string) {
       if (!this.selectedGame) return;
