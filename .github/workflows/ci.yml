@@ -28,7 +28,7 @@ jobs:
         run: dotnet test DartsStatsApplication.Server.Tests/DartsStatsApplication.Server.Tests.csproj --no-build --verbosity normal
 
   client:
-    name: Client (build & lint)
+    name: Client (build, lint & test)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,6 +51,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Unit test
+        run: npm run test:unit
 
   e2e:
     name: E2E (Playwright)

@@ -6,6 +6,9 @@
       <div v-if="match?.opponent" class="next-match">
         Next Match: {{ match?.opponent }} {{ locationSuffix }}
       </div>
+      <div v-else class="next-match next-match--empty">
+        No match scheduled
+      </div>
     </button>
     <button class="large-square-btn">
       <span class="btn-label">View Statistics</span>
@@ -106,5 +109,10 @@
     color: #2c3e50;
     text-align: center;
     word-break: break-word;
+  }
+
+  .next-match--empty {
+    color: #7f8c9a;
+    font-style: italic;
   }
 </style>

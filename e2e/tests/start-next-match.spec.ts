@@ -1,31 +1,33 @@
 import { test, expect } from '../fixtures/test'
+import { createScheduledMatch } from '../fixtures/api-client'
 
-// These two scenarios are ordered deliberately: the "no next match" case must
-// run against a genuinely empty database, before the second test seeds any
-// data. describe.serial guarantees that order (and that a failure in the
-// first test skips the second, rather than running it against unknown state).
+// These scenarios are ordered deliberately: the "no next match" case must run
+// against a genuinely empty database, before anything else seeds data.
+// describe.serial is a hard ordering guarantee *within one file* (unlike
+// file-execution order across separate spec files, which isn't a documented
+// guarantee) - it also means a failure partway through skips the rest,
+// rather than running later steps against unknown state.
 test.describe.serial('Start next match', () => {
-  test('shows an error toast rather than a friendly empty state when there is no next match', async ({
+  test('shows a friendly empty state, not an error toast, when there is no next match', async ({
     page,
+    launchScreen,
     errorToast,
   }) => {
-    // KNOWN ISSUE (see BUGS.md): apiClient.request() treats every non-2xx
-    // response as an error, including this one, where a 404 from
-    // GET /api/Match/next legitimately means "nothing scheduled yet" rather
-    // than a failure. The user sees a red, technical toast
-    // ("Request to /api/Match/next failed: 404 Not Found") on first launch
-    // of a brand new install, before any match has ever been created. This
-    // test documents that *current* behaviour so a future fix is a visible,
-    // deliberate diff here rather than a silent regression.
-    test.info().annotations.push({
-      type: 'known-issue',
-      description: 'BUGS.md #2 - "no next match" surfaces as a raw error toast instead of an empty state',
-    })
+    // Regression test for BUGS.md #5 (fixed): GET /api/Match/next 404s when
+    // nothing is scheduled - a normal, expected state (e.g. a fresh
+    // install), not a failure. getNextMatch() now recognises that 404
+    // specifically and clears the error the shared apiClient sets by
+    // default, so no toast should appear here.
+    await launchScreen.goto()
+    await launchScreen.waitUntilLoaded()
 
-    await page.goto('/')
+    await expect(errorToast.root).not.toBeVisible()
+    await expect(launchScreen.nextMatchLabel).toHaveText('No match scheduled')
+    await expect(launchScreen.playMatchButton).toBeVisible()
 
-    await expect(errorToast.root).toBeVisible()
-    await expect(errorToast.message).toHaveText('Request to /api/Match/next failed: 404 Not Found')
+    // Regression test for BUGS.md #8 (fixed): MainContent.vue's dead `error`
+    // ref/div must not come back.
+    await expect(page.locator('.error-message')).toHaveCount(0)
   })
 
   test('captain can start the next match end-to-end', async ({
@@ -46,6 +48,16 @@ test.describe.serial('Start next match', () => {
       await expect(launchScreen.nextMatchLabel).toContainText('(H)')
     })
 
+    await test.step('reloading the page does not lose the fetched match (BUGS.md #4)', async () => {
+      // Regression test: MainContent.vue used to call clearStore()
+      // unconditionally on every mount, wiping matchDataStore.match (and any
+      // in-progress selections) on every reload/remount. It now calls
+      // resetStore(), which only clears state older than 6 hours.
+      await page.reload()
+      await launchScreen.waitUntilLoaded()
+      await expect(launchScreen.nextMatchLabel).toContainText(match.opponent)
+    })
+
     await test.step('starting the match reaches the available players screen', async () => {
       await launchScreen.clickPlayMatch()
       await availablePlayersScreen.waitUntilLoaded()
@@ -57,20 +69,33 @@ test.describe.serial('Start next match', () => {
       await expect(await availablePlayersScreen.selectedPlayerCount()).toBe(0)
     })
 
-    await test.step('confirming the roster reaches the holding screen with games loaded', async () => {
+    await test.step('proceeding waits for the roster to save before navigating (BUGS.md #6)', async () => {
       for (const player of players) {
         await availablePlayersScreen.setPlayerAvailable(player.name, true)
       }
       await expect(await availablePlayersScreen.selectedPlayerCount()).toBe(players.length)
 
-      // AvailablePlayersControl.proceed() fires the roster PUT and navigates
-      // away without awaiting it (see BUGS.md #3) - wait for the response
-      // ourselves so this test isn't racing that bug.
-      const updateResponse = page.waitForResponse(
-        (res) => res.url().includes(`/api/Match/${match.id}/update-available-players`) && res.request().method() === 'PUT'
-      )
+      // Regression test: AvailablePlayersControl.proceed() used to fire the
+      // roster PUT without awaiting it, then navigate immediately. Delay the
+      // response under our control and prove the UI now waits for it.
+      let releaseResponse: () => void
+      const responseGate = new Promise<void>((resolve) => {
+        releaseResponse = resolve
+      })
+      await page.route('**/update-available-players', async (route) => {
+        await responseGate
+        await route.continue()
+      })
+
       await availablePlayersScreen.proceed()
-      expect((await updateResponse).status()).toBe(200)
+
+      // The PUT is still gated - we must still be on the roster screen.
+      await expect(holdingScreen.root).not.toBeVisible()
+      await expect(availablePlayersScreen.root).toBeVisible()
+
+      // Resolving the gate lets this (and any later) matching request
+      // through immediately - no need to unroute.
+      releaseResponse!()
 
       await expect(holdingScreen.root).toBeVisible()
       await expect(holdingScreen.heading).toHaveText('Please Select Game')
@@ -81,10 +106,53 @@ test.describe.serial('Start next match', () => {
       await expect(gameSummaryPanel.currentScore).toHaveText('0 - 0')
     })
 
+    await test.step('"Back to Players" returns to the roster screen (BUGS.md #9)', async () => {
+      await holdingScreen.backButton.click()
+      await expect(availablePlayersScreen.root).toBeVisible()
+      await expect(availablePlayersScreen.heading).toHaveText('Select Available Players')
+
+      // Selections made earlier are still there (matchAvailablePlayers is cached in the store).
+      await expect(await availablePlayersScreen.selectedPlayerCount()).toBe(players.length)
+
+      await availablePlayersScreen.proceed()
+      await expect(holdingScreen.root).toBeVisible()
+    })
+
     await test.step('selecting a pending game opens player selection for it', async () => {
       await gameSummaryPanel.selectGame(0)
       await expect(page.locator('.select-players-game-control')).toBeVisible()
       await expect(page.locator('.select-players-game-control .player-list-heading')).toHaveText('Select Players')
     })
+  })
+
+  test('completing a match reaches validation instead of crashing (BUGS.md #3)', async ({ api }) => {
+    // API-level (no browser) regression test: MatchService.CompleteMatch ran
+    // a synchronous Marten query (`.ToList()` directly on the IQueryable),
+    // which threw NotSupportedException under Marten 9 and surfaced as a
+    // bare 500. There's no UI path to "complete a match" yet, so this is
+    // covered at the API level rather than through the browser.
+    //
+    // CompleteMatch doesn't check the match's status, so this deliberately
+    // never calls start() - a plain Scheduled match with zero games is
+    // enough to exercise the query, and it keeps this test fully
+    // independent of the "one match In Progress at a time" global rule the
+    // previous test's match is still holding.
+    const match = await createScheduledMatch(api, { opponent: 'API Regression Opponent' })
+
+    const completeRes = await api.put(`/api/Match/${match.id}/complete`, {
+      data: {
+        id: match.id,
+        playerOfMatch: '00000000-0000-0000-0000-000000000000',
+        result: 'Win',
+      },
+    })
+
+    // Pre-fix this was a 500 ("An unexpected error occurred") before the
+    // request ever reached business-rule validation. Post-fix, the query
+    // itself succeeds (0 games) and we reach the expected validation error
+    // instead.
+    expect(completeRes.status()).toBe(400)
+    const body = await completeRes.json()
+    expect(body.detail).toBe('Unable to complete a Match that has no Games')
   })
 })

@@ -82,9 +82,13 @@ export const useMatchDataStore = defineStore('leg', {
     resetStore() {
       if (!this.memDateTime) return;
 
-      const currentDate = new Date();
-      const checkDate = new Date(this.memDateTime.setHours(this.memDateTime.getHours() +6));
-      if (checkDate < currentDate) {
+      // Clone before adding hours - Date.setHours mutates in place, and
+      // mutating memDateTime itself here would silently push its own
+      // expiry back by 6 hours every time this runs without expiring.
+      const expiry = new Date(this.memDateTime);
+      expiry.setHours(expiry.getHours() + 6);
+
+      if (expiry < new Date()) {
         this.clearStore();
       }
     },

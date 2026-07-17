@@ -10,9 +10,6 @@
                  @back="handleBack"
                  key="main-content" />
     </transition>
-    <div v-if="error" class="error-message">
-      {{ error }}
-    </div>
   </div>
 </template>
 
@@ -26,11 +23,12 @@
 
   const showMatchControl = ref(false)
   const loading = ref(true)
-  const error = ref(false)
   const matchDataStore = useMatchDataStore()
 
   function resetMatchDataStore() {
-    matchDataStore.clearStore()
+    // resetStore() only clears state older than 6 hours, so an in-progress
+    // match survives a page reload/remount instead of being wiped every time.
+    matchDataStore.resetStore()
   }
 
   function handlePlayMatch() {
@@ -83,13 +81,6 @@
     to {
       transform: rotate(360deg);
     }
-  }
-
-  .error-message {
-    color: #e74c3c;
-    font-size: 1.2rem;
-    text-align: center;
-    margin-top: 2rem;
   }
 
   .fade-enter-active, .fade-leave-active {

@@ -49,7 +49,10 @@
   }
 
   async function proceed() {
-    setAvailablePlayers()
+    // Must await: the holding screen renders immediately once we emit, so
+    // navigating before the save resolves could show the next screen before
+    // the roster was actually persisted.
+    await setAvailablePlayers()
     emit('proceed')
   }
 

@@ -2,7 +2,7 @@ import type { Match, RawMatchData } from "@/models/MatchModel"
 import { useMatchDataStore } from "@/stores/matchDataStore"
 import type { Game, RawGameData } from "@/models/GameModel"
 import { convertToGameListFromGameDataStateList } from "@/models/GameModel"
-import { apiGet, apiRequest } from "@/actions/apiClient"
+import { apiGet, apiRequest, ApiError } from "@/actions/apiClient"
 
 async function setData(data: RawMatchData): Promise<Match> {
   const matchDataStore = useMatchDataStore()
@@ -58,7 +58,15 @@ export async function getNextMatch(): Promise<Match | null> {
 
     return match
   } catch (err) {
-    // Optionally log error
+    if (err instanceof ApiError && err.status === 404) {
+      // No match is currently scheduled - a normal, expected state (e.g. a
+      // fresh install), not a failure. apiClient's request() already pushed
+      // this to the error store before we get here, so clear it rather than
+      // let it show as a red toast.
+      matchDataStore.clearError()
+      return null
+    }
+
     console.error(err instanceof Error ? err.message : 'Error fetching next match')
     return null
   }

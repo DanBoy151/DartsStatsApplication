@@ -9,7 +9,6 @@ export class HoldingScreen {
   constructor(private readonly page: Page) {
     this.root = page.locator('.holding-screen')
     this.heading = this.root.locator('.heading')
-    // Labelled "Back" in the UI but wired to the 'exit' event - see BUGS.md.
-    this.backButton = this.root.getByRole('button', { name: 'Back' })
+    this.backButton = this.root.getByRole('button', { name: 'Back to Players' })
   }
 }
