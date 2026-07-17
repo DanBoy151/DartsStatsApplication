@@ -7,6 +7,9 @@ import { HoldingScreen } from '../pages/HoldingScreen'
 import { GameSummaryPanel } from '../pages/GameSummaryPanel'
 import { SelectPlayersGameScreen } from '../pages/SelectPlayersGameScreen'
 import { ErrorToast } from '../pages/ErrorToast'
+import { MenuBar } from '../pages/MenuBar'
+import { NewPlayerScreen } from '../pages/NewPlayerScreen'
+import { NewMatchScreen } from '../pages/NewMatchScreen'
 
 export interface SeededMatchData {
   match: SeededMatch
@@ -20,7 +23,7 @@ interface Fixtures {
    * names are unique per call, but note that GET /api/Player (and therefore
    * the Available Players screen) returns every player ever created against
    * this database, not just this fixture's - so only one test per run should
-   * rely on an exact player count. See tests/start-next-match.spec.ts.
+   * rely on an exact player count. See tests/01-start-next-match.spec.ts.
    */
   seededMatch: SeededMatchData
   launchScreen: LaunchScreen
@@ -29,6 +32,9 @@ interface Fixtures {
   gameSummaryPanel: GameSummaryPanel
   selectPlayersGameScreen: SelectPlayersGameScreen
   errorToast: ErrorToast
+  menuBar: MenuBar
+  newPlayerScreen: NewPlayerScreen
+  newMatchScreen: NewMatchScreen
 }
 
 export const test = base.extend<Fixtures>({
@@ -62,6 +68,15 @@ export const test = base.extend<Fixtures>({
   },
   errorToast: async ({ page }, use) => {
     await use(new ErrorToast(page))
+  },
+  menuBar: async ({ page }, use) => {
+    await use(new MenuBar(page))
+  },
+  newPlayerScreen: async ({ page }, use) => {
+    await use(new NewPlayerScreen(page))
+  },
+  newMatchScreen: async ({ page }, use) => {
+    await use(new NewMatchScreen(page))
   },
 })
 

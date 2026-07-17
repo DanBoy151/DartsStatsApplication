@@ -131,6 +131,8 @@ namespace DartsStatsApplication.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<Match>> CreateMatch(MatchData data)
         {
+            MatchControllerValidator.ValidateNewMatch(data);
+            data.opponent = data.opponent.Trim();
 
             using (var session = _documentStore.LightweightSession())
             {

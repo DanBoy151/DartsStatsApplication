@@ -1,16 +1,37 @@
 <script setup lang="ts">
+  import { ref } from 'vue'
   import MenuBar from './components/MenuBar.vue'
   import MainContent from './components/MainContent.vue'
   import ErrorToast from './components/ErrorToast.vue'
+  import NewPlayerForm from './components/Manage/NewPlayerForm.vue'
+  import NewMatchForm from './components/Manage/NewMatchForm.vue'
+
+  type View = 'main' | 'new-player' | 'new-match'
+
+  const currentView = ref<View>('main')
+
+  function handleNavigate(action: string) {
+    if (action === 'new-player' || action === 'new-match') {
+      currentView.value = action
+    }
+  }
+
+  function goToMain() {
+    // v-if (not v-show) below, so this remounts MainContent, which re-fetches
+    // the next match - picking up anything just created in these forms.
+    currentView.value = 'main'
+  }
 </script>
 
 <template>
   <div class="app-layout">
     <header>
-      <MenuBar />
+      <MenuBar @navigate="handleNavigate" />
     </header>
     <main>
-      <MainContent />
+      <MainContent v-if="currentView === 'main'" />
+      <NewPlayerForm v-else-if="currentView === 'new-player'" @done="goToMain" />
+      <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" />
     </main>
     <ErrorToast />
   </div>

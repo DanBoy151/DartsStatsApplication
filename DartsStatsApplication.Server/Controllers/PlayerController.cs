@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Marten;
 using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
+using DartsStatsApplication.Server.Services.Validators;
 
 namespace DartsStatsApplication.Server.Controllers
 {
@@ -74,6 +75,8 @@ namespace DartsStatsApplication.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<Player>> PostPlayer(PlayerData data)
         {
+            PlayerControllerValidator.ValidateNewPlayer(data);
+            data.name = data.name.Trim();
 
             using (var session = _documentStore.LightweightSession())
             {

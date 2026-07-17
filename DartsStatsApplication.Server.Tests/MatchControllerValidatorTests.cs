@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DartsStatsApplication.Server.Controllers.Models;
+using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using DartsStatsApplication.Server.Services.Validators;
 using Xunit;
@@ -119,6 +120,72 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var result = validator.IsValidToCompleteMatch(games);
 
             Assert.Contains("Games that are not Complete", result);
+        }
+
+        private static MatchData ValidNewMatchData()
+        {
+            return new MatchData
+            {
+                status = MatchStatus.Scheduled,
+                opponent = "The Rovers",
+                date = DateOnly.FromDateTime(DateTime.Today),
+                location = Location.Home,
+                gamesFor = 0,
+                gamesAgainst = 0
+            };
+        }
+
+        [Fact]
+        public void ValidateNewMatch_ValidData_DoesNotThrow()
+        {
+            var ex = Record.Exception(() => MatchControllerValidator.ValidateNewMatch(ValidNewMatchData()));
+
+            Assert.Null(ex);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData(null)]
+        public void ValidateNewMatch_BlankOpponent_Throws(string? opponent)
+        {
+            var data = ValidNewMatchData();
+            data.opponent = opponent!;
+
+            var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateNewMatch(data));
+            Assert.Equal("Opponent is required", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateNewMatch_OpponentOverMaxLength_Throws()
+        {
+            var data = ValidNewMatchData();
+            data.opponent = new string('a', 201);
+
+            Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateNewMatch(data));
+        }
+
+        [Fact]
+        public void ValidateNewMatch_DateNotSet_Throws()
+        {
+            var data = ValidNewMatchData();
+            data.date = default;
+
+            var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateNewMatch(data));
+            Assert.Equal("Date is required", ex.Message);
+        }
+
+        [Theory]
+        [InlineData(MatchStatus.Ready)]
+        [InlineData(MatchStatus.InProgress)]
+        [InlineData(MatchStatus.Completed)]
+        public void ValidateNewMatch_NonScheduledStatus_Throws(MatchStatus status)
+        {
+            var data = ValidNewMatchData();
+            data.status = status;
+
+            var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateNewMatch(data));
+            Assert.Equal("New matches must be created with Scheduled status", ex.Message);
         }
     }
 }

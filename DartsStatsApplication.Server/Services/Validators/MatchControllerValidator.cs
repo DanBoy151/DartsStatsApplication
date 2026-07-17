@@ -1,3 +1,4 @@
+using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Models;
 using Marten;
@@ -34,6 +35,39 @@ namespace DartsStatsApplication.Server.Services.Validators
 
             errCode = IsValidPlayerOfMatch(games);
             return errCode;
+        }
+
+        private const int OpponentMaxLength = 200;
+
+        /// <summary>
+        /// Validate that a new match can be created. Throws on any rule violation.
+        /// Pure over the submitted data (no existing Match, no session needed), so this is
+        /// static rather than an instance method like the others here.
+        /// </summary>
+        public static void ValidateNewMatch(MatchData data)
+        {
+            if (data == null || string.IsNullOrWhiteSpace(data.opponent))
+            {
+                throw new ValidationException("Opponent is required");
+            }
+
+            if (data.opponent.Trim().Length > OpponentMaxLength)
+            {
+                throw new ValidationException($"Opponent must be {OpponentMaxLength} characters or fewer");
+            }
+
+            if (data.date == default)
+            {
+                throw new ValidationException("Date is required");
+            }
+
+            // A newly created match hasn't been played yet - reject a client trying to
+            // hand-craft one that's already Ready/InProgress/Completed and skip the normal
+            // start -> roster -> play lifecycle.
+            if (data.status != MatchStatus.Scheduled)
+            {
+                throw new ValidationException("New matches must be created with Scheduled status");
+            }
         }
 
         public async Task IsValidToStartMatch()

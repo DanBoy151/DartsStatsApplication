@@ -72,6 +72,46 @@ export async function getNextMatch(): Promise<Match | null> {
   }
 }
 
+export interface CreateMatchInput {
+  opponent: string
+  date: string // yyyy-mm-dd
+  location: 'Home' | 'Away'
+}
+
+export interface CreatedMatch {
+  id: string
+  opponent: string
+}
+
+/**
+ * Create a new (Scheduled) match. Deliberately does not update matchDataStore -
+ * whether this new match becomes "the next match" depends on server-side
+ * ordering against whatever else is scheduled, so the normal getNextMatch()
+ * flow (re-run when the user returns to the main screen) is what decides that,
+ * not this call.
+ */
+export async function createMatch(input: CreateMatchInput): Promise<CreatedMatch | null> {
+  try {
+    const data = await apiRequest<RawMatchData>('/api/Match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'Scheduled',
+        opponent: input.opponent,
+        date: input.date,
+        location: input.location,
+        gamesFor: 0,
+        gamesAgainst: 0,
+      })
+    })
+
+    return { id: data.id ?? '', opponent: data.data?.opponent ?? input.opponent }
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error creating match')
+    return null
+  }
+}
+
 export async function startMatch(matchId: string) {
   const matchDataStore = useMatchDataStore()
   const existingMatch = matchDataStore.getMatchData()

@@ -11,11 +11,14 @@
         </button>
         <ul v-if="item.dropdown && item.open" class="dropdown-list">
           <li v-for="option in item.dropdown"
-              :key="option"
-              class="dropdown-item dropdown-item--disabled"
-              title="Coming soon"
-              aria-disabled="true">
-            {{ option }}
+              :key="option.label"
+              class="dropdown-item"
+              :class="{ 'dropdown-item--disabled': !option.action }"
+              :title="option.action ? undefined : 'Coming soon'"
+              :aria-disabled="!option.action"
+              :data-testid="option.action ? `menu-${option.action}` : undefined"
+              @click="option.action && select(option.action, index)">
+            {{ option.label }}
           </li>
         </ul>
       </li>
@@ -24,34 +27,52 @@
 </template>
 
 <script lang="ts">
-  // The dropdown items below (Fixtures, History, Team/Player/Match stats, New
-  // Player, New Match) don't have pages or routes behind them yet -- there's no
-  // vue-router wired up (see main.ts) and no corresponding components. They're
-  // kept visible as a roadmap of what's planned, but rendered disabled so the
-  // UI doesn't imply you can click through to something that doesn't exist
-  // yet. Once routing lands, drop the `dropdown-item--disabled` class (and the
-  // title/aria-disabled attributes) from whichever items get real pages.
+  // Most of the dropdown items below (Fixtures, History, Team/Player/Match
+  // stats) don't have pages behind them yet -- there's still no vue-router
+  // wired up (see main.ts), just App.vue swapping top-level views by hand.
+  // They're kept visible as a roadmap of what's planned, but rendered
+  // disabled so the UI doesn't imply you can click through to something that
+  // doesn't exist yet. New Player/New Match are wired up (see App.vue's
+  // handleNavigate) - an item becomes clickable the moment it's given an
+  // `action`, which is what drives the disabled styling below.
+  interface DropdownOption {
+    label: string;
+    // Present (and clickable) once a menu item has somewhere to navigate to; absent
+    // items render disabled - see the comment above.
+    action?: string;
+  }
+
+  interface MenuItem {
+    label: string;
+    dropdown: DropdownOption[];
+    open: boolean;
+  }
+
   export default {
     name: 'MenuBar',
+    emits: ['navigate'],
     data() {
       return {
         menuItems: [
           {
             label: 'Match',
-            dropdown: ['Fixtures', 'History'],
+            dropdown: [{ label: 'Fixtures' }, { label: 'History' }],
             open: false,
           },
           {
             label: 'Statistics',
-            dropdown: ['Team', 'Player', 'Match'],
+            dropdown: [{ label: 'Team' }, { label: 'Player' }, { label: 'Match' }],
             open: false,
           },
           {
             label: 'Manage',
-            dropdown: ['New Player', 'New Match'],
+            dropdown: [
+              { label: 'New Player', action: 'new-player' },
+              { label: 'New Match', action: 'new-match' },
+            ],
             open: false,
           },
-        ],
+        ] as MenuItem[],
       };
     },
     methods: {
@@ -62,6 +83,10 @@
       closeDropdown(index: number) {
         const item = this.menuItems[index];
         if (item) item.open = false;
+      },
+      select(action: string, index: number) {
+        this.$emit('navigate', action);
+        this.closeDropdown(index);
       },
     },
   };

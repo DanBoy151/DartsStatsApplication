@@ -11,18 +11,32 @@ const API_KEY = import.meta.env.VITE_API_KEY
 export class ApiError extends Error {
   readonly status: number
   readonly path: string
+  /** The server's ProblemDetails.detail, when the response body included one (e.g. validation failures). */
+  readonly detail?: string
 
-  constructor(path: string, status: number, statusText: string) {
-    super(`Request to ${path} failed: ${status} ${statusText}`)
+  constructor(path: string, status: number, statusText: string, detail?: string) {
+    super(detail ? `Request to ${path} failed: ${detail}` : `Request to ${path} failed: ${status} ${statusText}`)
     this.name = 'ApiError'
     this.status = status
     this.path = path
+    this.detail = detail
+  }
+}
+
+/** Best-effort read of ApiExceptionHandler's ProblemDetails.detail, if the error body has one. */
+async function extractProblemDetail(response: Response): Promise<string | undefined> {
+  try {
+    const body = await response.clone().json()
+    return typeof body?.detail === 'string' ? body.detail : undefined
+  } catch {
+    return undefined
   }
 }
 
 async function handleResponse<T>(path: string, response: Response): Promise<T> {
   if (!response.ok) {
-    throw new ApiError(path, response.status, response.statusText)
+    const detail = await extractProblemDetail(response)
+    throw new ApiError(path, response.status, response.statusText, detail)
   }
   return response.json() as Promise<T>
 }
