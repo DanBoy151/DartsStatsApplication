@@ -1,7 +1,7 @@
     services:
       client:
         build:
-          context: ./DartsStatsApplication.Client/
+          context: ./dartsstatsapplication.client/
           dockerfile: Dockerfile
         ports:
             - "80:80"

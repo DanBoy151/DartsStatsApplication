@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# Overridable at build time (e.g. isolated e2e stacks pointing at a different
+# API host/port); defaults to the value baked in .env.production.
+ARG VITE_API_BASE_URL=http://localhost:5001
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 # production stage

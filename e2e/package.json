@@ -1,0 +1,24 @@
+{
+  "name": "dartsstatsapplication.e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "stack:up": "docker compose -f ../docker-compose.e2e.yml up -d --build --wait",
+    "stack:down": "docker compose -f ../docker-compose.e2e.yml down -v",
+    "stack:logs": "docker compose -f ../docker-compose.e2e.yml logs -f"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.18.11",
+    "typescript": "~5.9.0"
+  }
+}

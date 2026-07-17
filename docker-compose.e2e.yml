@@ -1,0 +1,54 @@
+# Isolated stack used only by the Playwright E2E suite (see e2e/). Runs on
+# its own project name/ports/volumes so it never collides with, or shares
+# data with, the docker-compose.yml stack a developer may already have
+# running locally. Postgres data is intentionally NOT persisted across runs -
+# every "up" starts from an empty database so tests are deterministic.
+name: dartsstats-e2e
+
+services:
+  client-e2e:
+    build:
+      context: ./dartsstatsapplication.client/
+      dockerfile: Dockerfile
+      args:
+        # Must match server-e2e's host-published port below - this is baked
+        # into the JS bundle at build time, browser-side fetches go here.
+        VITE_API_BASE_URL: http://localhost:5252
+    ports:
+      - "8085:80"
+    depends_on:
+      - server-e2e
+
+  server-e2e:
+    build:
+      context: ./DartsStatsApplication.Server/
+      dockerfile: Dockerfile
+    ports:
+      - "5252:8080"
+    depends_on:
+      postgresdb-e2e:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__Database=Host=postgresdb-e2e;Port=5432;Database=dartsStats;Username=postgres;Password=postgres
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      # appsettings.Development.json already lists 3 dev-client origins;
+      # this appends a 4th for the e2e client's port (array binding by index).
+      - Cors__AllowedOrigins__3=http://localhost:8085
+
+  postgresdb-e2e:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dartsStats
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    # tmpfs, not a named volume: each "up" gets a fresh, empty database.
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

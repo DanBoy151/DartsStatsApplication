@@ -193,7 +193,7 @@ namespace DartsStatsApplication.Server.Controllers
                 MatchService service = new MatchService(session, match);
                 if (match.data.status == MatchStatus.Scheduled)
                 {
-                    service.StartMatch();
+                    await service.StartMatch();
                     await session.SaveChangesAsync();
                 }
 
@@ -219,7 +219,7 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 MatchService service = new MatchService(session, match);
-                service.UpdateAvailablePlayers(data.availablePlayers);
+                await service.UpdateAvailablePlayers(data.availablePlayers);
 
                 await session.SaveChangesAsync();
 

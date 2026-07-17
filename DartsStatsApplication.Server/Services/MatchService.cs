@@ -18,9 +18,9 @@ namespace DartsStatsApplication.Server.Services
             _validator = new MatchControllerValidator(_match, _documentSession);
         }
 
-        public void StartMatch()
+        public async Task StartMatch()
         {
-            _validator.IsValidToStartMatch();
+            await _validator.IsValidToStartMatch();
             //Update the status of the match to In Progress
             _match.data.status = MatchStatus.Ready;
             _documentSession.Store<Match>(_match);
@@ -71,11 +71,11 @@ namespace DartsStatsApplication.Server.Services
             }
         }
 
-        public void UpdateAvailablePlayers(List<Guid> availablePlayers)
+        public async Task UpdateAvailablePlayers(List<Guid> availablePlayers)
         {
             _match.data.availablePlayers = availablePlayers;
 
-            _validator.ValidateAvailablePlayers();
+            await _validator.ValidateAvailablePlayers();
             _match.data.status = MatchStatus.InProgress;
             _documentSession.Store(_match);
         }

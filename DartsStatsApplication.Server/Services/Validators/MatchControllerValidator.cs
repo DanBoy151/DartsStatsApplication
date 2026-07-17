@@ -36,16 +36,16 @@ namespace DartsStatsApplication.Server.Services.Validators
             return errCode;
         }
 
-        public void IsValidToStartMatch()
+        public async Task IsValidToStartMatch()
         {
             //Validate that only no other In Progress Matches Exist
-            var inProgMatch = _documentSession.Query<Match>().Where(q => q.data.status == MatchStatus.InProgress).FirstOrDefault();
+            var inProgMatch = await _documentSession.Query<Match>().Where(q => q.data.status == MatchStatus.InProgress).FirstOrDefaultAsync();
             if (inProgMatch != null) {
                 throw new ValidationException("Unable to start Match as existing In Progress Match Exists");
             }
         }
 
-        public void ValidateAvailablePlayers()
+        public async Task ValidateAvailablePlayers()
         {
             //Validate that we are attaching available players to an In Progress Match
             if (_match.data.status != MatchStatus.Ready && _match.data.status != MatchStatus.InProgress)
@@ -67,7 +67,7 @@ namespace DartsStatsApplication.Server.Services.Validators
             //Validate that each of the players actually exist
             foreach (Guid id in _match.data.availablePlayers)
             {
-                var player = _documentSession.Query<Player>().Where(p => p.Id == id).First();
+                var player = await _documentSession.Query<Player>().Where(p => p.Id == id).FirstOrDefaultAsync();
                 if (player == null)
                 {
                     throw new ValidationException("Player doesnt exist");
