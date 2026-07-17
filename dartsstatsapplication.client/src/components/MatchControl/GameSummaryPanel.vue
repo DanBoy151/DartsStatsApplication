@@ -32,6 +32,10 @@
           <span class="game-label">Status:</span>
           <span class="game-value">{{ game.status }}</span>
         </div>
+        <div class="game-row">
+          <span class="game-label">Result:</span>
+          <span class="game-value">{{ displayResult(game) }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -69,6 +73,10 @@
       ? `${gamesFor} - ${gamesAgainst}`
       : `${gamesAgainst} - ${gamesFor}`;
   });
+
+  function displayResult(game: Game): string {
+    return game.status === 'Complete' && game.result ? game.result : 'N/A'
+  }
 
   function displayPlayers(game: Game): string {
     const availablePlayers = matchDataStore.getMatchAvailablePlayers();
