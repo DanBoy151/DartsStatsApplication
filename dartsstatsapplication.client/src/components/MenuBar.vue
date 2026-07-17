@@ -32,7 +32,7 @@
   // wired up (see main.ts), just App.vue swapping top-level views by hand.
   // They're kept visible as a roadmap of what's planned, but rendered
   // disabled so the UI doesn't imply you can click through to something that
-  // doesn't exist yet. New Player/New Match are wired up (see App.vue's
+  // doesn't exist yet. Manage > Players/Matches are wired up (see App.vue's
   // handleNavigate) - an item becomes clickable the moment it's given an
   // `action`, which is what drives the disabled styling below.
   interface DropdownOption {
@@ -67,8 +67,8 @@
           {
             label: 'Manage',
             dropdown: [
-              { label: 'New Player', action: 'new-player' },
-              { label: 'New Match', action: 'new-match' },
+              { label: 'Players', action: 'new-player' },
+              { label: 'Matches', action: 'new-match' },
             ],
             open: false,
           },
