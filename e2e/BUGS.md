@@ -104,6 +104,37 @@ Covered by a step in the E2E critical-path test that clicks "Back to
 Players", confirms the roster screen reappears with the earlier selections
 intact, then re-proceeds back to the holding screen.
 
+### 10. `PUT /Game/{id}/complete` had the same sync-Marten-query bug
+Same bug class as #1 and #3, reported directly by the user this time
+("complete game triggers async marten error"). `GameService.CompleteGame()`
+ran `_documentSession.Query<Leg>().Where(l => l.data.gameID == _game.Id).ToList()`
+directly on the Marten `IQueryable` - no `await`, no `ToListAsync()` - so
+completing any game crashed with a 500 before ever reaching
+`IsValidToCompleteGame`'s validation (which was already correct and already
+unit-tested; the bug was purely in the query that loads the game's legs
+for it). Fixed the same way: `await ... .ToListAsync()` materialized with an
+in-memory `.ToList()`, `GameService.CompleteGame` and its `GameController`
+caller made `async`. A full manual walkthrough (create match → start →
+select a Singles game's player → start the game → play and complete all 3
+legs → complete the game) was run against the isolated e2e stack to confirm
+the whole chain works, not just the crash site.
+Covered by an API-level step within the critical-path test in
+`tests/01-start-next-match.spec.ts` ("completing a game reaches validation
+instead of crashing") - reuses that test's own match/games (already In
+Progress) rather than creating a new one, since only one match can be In
+Progress at a time and a second one here would just 400 on `start()`. Calls
+complete on one of its still-Pending games, enough to exercise the query and
+reach the "not In Progress" validation error instead of needing to play out
+any legs.
+
+At this point this bug class (a synchronous Marten call that compiles fine
+but throws `NotSupportedException` under Marten 9) has shown up four times
+across this project - #1 (x2), #3, and this one - always in code written
+before the Marten 9 upgrade and never exercised against a real database
+until now. See `DartsStatsApplication.Server.Tests/README.md` for where the
+remaining session-querying code that still isn't unit-tested lives, in case
+the same mistake is lurking there too.
+
 ## Documented, not fixed (out of scope for this change, tracked here)
 
 ### 7. "View Statistics" button does nothing

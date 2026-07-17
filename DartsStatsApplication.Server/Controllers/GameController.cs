@@ -108,7 +108,7 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 GameService service = new GameService(session, Game);
-                service.CompleteGame(data);
+                await service.CompleteGame(data);
 
                 await session.SaveChangesAsync();
                 return Ok(Game);

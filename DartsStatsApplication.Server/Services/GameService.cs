@@ -36,12 +36,12 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_game);
         }
 
-        public void CompleteGame(CompleteGameData data)
+        public async Task CompleteGame(CompleteGameData data)
         {
             // Load the game's legs so the validator can stay a pure function over them.
-            var legs = _documentSession.Query<Leg>()
+            var legs = (await _documentSession.Query<Leg>()
                 .Where(l => l.data.gameID == _game.Id)
-                .ToList();
+                .ToListAsync()).ToList();
 
             _validator.IsValidToCompleteGame(legs, data);
             _game.data.status = GameStatus.Complete;

@@ -32,6 +32,7 @@ test.describe.serial('Start next match', () => {
 
   test('captain can start the next match end-to-end', async ({
     page,
+    api,
     seededMatch,
     launchScreen,
     availablePlayersScreen,
@@ -122,6 +123,36 @@ test.describe.serial('Start next match', () => {
       await gameSummaryPanel.selectGame(0)
       await expect(page.locator('.select-players-game-control')).toBeVisible()
       await expect(page.locator('.select-players-game-control .player-list-heading')).toHaveText('Select Players')
+    })
+
+    await test.step('completing a game reaches validation instead of crashing (BUGS.md #10)', async () => {
+      // API-level regression test: GameService.CompleteGame ran the exact
+      // same kind of synchronous Marten query (`.ToList()` directly on the
+      // IQueryable, for the game's legs) as the Match/CompleteMatch bug (#3),
+      // and crashed with a bare 500 the same way.
+      //
+      // Reuses this test's own match/games (already In Progress) rather than
+      // creating a new one - only one match can be In Progress at a time,
+      // and this test is already holding that slot, so a second one here
+      // would 400 on start() instead of exercising anything useful. Any of
+      // the 11 games works: selecting one in the UI (previous step) doesn't
+      // change its status server-side, so they're all still Pending - enough
+      // to exercise the query and reach validation without playing out legs.
+      const gamesRes = await api.get(`/api/Match/${match.id}/games`)
+      const games: { id: string; data: { status: string } }[] = await gamesRes.json()
+      const pendingGame = games.find((g) => g.data.status === 'Pending')!
+
+      const completeRes = await api.put(`/api/Game/${pendingGame.id}/complete`, {
+        data: { result: 'Win' },
+      })
+
+      // Pre-fix this was a 500 ("An unexpected error occurred") before the
+      // request ever reached business-rule validation. Post-fix, the query
+      // itself succeeds (0 legs) and we reach the expected validation error
+      // instead.
+      expect(completeRes.status()).toBe(400)
+      const body = await completeRes.json()
+      expect(body.detail).toBe('Unable to complete a Game that is not In Progress')
     })
   })
 
