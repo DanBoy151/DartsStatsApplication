@@ -58,6 +58,12 @@
 
     showHoldingScreen.value = false
 
+    // Whatever leg/current-player was selected belongs to the PREVIOUS
+    // game - clear it before possibly reselecting below, so a fresh/
+    // not-yet-started game (no legs of its own yet) doesn't leak the old
+    // game's scores/next-player into ScoreLedgerPanel/EnterScorePanel.
+    matchDataStore.clearSelectedLeg()
+
     // A game that's already been played (Ready/InProgress/Complete) has legs
     // worth showing - fetchLegs() no-ops if they're already loaded. Select
     // the last one actually played so MatchCenter opens on where things

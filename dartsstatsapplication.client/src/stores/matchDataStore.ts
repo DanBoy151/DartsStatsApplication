@@ -244,6 +244,16 @@ export const useMatchDataStore = defineStore('leg', {
 
       this.selectedLeg = this.selectedGame.legs.find(l => l.legId === legID) || null;
     },
+    clearSelectedLeg() {
+      // A freshly-selected game that hasn't been started yet has no leg of
+      // its own (legs only exist once StartGame creates them server-side),
+      // so nothing here calls setSelectedLeg() to replace the old one -
+      // without this, ScoreLedgerPanel/EnterScorePanel (which read
+      // selectedLeg/currentPlayer directly, unlike RemainingScorePanel)
+      // keep showing whatever game was selected previously.
+      this.selectedLeg = null;
+      this.currentPlayer = null;
+    },
     getSelectedLeg() {
       return this.selectedLeg;
     },

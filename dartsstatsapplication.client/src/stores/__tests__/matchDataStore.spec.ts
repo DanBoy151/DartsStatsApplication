@@ -194,3 +194,30 @@ describe('matchDataStore.setLegData resyncing selectedLeg', () => {
     expect(store.selectedLeg?.remainingScore).toBe(401)
   })
 })
+
+describe('matchDataStore.clearSelectedLeg', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('clears both selectedLeg and currentPlayer', () => {
+    // Regression test: MatchControl.vue's handleSelectGame() only replaced
+    // selectedLeg when the newly-selected game already had legs of its own
+    // (i.e. had been started before) - a fresh/Ready game with no legs left
+    // the PREVIOUS game's selectedLeg/currentPlayer in place, which
+    // ScoreLedgerPanel/EnterScorePanel (reading them directly) then
+    // displayed for the new game.
+    const store = useMatchDataStore()
+    store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
+    store.setGameData('game-1', ['player-1'], 'Trebles', 'Complete', 'Loss', false, 0)
+    store.setLegData('game-1', 'leg-1', 'Completed', [{ playerId: 'player-1', score: 100 }], 'Loss', 0, 0, 601)
+    store.setSelectedGame('game-1')
+    store.setSelectedLeg('leg-1')
+    store.setNextPlayerTurn('player-1')
+
+    store.clearSelectedLeg()
+
+    expect(store.selectedLeg).toBeNull()
+    expect(store.currentPlayer).toBeNull()
+  })
+})
