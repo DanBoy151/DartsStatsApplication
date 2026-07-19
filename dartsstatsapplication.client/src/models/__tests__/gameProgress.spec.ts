@@ -176,4 +176,22 @@ describe('buildLedgerRows', () => {
   it('returns an empty array for a leg with no throws yet', () => {
     expect(buildLedgerRows([], 501, ['p1'])).toEqual([])
   })
+
+  it('numbers rounds by player rotation, one throw per player per round', () => {
+    // 3 players -> rounds of 3: throws 0-2 are round 1, 3-5 are round 2, etc.
+    const throws = Array.from({ length: 7 }, (_, i) => ({ playerId: `p${i % 3}`, score: 20 }))
+    const rows = buildLedgerRows(throws, 701, ['p0', 'p1', 'p2'])
+    expect(rows.map((r) => r.round)).toEqual([1, 1, 1, 2, 2, 2, 3])
+  })
+
+  it('numbers every throw as its own round for a single-player (Singles) leg', () => {
+    const throws = [{ playerId: 'p1', score: 60 }, { playerId: 'p1', score: 45 }]
+    const rows = buildLedgerRows(throws, 501, ['p1'])
+    expect(rows.map((r) => r.round)).toEqual([1, 2])
+  })
+
+  it('does not divide by zero when playerOrder is empty', () => {
+    const rows = buildLedgerRows([{ playerId: 'p1', score: 20 }], 501, [])
+    expect(rows[0]?.round).toBe(1)
+  })
 })

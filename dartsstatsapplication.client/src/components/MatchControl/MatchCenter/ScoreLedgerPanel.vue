@@ -2,15 +2,16 @@
   <div class="score-ledger-panel" ref="ledgerPanel">
     <div v-if="rows.length === 0" class="ledger-empty">No throws yet</div>
     <div v-else class="ledger-timeline">
-      <div v-for="(row, index) in rows"
-           :key="index"
-           class="ledger-row"
-           :class="{ 'is-max': row.isMaximum, 'is-noscore': row.isNoScore }">
-        <span class="ledger-dot" :style="{ background: playerColor(row.playerIndex) }"></span>
-        <span class="ledger-player">{{ getPlayerName(row.playerId) }}</span>
-        <span class="ledger-score">{{ row.isNoScore ? 'No score' : row.score }}</span>
-        <span class="ledger-remaining">{{ row.isNoScore ? 'no change' : `→ ${row.remaining}` }}</span>
-      </div>
+      <template v-for="(row, index) in rows" :key="index">
+        <div v-if="row.round !== rows[index - 1]?.round" class="ledger-round-divider">Round {{ row.round }}</div>
+        <div class="ledger-row"
+             :class="{ 'is-max': row.isMaximum, 'is-noscore': row.isNoScore }">
+          <span class="ledger-dot" :style="{ background: playerColor(row.playerIndex) }"></span>
+          <span class="ledger-player">{{ getPlayerName(row.playerId) }}</span>
+          <span class="ledger-score">{{ row.isNoScore ? 'No score' : row.score }}</span>
+          <span class="ledger-remaining">{{ row.isNoScore ? 'no change' : `→ ${row.remaining}` }}</span>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -78,6 +79,21 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .ledger-round-divider {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #95a5a6;
+    padding: 0 0.2rem;
+  }
+
+  .ledger-round-divider:not(:first-child) {
+    margin-top: 0.2rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #e0e3e6;
   }
 
   .ledger-row {

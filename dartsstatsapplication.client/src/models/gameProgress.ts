@@ -87,11 +87,16 @@ export interface LedgerRow {
    *  records exactly this), occasionally a genuine scoreless visit. The
    *  data doesn't distinguish the two, so both render the same way. */
   isNoScore: boolean
+  /** 1-based - every player throws once per round, in playerOrder, so round
+   *  = floor(throw index / player count) + 1. Resets each leg, since throws
+   *  are already scoped to a single leg's score history. */
+  round: number
 }
 
 export function buildLedgerRows(throws: LedgerThrow[], startingScore: number, playerOrder: string[]): LedgerRow[] {
   let remaining = startingScore
-  return throws.map((t) => {
+  const playersPerRound = Math.max(playerOrder.length, 1)
+  return throws.map((t, index) => {
     remaining -= t.score
     return {
       playerId: t.playerId,
@@ -100,6 +105,7 @@ export function buildLedgerRows(throws: LedgerThrow[], startingScore: number, pl
       playerIndex: playerOrder.indexOf(t.playerId),
       isMaximum: t.score === 180,
       isNoScore: t.score === 0,
+      round: Math.floor(index / playersPerRound) + 1,
     }
   })
 }
