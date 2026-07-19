@@ -1,7 +1,12 @@
 <template>
   <div class="match-center-grid">
-    <div class="quarter score-ledger" :class="{ disabled: !started || isComplete }">
-      <ScoreLedgerPanel :disabled="!started || isComplete" />
+    <div class="quarter score-ledger">
+      <!-- No disabled/pointer-events-blocking class here: the ledger is
+           read-only display with nothing to protect from accidental
+           interaction (unlike enter-score/stats), and pointer-events:none
+           was blocking mouse-wheel/trackpad scrolling on a Complete game's
+           full leg history, not just clicks. -->
+      <ScoreLedgerPanel />
     </div>
     <div class="quarter remaining-score">
       <RemainingScorePanel @start-match="onStartMatch"
