@@ -17,7 +17,7 @@ export class MatchCenterScreen {
   readonly wonBullNoButton: Locator
 
   readonly nextPlayerHeading: Locator
-  readonly scoreInput: Locator
+  readonly keypad: Locator
   readonly submitScoreButton: Locator
   readonly noScoreButton: Locator
   readonly scoreErrorMessage: Locator
@@ -36,7 +36,7 @@ export class MatchCenterScreen {
     this.wonBullNoButton = this.wonBullDialog.getByRole('button', { name: 'No' })
 
     this.nextPlayerHeading = this.root.locator('.enter-score-panel h2')
-    this.scoreInput = this.root.locator('.score-input')
+    this.keypad = this.root.locator('.keypad-grid')
     this.submitScoreButton = this.root.getByRole('button', { name: 'Submit' })
     this.noScoreButton = this.root.getByRole('button', { name: 'No Score' })
     this.scoreErrorMessage = this.root.locator('.enter-score-panel .error-message')
@@ -61,9 +61,11 @@ export class MatchCenterScreen {
     await this.page.waitForTimeout(1000)
   }
 
-  /** Submits one throw. A checkout (remaining score reaches exactly 0) needs a follow-up finishLeg() call. */
+  /** Submits one throw via the number keypad. A checkout (remaining score reaches exactly 0) needs a follow-up finishLeg() call. */
   async enterScore(score: number) {
-    await this.scoreInput.fill(String(score))
+    for (const digit of String(score)) {
+      await this.keypad.locator(`button[data-key="${digit}"]`).click()
+    }
     await this.submitScoreButton.click()
   }
 

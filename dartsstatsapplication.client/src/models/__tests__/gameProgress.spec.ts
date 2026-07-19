@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { totalLegsForGameType, legsRequiredToWin, isGameDecided, lastTouchedLeg, type LegOutcome } from '../gameProgress'
+import {
+  totalLegsForGameType,
+  legsRequiredToWin,
+  isGameDecided,
+  lastTouchedLeg,
+  startingScoreForGameType,
+  buildLedgerRows,
+  type LegOutcome,
+} from '../gameProgress'
 
 function leg(status: string, result: string): LegOutcome {
   return { status, result }
@@ -106,5 +114,66 @@ describe('lastTouchedLeg', () => {
   it('is order-independent in the input array', () => {
     const legs = [orderedLeg('c', 'Pending', 2), orderedLeg('a', 'Completed', 0), orderedLeg('b', 'Completed', 1)]
     expect(lastTouchedLeg(legs)?.legId).toBe('b')
+  })
+})
+
+describe('startingScoreForGameType', () => {
+  it('is 501 for Singles, 601 for Doubles, 701 for Trebles', () => {
+    expect(startingScoreForGameType('Singles')).toBe(501)
+    expect(startingScoreForGameType('Doubles')).toBe(601)
+    expect(startingScoreForGameType('Trebles')).toBe(701)
+  })
+
+  it('is case-insensitive', () => {
+    expect(startingScoreForGameType('trebles')).toBe(701)
+  })
+
+  it('defaults to 0 for an unrecognised type', () => {
+    expect(startingScoreForGameType('Nonsense')).toBe(0)
+  })
+})
+
+describe('buildLedgerRows', () => {
+  it('carries a running remaining down from the starting score, shared across players', () => {
+    const throws = [
+      { playerId: 'tweedie', score: 60 },
+      { playerId: 'gary', score: 26 },
+      { playerId: 'dave-s', score: 180 },
+    ]
+
+    const rows = buildLedgerRows(throws, 701, ['tweedie', 'gary', 'dave-s'])
+
+    expect(rows.map((r) => r.remaining)).toEqual([641, 615, 435])
+  })
+
+  it('flags a 180 as a maximum', () => {
+    const rows = buildLedgerRows([{ playerId: 'p1', score: 180 }], 701, ['p1'])
+    expect(rows[0]?.isMaximum).toBe(true)
+    expect(rows[0]?.isNoScore).toBe(false)
+  })
+
+  it('flags a recorded 0 as a no-score, leaving remaining unchanged', () => {
+    const throws = [
+      { playerId: 'p1', score: 100 },
+      { playerId: 'p1', score: 0 },
+    ]
+    const rows = buildLedgerRows(throws, 501, ['p1'])
+    expect(rows[1]?.isNoScore).toBe(true)
+    expect(rows[1]?.isMaximum).toBe(false)
+    expect(rows[1]?.remaining).toBe(401)
+  })
+
+  it('resolves playerIndex from the supplied player order, or -1 if not found', () => {
+    const throws = [
+      { playerId: 'gary', score: 45 },
+      { playerId: 'unknown', score: 20 },
+    ]
+    const rows = buildLedgerRows(throws, 501, ['tweedie', 'gary', 'dave-s'])
+    expect(rows[0]?.playerIndex).toBe(1)
+    expect(rows[1]?.playerIndex).toBe(-1)
+  })
+
+  it('returns an empty array for a leg with no throws yet', () => {
+    expect(buildLedgerRows([], 501, ['p1'])).toEqual([])
   })
 })
