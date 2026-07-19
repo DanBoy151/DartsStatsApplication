@@ -36,9 +36,13 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, onMounted, onUnmounted } from 'vue';
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import DoublesFinishControl from './DoublesFinishControl.vue'
+
+  const props = defineProps<{
+    disabled?: boolean
+  }>()
 
   const emit = defineEmits<{
     (e: 'legComplete'): void
@@ -90,6 +94,34 @@
     scoreValue.value = ''
     error.value = ''
   }
+
+  // Keyboard support alongside the on-screen keypad, for laptop/desktop use:
+  // digits build the score the same way tapping does, Backspace erases,
+  // Enter submits. Scoped to this component's lifetime and skipped while
+  // the panel is disabled (leg not started/complete) or the checkout
+  // darts-count popup is open, so it never fires as a side effect of
+  // typing somewhere else on the page.
+  function handleKeydown(e: KeyboardEvent) {
+    if (props.disabled || showDartsDoublePopup.value) return
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+
+    const target = e.target as HTMLElement | null
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+
+    if (e.key >= '0' && e.key <= '9') {
+      pressDigit(e.key)
+      e.preventDefault()
+    } else if (e.key === 'Backspace') {
+      backspace()
+      e.preventDefault()
+    } else if (e.key === 'Enter') {
+      submit()
+      e.preventDefault()
+    }
+  }
+
+  onMounted(() => window.addEventListener('keydown', handleKeydown))
+  onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
   function validateScore(value: string): boolean {
     // Only allow integers between 0 and 180
