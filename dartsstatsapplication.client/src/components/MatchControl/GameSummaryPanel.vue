@@ -13,6 +13,10 @@
         <span class="summary-label">Current Score:</span>
         <span class="summary-value">{{ currentScore }}</span>
       </div>
+      <div class="summary-row">
+        <span class="summary-label">Status:</span>
+        <span class="summary-value" :class="matchStatusClass">{{ matchStatus }}</span>
+      </div>
     </div>
     <div class="games-list">
       <div v-for="game in games"
@@ -72,6 +76,26 @@
     return isHome
       ? `${gamesFor} - ${gamesAgainst}`
       : `${gamesAgainst} - ${gamesFor}`;
+  });
+
+  // Winning/Losing/Drawing is about gamesFor vs gamesAgainst directly - not
+  // affected by the home/away display flip currentScore does above.
+  const matchStatus = computed(() => {
+    const match = matchDataStore.getMatchData();
+    const gamesFor = match?.gamesFor ?? 0;
+    const gamesAgainst = match?.gamesAgainst ?? 0;
+
+    if (gamesFor > gamesAgainst) return 'Winning';
+    if (gamesFor < gamesAgainst) return 'Losing';
+    return 'Drawing';
+  });
+
+  const matchStatusClass = computed(() => {
+    switch (matchStatus.value) {
+      case 'Winning': return 'status-winning'
+      case 'Losing': return 'status-losing'
+      default: return 'status-drawing'
+    }
   });
 
   function displayResult(game: Game): string {
@@ -171,6 +195,21 @@
 
   .summary-value {
     font-weight: 400;
+  }
+
+  .status-winning {
+    color: #2ecc71;
+    font-weight: 700;
+  }
+
+  .status-losing {
+    color: #e74c3c;
+    font-weight: 700;
+  }
+
+  .status-drawing {
+    color: #f39c12;
+    font-weight: 700;
   }
 
   .games-list {
