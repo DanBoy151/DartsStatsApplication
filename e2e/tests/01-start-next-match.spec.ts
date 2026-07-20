@@ -211,6 +211,47 @@ test.describe.serial('Start next match', () => {
       await expect(trebles).toContainText('Complete')
     })
 
+    await test.step('editing a previously-recorded throw in the Score Ledger updates the running remaining score', async () => {
+      // Product requirement: correct a scorer's mis-entry mid-leg. The edit
+      // must cascade into every later throw's running remaining (not just
+      // from the edit point forward), and - since mid-leg progress only
+      // reaches the server via completeLeg() - the corrected value is what
+      // ends up persisted once the leg finishes.
+      await gameSummaryPanel.gameBoxByType('Doubles', 1).click()
+      await selectPlayersGameScreen.selectPlayer(0, players[2]!.name)
+      await selectPlayersGameScreen.selectPlayer(1, players[3]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+
+      await gameSummaryPanel.gameBoxByType('Doubles', 1).click()
+      await matchCenterScreen.startGame()
+
+      await matchCenterScreen.enterScore(60)
+      await matchCenterScreen.enterScore(45)
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('496')
+
+      // Editing the FIRST throw (60 -> 100) must cascade past the second,
+      // already-recorded throw: 601 - 100 - 45 = 456.
+      await matchCenterScreen.editLedgerScore(0, 100)
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('456')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('456 remaining')
+
+      // An invalid edit is refused with an inline error, not silently
+      // clamped or accepted.
+      await matchCenterScreen.editLedgerScore(0, 999)
+      await expect(matchCenterScreen.ledgerEditError).toBeVisible()
+      await expect(matchCenterScreen.remainingScoreText).toHaveText('456')
+
+      // Finish the leg as a Loss - Doubles is single-leg, so this also
+      // completes the game and returns to the holding screen. The edited
+      // value only reaches the server via this completeLeg() call (mid-leg
+      // progress is client-only), so reaching Complete here - rather than a
+      // validation error - is itself proof the corrected score round-tripped.
+      await matchCenterScreen.clickFinish()
+      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      await expect(gameSummaryPanel.gameBoxByType('Doubles', 1)).toContainText('Complete')
+    })
+
     await test.step('a best-of-3 Singles game finishes early once the outcome is mathematically decided', async () => {
       // Product requirement: with 2 of 3 legs won, the 3rd leg can't change
       // the outcome - the game should complete without playing it out.

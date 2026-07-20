@@ -17,12 +17,15 @@ export class MatchCenterScreen {
   readonly wonBullNoButton: Locator
 
   readonly nextPlayerHeading: Locator
+  readonly turnRemaining: Locator
   readonly keypad: Locator
   readonly submitScoreButton: Locator
   readonly noScoreButton: Locator
   readonly scoreErrorMessage: Locator
 
   readonly doublesFinishDialog: Locator
+  readonly ledgerEditableScores: Locator
+  readonly ledgerEditError: Locator
 
   constructor(private readonly page: Page) {
     this.root = page.locator('.match-center')
@@ -36,12 +39,15 @@ export class MatchCenterScreen {
     this.wonBullNoButton = this.wonBullDialog.getByRole('button', { name: 'No' })
 
     this.nextPlayerHeading = this.root.locator('.enter-score-panel h2')
+    this.turnRemaining = this.root.locator('.enter-score-panel .turn-remaining')
     this.keypad = this.root.locator('.keypad-grid')
     this.submitScoreButton = this.root.getByRole('button', { name: 'Submit' })
     this.noScoreButton = this.root.getByRole('button', { name: 'No Score' })
     this.scoreErrorMessage = this.root.locator('.enter-score-panel .error-message')
 
     this.doublesFinishDialog = page.locator('.doubles-finish-dialog')
+    this.ledgerEditableScores = this.root.locator('.ledger-score-editable')
+    this.ledgerEditError = this.root.locator('.ledger-edit-error')
   }
 
   async startGame() {
@@ -92,5 +98,12 @@ export class MatchCenterScreen {
       this.backButton.isVisible(),
     ])
     return !start && !finish && back
+  }
+
+  /** Corrects a previously-recorded throw at `index` (0-based, ledger order) in the Score Ledger, only available while a game is In Progress. */
+  async editLedgerScore(index: number, newValue: number) {
+    await this.root.locator(`[data-testid="ledger-score-${index}"]`).click()
+    await this.root.locator(`[data-testid="ledger-edit-input-${index}"]`).fill(String(newValue))
+    await this.root.locator(`[data-testid="ledger-edit-save-${index}"]`).click()
   }
 }

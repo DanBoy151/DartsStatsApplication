@@ -6,7 +6,7 @@
            interaction (unlike enter-score/stats), and pointer-events:none
            was blocking mouse-wheel/trackpad scrolling on a Complete game's
            full leg history, not just clicks. -->
-      <ScoreLedgerPanel />
+      <ScoreLedgerPanel :editable="started && !isComplete" />
     </div>
     <div class="quarter remaining-score">
       <RemainingScorePanel @start-match="onStartMatch"

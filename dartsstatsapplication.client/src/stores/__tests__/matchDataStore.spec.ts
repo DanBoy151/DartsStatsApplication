@@ -221,3 +221,72 @@ describe('matchDataStore.clearSelectedLeg', () => {
     expect(store.currentPlayer).toBeNull()
   })
 })
+
+describe('matchDataStore.editSelectedLegScoreEntry', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  function setupLeg() {
+    const store = useMatchDataStore()
+    store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
+    store.setGameData('game-1', ['p1', 'p2'], 'Doubles', 'InProgress', '', false, 0)
+    store.setLegData('game-1', 'leg-1', 'Started', [
+      { playerId: 'p1', score: 60 },
+      { playerId: 'p2', score: 45 },
+      { playerId: 'p1', score: 20 },
+    ], '', 0, 0, 476) // 601 - 60 - 45 - 20
+    store.setSelectedGame('game-1')
+    store.setSelectedLeg('leg-1')
+    return store
+  }
+
+  it('replaces the entry at the given index and recomputes remainingScore', () => {
+    const store = setupLeg()
+
+    const ok = store.editSelectedLegScoreEntry(1, 85, 601) // p2's 45 was actually 85
+
+    expect(ok).toBe(true)
+    expect(store.selectedLeg?.score.map(s => s.score)).toEqual([60, 85, 20])
+    expect(store.selectedLeg?.remainingScore).toBe(601 - 60 - 85 - 20)
+  })
+
+  it('recomputes remainingScore against every entry, not just from the edit point forward', () => {
+    const store = setupLeg()
+
+    // Edit the FIRST throw - later throws (already summed once) must not be double-counted.
+    store.editSelectedLegScoreEntry(0, 100, 601)
+
+    expect(store.selectedLeg?.remainingScore).toBe(601 - 100 - 45 - 20)
+  })
+
+  it('refuses an edit that would drive remainingScore negative, leaving state unchanged', () => {
+    const store = setupLeg()
+
+    // Other two throws (p2:45, p1:20) total 65, so with a 601 start, editing
+    // index 0 up to 179 still leaves 357 remaining - valid - but 600 would
+    // push the total to 665, past the 601 start - invalid.
+    const ok = store.editSelectedLegScoreEntry(0, 179, 601)
+    const ok2 = store.editSelectedLegScoreEntry(0, 600, 601)
+
+    expect(ok).toBe(true)
+    expect(ok2).toBe(false)
+    expect(store.selectedLeg?.score[0]?.score).toBe(179) // ok's edit stuck, ok2's did not
+    expect(store.selectedLeg?.remainingScore).toBe(601 - 179 - 45 - 20)
+  })
+
+  it('returns false for an out-of-range index and leaves the leg unchanged', () => {
+    const store = setupLeg()
+    const before = store.selectedLeg?.remainingScore
+
+    const ok = store.editSelectedLegScoreEntry(99, 50, 601)
+
+    expect(ok).toBe(false)
+    expect(store.selectedLeg?.remainingScore).toBe(before)
+  })
+
+  it('returns false when there is no selected leg', () => {
+    const store = useMatchDataStore()
+    expect(store.editSelectedLegScoreEntry(0, 50, 501)).toBe(false)
+  })
+})

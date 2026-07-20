@@ -265,6 +265,33 @@ export const useMatchDataStore = defineStore('leg', {
         }
       }
     },
+    /**
+     * Corrects a previously-recorded throw (e.g. a scorer's mis-entry) at
+     * `index` in the current leg's score history. Unlike
+     * updateSelectedLegScore() (which appends a new throw and decrements
+     * remainingScore relatively), this replaces an existing entry and
+     * recomputes remainingScore from scratch against startingScore, since
+     * the edit can land anywhere in the history, not just the latest throw.
+     * Refuses the edit (returns false) rather than leaving remainingScore
+     * negative - callers should validate the single-throw value (0-180)
+     * themselves before calling this, the same as normal entry does.
+     */
+    editSelectedLegScoreEntry(index: number, newScore: number, startingScore: number): boolean {
+      if (!this.selectedLeg) return false;
+      if (index < 0 || index >= this.selectedLeg.score.length) return false;
+
+      const total = this.selectedLeg.score.reduce(
+        (sum, entry, i) => sum + (i === index ? newScore : entry.score),
+        0
+      );
+      if (startingScore - total < 0) return false;
+
+      const entry = this.selectedLeg.score[index];
+      if (!entry) return false;
+      entry.score = newScore;
+      this.selectedLeg.remainingScore = startingScore - total;
+      return true;
+    },
     completeSelectedLeg(result: string, finishDarts: number) {
       if (this.selectedLeg) {
         this.selectedLeg.result = result;
