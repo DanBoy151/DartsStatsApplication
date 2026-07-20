@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, onMounted } from 'vue'
+  import { computed, ref, onMounted, watch } from 'vue'
   import { defineProps, defineEmits } from 'vue'
   import ScoreLedgerPanel from './MatchCenter/ScoreLedgerPanel.vue'
   import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
@@ -38,7 +38,7 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg } from '@/actions/LegService'
   import { updateMatchScore } from '@/actions/MatchService'
-  import { isGameDecided } from '@/models/gameProgress'
+  import { isGameDecided, nextPlayerId } from '@/models/gameProgress'
 
   const matchDataStore = useMatchDataStore()
 
@@ -131,6 +131,30 @@
     const game = matchDataStore.getSelectedGame()
     return game?.status === 'InProgress'
   }
+
+  // currentPlayer is otherwise only ever set explicitly, from
+  // onStartMatch()/startNextLeg() - which never run when RESUMING a game
+  // that's already In Progress (as opposed to freshly starting one), so it
+  // stayed null and EnterScorePanel's submit()/noScore() silently no-op.
+  // Deriving it here from how many throws the current leg already has
+  // restores it correctly on resume, and is a harmless no-op the rest of
+  // the time (it agrees with whatever onStartMatch()/startNextLeg()/normal
+  // play already set). immediate:true covers selectedLeg already being
+  // populated by the time this component mounts; the watch itself covers
+  // it arriving slightly later, and every leg transition after that.
+  watch(
+    () => matchDataStore.selectedLeg,
+    (leg) => {
+      if (!leg) return
+      const game = matchDataStore.selectedGame
+      if (!game) return
+      const playerId = nextPlayerId(leg.score.length, game.players)
+      if (playerId) {
+        matchDataStore.setNextPlayerTurn(playerId)
+      }
+    },
+    { immediate: true }
+  )
 
   async function onStartMatch(payload: { wonBull: boolean }) {
     started.value = true

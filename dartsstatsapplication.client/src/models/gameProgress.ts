@@ -93,6 +93,19 @@ export interface LedgerRow {
   round: number
 }
 
+/**
+ * Whose turn is next, purely from how many throws are already recorded and
+ * the game's fixed player order - one throw per player per round, so after
+ * N throws it's playerOrder[N % playerOrder.length]'s turn. Used both to
+ * advance turns during live play and to restore whose turn it is when
+ * resuming a game that's already In Progress rather than freshly starting
+ * one (the only other place currentPlayer ever gets set).
+ */
+export function nextPlayerId(throwCount: number, playerOrder: string[]): string | null {
+  if (playerOrder.length === 0) return null
+  return playerOrder[throwCount % playerOrder.length] ?? null
+}
+
 export function buildLedgerRows(throws: LedgerThrow[], startingScore: number, playerOrder: string[]): LedgerRow[] {
   let remaining = startingScore
   const playersPerRound = Math.max(playerOrder.length, 1)

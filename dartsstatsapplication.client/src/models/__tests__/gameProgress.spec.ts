@@ -10,6 +10,7 @@ import {
   computePlayerAverages,
   computeLegAverages,
   padLegAverages,
+  nextPlayerId,
   type LegOutcome,
 } from '../gameProgress'
 
@@ -304,5 +305,25 @@ describe('padLegAverages', () => {
   it('does not pad a single-leg game type once its one leg is present', () => {
     const padded = padLegAverages([{ order: 0, average: 66.2, result: 'live' }], 'Trebles')
     expect(padded).toHaveLength(1)
+  })
+})
+
+describe('nextPlayerId', () => {
+  it('cycles through playerOrder by throw count, wrapping around', () => {
+    const players = ['dan', 'stu', 'truk']
+    expect(nextPlayerId(0, players)).toBe('dan')
+    expect(nextPlayerId(1, players)).toBe('stu')
+    expect(nextPlayerId(2, players)).toBe('truk')
+    expect(nextPlayerId(3, players)).toBe('dan') // wraps into round 2
+    expect(nextPlayerId(4, players)).toBe('stu')
+  })
+
+  it('always returns the same single player for a Singles game', () => {
+    expect(nextPlayerId(0, ['gary'])).toBe('gary')
+    expect(nextPlayerId(7, ['gary'])).toBe('gary')
+  })
+
+  it('returns null when there are no players', () => {
+    expect(nextPlayerId(0, [])).toBeNull()
   })
 })
