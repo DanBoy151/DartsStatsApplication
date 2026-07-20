@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Marten;
 using DartsStatsApplication.Server.Controllers.Models;
 using DartsStatsApplication.Server.Models;
+using DartsStatsApplication.Server.Services;
 using DartsStatsApplication.Server.Services.Validators;
 
 namespace DartsStatsApplication.Server.Controllers
@@ -45,6 +46,26 @@ namespace DartsStatsApplication.Server.Controllers
                 return Ok(allPlayers);
             }
 
+        }
+
+        /// <summary>
+        /// Get every player's aggregated career stats - 3-dart average, first 9,
+        /// leg win/loss record, score tiers, best leg, and highest checkout -
+        /// computed across every leg they've played in, not just one match.
+        /// Ranked by 3-dart average, highest first.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("stats")]
+        public async Task<ActionResult<List<PlayerStatsData>>> GetPlayerStats()
+        {
+            using (var session = _documentStore.QuerySession())
+            {
+                var players = (await session.Query<Player>().ToListAsync()).ToList();
+                var legs = (await session.Query<Leg>().ToListAsync()).ToList();
+
+                var stats = PlayerStatsCalculator.Calculate(players, legs);
+                return Ok(stats);
+            }
         }
 
         /// <summary>
