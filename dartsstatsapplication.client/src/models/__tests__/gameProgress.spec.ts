@@ -6,6 +6,10 @@ import {
   lastTouchedLeg,
   startingScoreForGameType,
   buildLedgerRows,
+  computeVisitStats,
+  computePlayerAverages,
+  computeLegAverages,
+  padLegAverages,
   type LegOutcome,
 } from '../gameProgress'
 
@@ -193,5 +197,112 @@ describe('buildLedgerRows', () => {
   it('does not divide by zero when playerOrder is empty', () => {
     const rows = buildLedgerRows([{ playerId: 'p1', score: 20 }], 501, [])
     expect(rows[0]?.round).toBe(1)
+  })
+})
+
+describe('computeVisitStats', () => {
+  it('returns a null average (not 0) with no throws yet', () => {
+    const stats = computeVisitStats([])
+    expect(stats).toEqual({ average: null, highest: 0, visits: 0, tier100: 0, tier140: 0, tier180: 0 })
+  })
+
+  it('computes average, highest, and visits', () => {
+    const throws = [{ playerId: 'p1', score: 60 }, { playerId: 'p1', score: 45 }, { playerId: 'p1', score: 100 }]
+    const stats = computeVisitStats(throws)
+    expect(stats.average).toBeCloseTo(68.33, 2)
+    expect(stats.highest).toBe(100)
+    expect(stats.visits).toBe(3)
+  })
+
+  it('buckets tiers as non-overlapping: 100-139, 140-179, exactly 180', () => {
+    const throws = [
+      { playerId: 'p1', score: 100 }, // tier100
+      { playerId: 'p1', score: 139 }, // tier100
+      { playerId: 'p1', score: 140 }, // tier140
+      { playerId: 'p1', score: 179 }, // tier140
+      { playerId: 'p1', score: 180 }, // tier180
+      { playerId: 'p1', score: 60 },  // none
+    ]
+    const stats = computeVisitStats(throws)
+    expect(stats.tier100).toBe(2)
+    expect(stats.tier140).toBe(2)
+    expect(stats.tier180).toBe(1)
+  })
+})
+
+describe('computePlayerAverages', () => {
+  it('gives every player in playerOrder a row, even with zero throws', () => {
+    const averages = computePlayerAverages([{ playerId: 'p1', score: 60 }], ['p1', 'p2'])
+    expect(averages).toEqual([
+      { playerId: 'p1', playerIndex: 0, average: 60 },
+      { playerId: 'p2', playerIndex: 1, average: null },
+    ])
+  })
+
+  it('averages only each player\'s own throws, not the shared leg total', () => {
+    const throws = [
+      { playerId: 'dan', score: 60 },
+      { playerId: 'stu', score: 45 },
+      { playerId: 'dan', score: 140 },
+      { playerId: 'stu', score: 60 },
+    ]
+    const averages = computePlayerAverages(throws, ['dan', 'stu'])
+    expect(averages.find((a) => a.playerId === 'dan')?.average).toBe(100)
+    expect(averages.find((a) => a.playerId === 'stu')?.average).toBe(52.5)
+  })
+})
+
+describe('computeLegAverages', () => {
+  it('maps leg status to a result and computes each played leg\'s average', () => {
+    const legs = [
+      { order: 0, status: 'Completed', result: 'Win', score: [{ playerId: 'p1', score: 180 }, { playerId: 'p1', score: 140 }, { playerId: 'p1', score: 100 }, { playerId: 'p1', score: 81 }] },
+      { order: 1, status: 'Started', result: '', score: [{ playerId: 'p1', score: 60 }, { playerId: 'p1', score: 100 }, { playerId: 'p1', score: 41 }] },
+      { order: 2, status: 'Pending', result: '', score: [] },
+    ]
+
+    const averages = computeLegAverages(legs)
+
+    expect(averages[0]).toEqual({ order: 0, average: 125.25, result: 'won' })
+    expect(averages[1]).toEqual({ order: 1, average: 67, result: 'live' })
+    expect(averages[2]).toEqual({ order: 2, average: null, result: 'pending' })
+  })
+
+  it('maps a Completed/Loss leg to result "lost"', () => {
+    const legs = [{ order: 0, status: 'Completed', result: 'Loss', score: [{ playerId: 'p1', score: 60 }] }]
+    expect(computeLegAverages(legs)[0]?.result).toBe('lost')
+  })
+
+  it('sorts by order regardless of input order', () => {
+    const legs = [
+      { order: 2, status: 'Pending', result: '', score: [] },
+      { order: 0, status: 'Completed', result: 'Win', score: [{ playerId: 'p1', score: 60 }] },
+      { order: 1, status: 'Started', result: '', score: [] },
+    ]
+    expect(computeLegAverages(legs).map((l) => l.order)).toEqual([0, 1, 2])
+  })
+})
+
+describe('padLegAverages', () => {
+  it('pads an empty list with pending placeholders up to the game type\'s leg count', () => {
+    const padded = padLegAverages([], 'Singles')
+    expect(padded).toEqual([
+      { order: 0, average: null, result: 'pending' },
+      { order: 1, average: null, result: 'pending' },
+      { order: 2, average: null, result: 'pending' },
+    ])
+  })
+
+  it('only pads the missing legs, leaving real ones untouched', () => {
+    const padded = padLegAverages([{ order: 0, average: 125.25, result: 'won' }], 'Singles')
+    expect(padded).toEqual([
+      { order: 0, average: 125.25, result: 'won' },
+      { order: 1, average: null, result: 'pending' },
+      { order: 2, average: null, result: 'pending' },
+    ])
+  })
+
+  it('does not pad a single-leg game type once its one leg is present', () => {
+    const padded = padLegAverages([{ order: 0, average: 66.2, result: 'live' }], 'Trebles')
+    expect(padded).toHaveLength(1)
   })
 })

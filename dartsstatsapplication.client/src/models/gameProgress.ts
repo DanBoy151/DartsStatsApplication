@@ -109,3 +109,101 @@ export function buildLedgerRows(throws: LedgerThrow[], startingScore: number, pl
     }
   })
 }
+
+export interface VisitStats {
+  /** null when there are no throws yet - distinct from a real 0.0 average. */
+  average: number | null
+  highest: number
+  visits: number
+  /** Non-overlapping score tiers, matching how broadcast darts stats are
+   *  usually shown: 100-139, 140-179, and exactly 180 each count once. */
+  tier100: number
+  tier140: number
+  tier180: number
+}
+
+export function computeVisitStats(throws: LedgerThrow[]): VisitStats {
+  if (throws.length === 0) {
+    return { average: null, highest: 0, visits: 0, tier100: 0, tier140: 0, tier180: 0 }
+  }
+
+  let total = 0
+  let highest = 0
+  let tier100 = 0
+  let tier140 = 0
+  let tier180 = 0
+
+  for (const t of throws) {
+    total += t.score
+    if (t.score > highest) highest = t.score
+    if (t.score === 180) tier180++
+    else if (t.score >= 140) tier140++
+    else if (t.score >= 100) tier100++
+  }
+
+  return { average: total / throws.length, highest, visits: throws.length, tier100, tier140, tier180 }
+}
+
+export interface PlayerAverage {
+  playerId: string
+  /** Index within playerOrder - used for the same stable per-player colour ScoreLedgerPanel uses, not a ranking. */
+  playerIndex: number
+  /** null when this player hasn't thrown yet. */
+  average: number | null
+}
+
+/** One row per player in playerOrder, even if they haven't thrown yet - for Doubles/Trebles, where a shared leg total can't be split back out by player any other way. */
+export function computePlayerAverages(throws: LedgerThrow[], playerOrder: string[]): PlayerAverage[] {
+  return playerOrder.map((playerId, playerIndex) => {
+    const playerThrows = throws.filter((t) => t.playerId === playerId)
+    const average = playerThrows.length === 0 ? null : playerThrows.reduce((sum, t) => sum + t.score, 0) / playerThrows.length
+    return { playerId, playerIndex, average }
+  })
+}
+
+export interface LegSummary {
+  order: number
+  status: string
+  result: string
+  score: LedgerThrow[]
+}
+
+export interface LegAverage {
+  order: number
+  /** null when the leg hasn't been played (Pending) yet. */
+  average: number | null
+  result: 'won' | 'lost' | 'live' | 'pending'
+}
+
+/**
+ * One row per leg, in order - for Singles, where the leg-by-leg breakdown
+ * also has to say where in the best-of-three you are, since there's no
+ * separate leg counter doing that job.
+ */
+export function computeLegAverages(legs: LegSummary[]): LegAverage[] {
+  return [...legs]
+    .sort((a, b) => a.order - b.order)
+    .map((leg) => {
+      const stats = computeVisitStats(leg.score)
+      const result: LegAverage['result'] =
+        leg.status === 'Completed' ? (leg.result === 'Win' ? 'won' : 'lost') : leg.status === 'Started' ? 'live' : 'pending'
+      return { order: leg.order, average: stats.average, result }
+    })
+}
+
+/**
+ * Pads a leg-average list with pending placeholders up to however many legs
+ * the game type has - for when game.legs hasn't loaded yet (e.g. before a
+ * Singles game has even been started), so the leg-averages list still shows
+ * all 3 rows rather than none.
+ */
+export function padLegAverages(averages: LegAverage[], gameType: string): LegAverage[] {
+  const total = totalLegsForGameType(gameType)
+  if (averages.length >= total) return averages
+
+  const padded = [...averages]
+  for (let i = averages.length; i < total; i++) {
+    padded.push({ order: i, average: null, result: 'pending' })
+  }
+  return padded
+}
