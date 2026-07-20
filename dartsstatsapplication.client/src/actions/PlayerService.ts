@@ -1,4 +1,5 @@
 import type { Player, RawPlayer } from '@/models/PlayerModel'
+import type { PlayerStats, RawPlayerStats } from '@/models/PlayerStatsModel'
 import { useMatchDataStore } from '@/stores/matchDataStore'
 import { apiGet, apiRequest } from '@/actions/apiClient'
 import { skipFor, takeForFetch, splitPage, type Page } from '@/pagination/page'
@@ -101,5 +102,16 @@ export async function deletePlayer(playerId: string): Promise<boolean> {
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error deleting player')
     return false
+  }
+}
+
+/** Every player's aggregated career stats, ranked by 3-dart average (server-side sort). */
+export async function getPlayerStats(): Promise<PlayerStats[]> {
+  try {
+    const data = await apiGet<RawPlayerStats[]>('/api/Player/stats')
+    return data
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching player stats')
+    return []
   }
 }

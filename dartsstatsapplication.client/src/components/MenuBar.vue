@@ -61,7 +61,7 @@
           },
           {
             label: 'Statistics',
-            dropdown: [{ label: 'Team' }, { label: 'Player' }, { label: 'Match' }],
+            dropdown: [{ label: 'Team', action: 'statistics' }, { label: 'Player' }, { label: 'Match' }],
             open: false,
           },
           {

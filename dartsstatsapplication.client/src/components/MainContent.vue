@@ -8,6 +8,7 @@
                  :is="showMatchControl ? MatchControl : LaunchCaptainControl"
                  @play-match="handlePlayMatch"
                  @back="handleBack"
+                 @view-statistics="$emit('view-statistics')"
                  key="main-content" />
     </transition>
   </div>
@@ -20,6 +21,10 @@
   import MatchControl from './MatchControl.vue'
   import { getNextMatch } from '@/actions/MatchService'
   import { useMatchDataStore } from '@/stores/matchDataStore'
+
+  defineEmits<{
+    (e: 'view-statistics'): void
+  }>()
 
   const showMatchControl = ref(false)
   const loading = ref(true)

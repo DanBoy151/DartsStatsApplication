@@ -31,4 +31,8 @@ export class LaunchScreen {
   async clickPlayMatch() {
     await this.playMatchButton.click()
   }
+
+  async clickViewStatistics() {
+    await this.viewStatisticsButton.click()
+  }
 }

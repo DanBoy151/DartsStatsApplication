@@ -10,7 +10,7 @@
         No match scheduled
       </div>
     </button>
-    <button class="large-square-btn">
+    <button class="large-square-btn" @click="emit('view-statistics')">
       <span class="btn-label">View Statistics</span>
       <img src="./icons/statistics.svg" alt="Statistics" class="statistics-img" />
     </button>
@@ -41,6 +41,7 @@
 
   const emit = defineEmits<{
     (e: 'play-match'): void
+    (e: 'view-statistics'): void
   }>()
 </script>
 

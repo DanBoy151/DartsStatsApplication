@@ -250,14 +250,25 @@ leg object after setSelectedLeg() is called before a setLegData() update") and
 by the "viewing an In Progress game resumes on the current leg, not a fresh
 one" step in `tests/01-start-next-match.spec.ts`.
 
-## Documented, not fixed (out of scope for this change, tracked here)
-
 ### 7. "View Statistics" button does nothing
 On the launch screen (`LaunchCaptainControl.vue`), the "View Statistics"
-button is fully styled and hoverable but has no `@click` handler at all -
+button was fully styled and hoverable but had no `@click` handler at all -
 unlike the menu bar's dropdown items, which are explicitly marked
-`disabled`/`title="Coming soon"`. Clicking it does nothing, with no
-affordance telling the user it's not implemented yet.
+`disabled`/`title="Coming soon"`. Clicking it did nothing, with no
+affordance telling the user it wasn't implemented yet. Fixed by building
+the Team Statistics page it was always meant to lead to
+(`components/Statistics/TeamStatistics.vue`, backed by the new
+`GET /api/Player/stats` endpoint) and wiring both the button and the menu
+bar's Statistics > Team item to it. `App.vue` still has no router (see #14's
+neighbour comment in `MenuBar.vue`), so this follows the same "emit up to a
+parent that flips a view ref" pattern `Manage` already used - `MainContent.vue`
+relays a new `view-statistics` event up from `LaunchCaptainControl.vue` to
+`App.vue`.
+Covered by `tests/03-team-statistics.spec.ts` - both entry points, and a
+guard that the not-yet-tracked Checkout% column always renders its
+placeholder rather than a fabricated number.
+
+## Documented, not fixed (out of scope for this change, tracked here)
 
 ### 14. A throw entered immediately after starting a game can be silently dropped
 Found while verifying #11 in a real browser. `MatchCenter.vue`'s

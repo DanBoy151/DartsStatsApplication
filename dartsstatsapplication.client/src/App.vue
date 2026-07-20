@@ -5,13 +5,14 @@
   import ErrorToast from './components/ErrorToast.vue'
   import NewPlayerForm from './components/Manage/NewPlayerForm.vue'
   import NewMatchForm from './components/Manage/NewMatchForm.vue'
+  import TeamStatistics from './components/Statistics/TeamStatistics.vue'
 
-  type View = 'main' | 'new-player' | 'new-match'
+  type View = 'main' | 'new-player' | 'new-match' | 'statistics'
 
   const currentView = ref<View>('main')
 
   function handleNavigate(action: string) {
-    if (action === 'new-player' || action === 'new-match') {
+    if (action === 'new-player' || action === 'new-match' || action === 'statistics') {
       currentView.value = action
     }
   }
@@ -29,9 +30,10 @@
       <MenuBar @navigate="handleNavigate" />
     </header>
     <main>
-      <MainContent v-if="currentView === 'main'" />
+      <MainContent v-if="currentView === 'main'" @view-statistics="() => (currentView = 'statistics')" />
       <NewPlayerForm v-else-if="currentView === 'new-player'" @done="goToMain" />
       <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" />
+      <TeamStatistics v-else-if="currentView === 'statistics'" @done="goToMain" />
     </main>
     <ErrorToast />
   </div>
