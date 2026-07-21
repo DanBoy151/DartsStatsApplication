@@ -4,7 +4,7 @@
           context: ./dartsstatsapplication.client/
           dockerfile: Dockerfile
         ports:
-            - "80:80"
+            - "80:8080"
         depends_on:
             - server
         volumes:
