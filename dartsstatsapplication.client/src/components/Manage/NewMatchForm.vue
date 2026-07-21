@@ -155,6 +155,7 @@
   import { getTeams } from '@/actions/TeamService'
   import { pageAfterDelete } from '@/pagination/page'
   import { formatDisplayDate, toDateInputValue } from '@/utils/dateFormat'
+  import { useMatchDataStore } from '@/stores/matchDataStore'
   import type { Match } from '@/models/MatchModel'
   import type { Season } from '@/models/SeasonModel'
   import type { League } from '@/models/LeagueModel'
@@ -163,6 +164,8 @@
   defineEmits<{
     (e: 'done'): void
   }>()
+
+  const matchDataStore = useMatchDataStore()
 
   const matches = ref<Match[]>([])
   const seasons = ref<Season[]>([])
@@ -241,6 +244,9 @@
     // (most commonly: this match is no longer Scheduled).
     if (deleted) {
       if (editingMatchId.value === match.id) cancelEdit()
+      // Force the main screen's "next match" to be refetched rather than
+      // read stale cached data - this deleted match might be the one it had cached.
+      matchDataStore.clearStore()
       await loadPage(pageAfterDelete(pageIndex.value, matches.value.length))
     }
   }
@@ -264,6 +270,9 @@
         if (match) {
           successMessage.value = `Match vs "${match.opponent}" saved.`
           cancelEdit()
+          // Force the main screen's "next match" to be refetched rather than
+          // read stale cached data - this edited match might be the one it had cached.
+          matchDataStore.clearStore()
           await loadPage(pageIndex.value)
         }
       } else {
@@ -286,6 +295,9 @@
           location.value = 'Home'
           seasonId.value = ''
           errors.value = {}
+          // Force the main screen's "next match" to be refetched - this new
+          // match may now outrank whatever was previously cached as next.
+          matchDataStore.clearStore()
           await loadPage(0)
         }
       }

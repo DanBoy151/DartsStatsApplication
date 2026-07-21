@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { formatDisplayDate, toDateInputValue } from '../dateFormat'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { formatDisplayDate, toDateInputValue, isTodayOrPastAEST } from '../dateFormat'
 
 describe('formatDisplayDate', () => {
   it('formats a Date as "DD Month YYYY"', () => {
@@ -34,5 +34,32 @@ describe('toDateInputValue', () => {
 
   it('returns empty string for an invalid date', () => {
     expect(toDateInputValue(new Date('not a date'))).toBe('')
+  })
+})
+
+describe('isTodayOrPastAEST', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('returns true for a date far in the past', () => {
+    expect(isTodayOrPastAEST(new Date('2000-01-01T00:00:00Z'))).toBe(true)
+  })
+
+  it('returns false for a date far in the future', () => {
+    expect(isTodayOrPastAEST(new Date('2100-01-01T00:00:00Z'))).toBe(false)
+  })
+
+  it('returns false for an invalid date', () => {
+    expect(isTodayOrPastAEST(new Date('not a date'))).toBe(false)
+  })
+
+  it('treats a match date-only string ("yyyy-mm-dd", parsed as UTC midnight) as today when it is already today in AEST, even while UTC is still on the previous calendar day', () => {
+    // 2026-01-01T20:00:00Z is 2026-01-02 06:00 in AEST (UTC+10) - "today" in
+    // AEST is already the 2nd, despite the UTC calendar date still reading
+    // the 1st.
+    vi.setSystemTime(new Date('2026-01-01T20:00:00Z'))
+    expect(isTodayOrPastAEST(new Date('2026-01-02'))).toBe(true)
+    expect(isTodayOrPastAEST(new Date('2026-01-03'))).toBe(false)
   })
 })

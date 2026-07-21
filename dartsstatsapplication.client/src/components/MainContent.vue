@@ -8,6 +8,7 @@
                  :is="showMatchControl ? MatchControl : LaunchCaptainControl"
                  @play-match="handlePlayMatch"
                  @back="handleBack"
+                 @game-complete="handleGameComplete"
                  @view-statistics="$emit('view-statistics')"
                  key="main-content" />
     </transition>
@@ -48,6 +49,16 @@
     loading.value = true
     await getNextMatch()
     loading.value = false
+  }
+
+  // A game (or the whole match) just finished - return to the main screen
+  // and force a real refresh: clearStore() wipes the (now possibly stale/
+  // completed) cached match so getNextMatch() hits the API again instead of
+  // short-circuiting on what's already in the store.
+  async function handleGameComplete() {
+    showMatchControl.value = false
+    matchDataStore.clearStore()
+    await fetchNextMatch()
   }
 
   onMounted(() => {

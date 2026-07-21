@@ -15,6 +15,7 @@
                    :game="selectedGame"
                    @back="handleMatchCenterBack"
                    @edit-players="handleEditPlayers"
+                   @game-complete="emit('game-complete')"
                    />
 
       <HoldingScreenControl v-else-if="showHoldingScreen"
@@ -42,6 +43,12 @@
   import { fetchLegs } from '@/actions/GameService'
 
   const matchDataStore = useMatchDataStore()
+
+  // 'back' (manual Back/Cancel navigation) is used implicitly via $emit in
+  // the template (AvailablePlayersControl). 'game-complete' needs an
+  // explicit emit() to relay MatchCenter's own 'game-complete' straight
+  // through, bypassing the holding screen.
+  const emit = defineEmits(['back', 'game-complete'])
 
   const showHoldingScreen = ref(false)
   const selectedGameId = ref<string | null>(null)

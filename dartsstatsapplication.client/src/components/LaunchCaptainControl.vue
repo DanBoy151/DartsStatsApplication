@@ -1,6 +1,6 @@
 <template>
   <div class="button-group">
-    <button class="large-square-btn play-match-btn" @click="onPlayMatch">
+    <button class="large-square-btn play-match-btn" :disabled="!canPlayMatch" @click="onPlayMatch">
       <span class="btn-label">Play Match</span>
       <img src="./icons/dartboard.svg" alt="Dartboard" class="dartboard-img" />
       <div v-if="match?.opponent" class="next-match">
@@ -23,6 +23,7 @@
   import type { Match } from '@/models/MatchModel'
   import { convertToMatchFromMatchDataState } from '@/models/MatchModel'
   import { startMatch } from '@/actions/MatchService'
+  import { isTodayOrPastAEST } from '@/utils/dateFormat'
 
   const matchDataStore = useMatchDataStore()
   const match: Match | null = convertToMatchFromMatchDataState(matchDataStore.getMatchData())
@@ -33,8 +34,12 @@
     return ''
   })
 
+  // A match scheduled for a future date (AEST) can't be played yet - Play
+  // Match stays disabled until its date arrives.
+  const canPlayMatch = computed(() => !!match && isTodayOrPastAEST(match.date))
+
   async function onPlayMatch() {
-    if (!match) return
+    if (!match || !canPlayMatch.value) return
     await startMatch(match.id)
     emit('play-match')
   }
@@ -78,6 +83,17 @@
     .large-square-btn:hover {
       border-color: #34495e;
       box-shadow: 0 6px 32px rgba(44, 62, 80, 0.25);
+    }
+
+    .large-square-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .large-square-btn:disabled:hover {
+      border-color: #2c3e50;
+      box-shadow: none;
     }
 
   .btn-label {

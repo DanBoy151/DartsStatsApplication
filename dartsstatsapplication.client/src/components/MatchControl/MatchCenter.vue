@@ -50,7 +50,11 @@
 
   const matchDataStore = useMatchDataStore()
 
-  const emit = defineEmits(['back', 'edit-players'])
+  // 'back' is manual navigation (Back/Cancel) that returns to the holding
+  // screen to pick another game. 'game-complete' is specifically a game (or
+  // the whole match) finishing - MatchControl/MainContent route that all the
+  // way back to the main screen and force-refresh the store instead.
+  const emit = defineEmits(['back', 'edit-players', 'game-complete'])
 
   const props = defineProps<{
     game: Game
@@ -148,12 +152,13 @@
     matchDataStore.doneWithSelectedGame()
 
     // Once every game in the match is Complete, ask the scorer to confirm
-    // before finishing the match - hold off on emitting 'back' (which would
-    // otherwise return to the holding screen) until that's resolved.
+    // before finishing the match - hold off on emitting 'game-complete'
+    // (which would otherwise redirect back to the main screen) until that's
+    // resolved.
     if (isMatchComplete(matchDataStore.match?.games ?? [])) {
       showCompleteMatchPopup.value = true
     } else {
-      emit('back')
+      emit('game-complete')
     }
   }
 
@@ -163,7 +168,7 @@
     if (confirmed) {
       showPlayerOfMatchPopup.value = true
     } else {
-      emit('back')
+      emit('game-complete')
     }
   }
 
@@ -174,7 +179,7 @@
       await completeMatch(playerId)
     }
 
-    emit('back')
+    emit('game-complete')
   }
 
 
