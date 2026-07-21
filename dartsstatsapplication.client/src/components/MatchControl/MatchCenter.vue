@@ -154,11 +154,13 @@
     // Once every game in the match is Complete, ask the scorer to confirm
     // before finishing the match - hold off on emitting 'game-complete'
     // (which would otherwise redirect back to the main screen) until that's
-    // resolved.
+    // resolved. Finishing a game that *doesn't* end the match returns to the
+    // holding screen as normal, so the captain can go straight into the
+    // match's next game without detouring through the main screen.
     if (isMatchComplete(matchDataStore.match?.games ?? [])) {
       showCompleteMatchPopup.value = true
     } else {
-      emit('game-complete')
+      emit('back')
     }
   }
 
@@ -168,7 +170,10 @@
     if (confirmed) {
       showPlayerOfMatchPopup.value = true
     } else {
-      emit('game-complete')
+      // Not ready to finalize yet - back to the holding screen to review,
+      // same as declining anything else here. Only actually completing the
+      // match (below) redirects to the main screen.
+      emit('back')
     }
   }
 
