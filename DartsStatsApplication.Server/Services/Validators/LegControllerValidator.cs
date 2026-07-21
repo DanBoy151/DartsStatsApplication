@@ -59,6 +59,20 @@ namespace DartsStatsApplication.Server.Services.Validators
                 throw new ValidationException("A Leg result (Win/Loss) is required to complete the Leg");
             }
 
+            // Every recorded visit must actually be throwable on a real dartboard -
+            // defends server-side against a client that bypasses (or predates) the
+            // equivalent check in EnterScorePanel.vue.
+            if (legData.score != null)
+            {
+                foreach (var entry in legData.score)
+                {
+                    if (!DartScoring.IsValidDartScore(entry.score))
+                    {
+                        throw new ValidationException($"{entry.score} is not a score that's possible with up to 3 darts");
+                    }
+                }
+            }
+
             int startingScore = _leg.data.remainingScore;
             int totalScored = 0;
             if (legData.score != null)
@@ -92,6 +106,16 @@ namespace DartsStatsApplication.Server.Services.Validators
                 if (legData.finishDarts == null || legData.finishDarts < 1 || legData.finishDarts > 3)
                 {
                     throw new ValidationException("A winning Leg requires a finish dart count between 1 and 3");
+                }
+
+                // The checkout itself must be reachable with the last dart landing on
+                // a double - the standard "must finish on a double" rule. score is
+                // guaranteed non-empty here: totalScored (summed from it) just
+                // reconciled to startingScore, which is always > 0.
+                var checkoutVisit = legData.score![legData.score.Count - 1];
+                if (!DartScoring.IsValidCheckoutScore(checkoutVisit.score))
+                {
+                    throw new ValidationException($"{checkoutVisit.score} can't be checked out - the last dart must land on a double");
                 }
             }
             else // LegResult.Loss
@@ -127,6 +151,21 @@ namespace DartsStatsApplication.Server.Services.Validators
             if (roundsPlayed <= game.data.maxRounds.Value)
             {
                 throw new ValidationException("Leg has not reached the max rounds yet");
+            }
+
+            // The real pre-threshold throws are persisted as-is (see
+            // LegService.CompleteLegByBullOff) - each still has to be something a
+            // dartboard can actually produce. No checkout-specific check here: a
+            // bull-off-decided leg never has a real checkout visit by definition.
+            if (data.score != null)
+            {
+                foreach (var entry in data.score)
+                {
+                    if (!DartScoring.IsValidDartScore(entry.score))
+                    {
+                        throw new ValidationException($"{entry.score} is not a score that's possible with up to 3 darts");
+                    }
+                }
             }
         }
     }

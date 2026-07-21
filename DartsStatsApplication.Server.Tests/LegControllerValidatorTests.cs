@@ -112,20 +112,22 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3)));
+            // 3 visits of 167 (a real, checkout-achievable total) rather than one
+            // 501 entry - no single dart visit can reach past 180.
+            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3, visits: 3)));
 
             Assert.Null(exception);
         }
 
         [Theory]
-        [InlineData(500)]
-        [InlineData(502)]
+        [InlineData(480)] // 160 x 3 - individually valid darts, just not 501
+        [InlineData(483)] // 161 x 3
         public void IsValidToCompleteLeg_WinScoreDoesNotReconcile_Throws(int totalScored)
         {
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, totalScored, 3)));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, totalScored, 3, visits: 3)));
         }
 
         [Theory]
@@ -137,7 +139,47 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, finishDarts)));
+            // 3 visits of 167 (reconciling, checkout-achievable) isolates this test
+            // to the finishDarts check specifically, rather than also failing the
+            // (unrelated) per-visit dart-score check a single 501 entry would hit.
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, finishDarts, visits: 3)));
+        }
+
+        [Fact]
+        public void IsValidToCompleteLeg_ScoreEntryNotAchievableWithDarts_Throws()
+        {
+            // 179 is one of the 9 scores impossible to achieve with 3 real darts.
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+
+            var ex = Assert.Throws<ValidationException>(
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 179, null)));
+            Assert.Contains("not a score that's possible", ex.Message);
+        }
+
+        [Fact]
+        public void IsValidToCompleteLeg_WinCheckoutNotAchievableWithDouble_Throws()
+        {
+            // 180 + 162 + 159 = 501 - a genuinely reconciling Win, and every visit
+            // is individually a real dart total - but 159 (the checkout visit) has
+            // no combination that ends on a double, so it can't actually finish a leg.
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+            var legData = new CompleteLegData
+            {
+                score = new List<PlayerScore>
+                {
+                    new PlayerScore { playerId = Guid.NewGuid(), score = 180 },
+                    new PlayerScore { playerId = Guid.NewGuid(), score = 162 },
+                    new PlayerScore { playerId = Guid.NewGuid(), score = 159 },
+                },
+                result = LegResult.Win,
+                finishDarts = 3,
+                remainingScore = 0,
+            };
+
+            var ex = Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(legData));
+            Assert.Contains("can't be checked out", ex.Message);
         }
 
         [Fact]
@@ -146,8 +188,9 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            // A loss did not check out, and finishDarts is irrelevant.
-            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null)));
+            // A loss did not check out, and finishDarts is irrelevant. 6 visits of
+            // 70 rather than one 420 entry - no single dart visit can reach past 180.
+            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, visits: 6)));
 
             Assert.Null(exception);
         }
@@ -158,7 +201,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 501, null)));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 501, null, visits: 3)));
         }
 
         [Fact]
@@ -170,7 +213,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new LegControllerValidator(leg, null!);
 
             var ex = Assert.Throws<ValidationException>(
-                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 0)));
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 0, visits: 6)));
             Assert.Contains("remainingScore does not reconcile", ex.Message);
         }
 
@@ -184,7 +227,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new LegControllerValidator(leg, null!);
 
             var ex = Record.Exception(
-                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 81)));
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 81, visits: 6)));
 
             Assert.Null(ex);
         }
@@ -273,6 +316,31 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var ex = Record.Exception(() => validator.IsValidToCompleteLegByBullOff(BullOff(LegResult.Win, 3), game));
 
             Assert.Null(ex);
+        }
+
+        [Fact]
+        public void IsValidToCompleteLegByBullOff_ScoreEntryNotAchievableWithDarts_Throws()
+        {
+            // Past the maxRounds=2 threshold (3 visits recorded), but 179 was never
+            // a real throw - the pre-threshold history is persisted as-is, so it
+            // still has to be something a dartboard could actually produce.
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+            var game = CreateGame(maxRounds: 2, playerCount: 1);
+            var data = new CompleteLegBullOffData
+            {
+                score = new List<PlayerScore>
+                {
+                    new PlayerScore { playerId = Guid.NewGuid(), score = 60 },
+                    new PlayerScore { playerId = Guid.NewGuid(), score = 60 },
+                    new PlayerScore { playerId = Guid.NewGuid(), score = 179 },
+                },
+                result = LegResult.Win,
+                remainingScore = 202,
+            };
+
+            var ex = Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLegByBullOff(data, game));
+            Assert.Contains("not a score that's possible", ex.Message);
         }
     }
 }
