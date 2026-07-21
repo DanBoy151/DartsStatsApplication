@@ -11,7 +11,6 @@ export class MatchCenterScreen {
   readonly finishButton: Locator
   readonly backButton: Locator
   readonly editPlayersButton: Locator
-  readonly remainingScoreText: Locator
 
   readonly wonBullDialog: Locator
   readonly wonBullYesButton: Locator
@@ -34,7 +33,6 @@ export class MatchCenterScreen {
     this.finishButton = this.root.getByRole('button', { name: 'Finish' })
     this.backButton = this.root.getByRole('button', { name: 'Back' })
     this.editPlayersButton = this.root.getByRole('button', { name: 'Edit Players' })
-    this.remainingScoreText = this.root.locator('.remaining-score-row')
 
     this.wonBullDialog = page.locator('.won-bull-dialog')
     this.wonBullYesButton = this.wonBullDialog.getByRole('button', { name: 'Yes' })

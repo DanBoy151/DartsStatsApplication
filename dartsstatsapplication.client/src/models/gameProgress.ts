@@ -61,6 +61,21 @@ export function isGameDecided(legs: LegOutcome[], gameType: string, legsToPlayOv
   return completed.length >= totalLegs || wins >= needed || losses >= needed
 }
 
+export interface GameOutcome {
+  status: string
+}
+
+/**
+ * True once every game in the match has reached Complete - the point at
+ * which the match itself becomes eligible to be completed. False for an
+ * empty list: a match always has at least one game once it's been started,
+ * so an empty list means the games just haven't loaded yet, not that the
+ * match is somehow already done.
+ */
+export function isMatchComplete(games: GameOutcome[]): boolean {
+  return games.length > 0 && games.every((g) => g.status === 'Complete')
+}
+
 /**
  * The most recently played (Started or Completed) leg, by `order` - not
  * simply the highest-order leg overall, since a game decided early (e.g.

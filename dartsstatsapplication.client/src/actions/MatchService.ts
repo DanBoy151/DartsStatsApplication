@@ -287,3 +287,30 @@ export async function updateMatchScore(result: boolean) {
   }
 
 }
+
+/**
+ * Complete the match once every game is done, recording who was Player of
+ * the Match. `result` isn't derived from the individual leg the caller just
+ * played - it's the match's own gamesFor/gamesAgainst tally (updated by
+ * updateMatchScore() after each game), same "more wins than losses" rule
+ * MatchCenter already uses to decide each individual game's result.
+ */
+export async function completeMatch(playerOfMatchId: string): Promise<Match | null> {
+  const matchDataStore = useMatchDataStore()
+  const match = matchDataStore.getMatchData()
+  if (!match?.matchId) return null
+
+  const result = match.gamesFor > match.gamesAgainst ? 'Win' : 'Loss'
+
+  try {
+    const data = await apiRequest<RawMatchData>(`/api/Match/${match.matchId}/complete`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: match.matchId, playerOfMatch: playerOfMatchId, result })
+    })
+    return await setData(data)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error completing match')
+    return null
+  }
+}

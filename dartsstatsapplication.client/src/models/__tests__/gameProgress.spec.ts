@@ -13,6 +13,7 @@ import {
   nextPlayerId,
   currentRound,
   isBullOffRound,
+  isMatchComplete,
   type LegOutcome,
 } from '../gameProgress'
 
@@ -349,6 +350,22 @@ describe('isBullOffRound', () => {
   it('is true from the max round onward, not just once it is exceeded', () => {
     expect(isBullOffRound(2, 2)).toBe(true)
     expect(isBullOffRound(3, 2)).toBe(true)
+  })
+})
+
+describe('isMatchComplete', () => {
+  it('is false for an empty list - games just have not loaded yet', () => {
+    expect(isMatchComplete([])).toBe(false)
+  })
+
+  it('is false while any game is not yet Complete', () => {
+    expect(isMatchComplete([{ status: 'Complete' }, { status: 'InProgress' }])).toBe(false)
+    expect(isMatchComplete([{ status: 'Pending' }])).toBe(false)
+  })
+
+  it('is true once every game is Complete', () => {
+    expect(isMatchComplete([{ status: 'Complete' }])).toBe(true)
+    expect(isMatchComplete([{ status: 'Complete' }, { status: 'Complete' }])).toBe(true)
   })
 })
 

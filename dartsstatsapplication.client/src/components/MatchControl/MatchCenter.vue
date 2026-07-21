@@ -24,6 +24,11 @@
     <div class="quarter stats" :class="{ disabled: !started || isComplete }">
       <StatsPanel :disabled="!started || isComplete" />
     </div>
+    <CompleteMatchControl v-if="showCompleteMatchPopup"
+                          @result="onCompleteMatchResult" />
+    <PlayerOfMatchControl v-if="showPlayerOfMatchPopup"
+                          :players="playerOfMatchCandidates"
+                          @result="onPlayerOfMatchResult" />
   </div>
 </template>
 
@@ -34,12 +39,14 @@
   import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
   import StatsPanel from './MatchCenter/StatsPanel.vue'
   import EnterScorePanel from './MatchCenter/EnterScorePanel.vue'
+  import CompleteMatchControl from './MatchCenter/CompleteMatchControl.vue'
+  import PlayerOfMatchControl from './MatchCenter/PlayerOfMatchControl.vue'
   import { startGame, fetchLegs, completeGame, createNextLeg } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg, completeLegByBullOff } from '@/actions/LegService'
-  import { updateMatchScore } from '@/actions/MatchService'
-  import { isGameDecided, nextPlayerId } from '@/models/gameProgress'
+  import { updateMatchScore, completeMatch } from '@/actions/MatchService'
+  import { isGameDecided, isMatchComplete, nextPlayerId } from '@/models/gameProgress'
 
   const matchDataStore = useMatchDataStore()
 
@@ -54,6 +61,22 @@
   const started = ref(false)
   const wonBull = ref<boolean | null>(null)
   const isComplete = computed(() => matchDataStore.getSelectedGame()?.status === 'Complete')
+  const showCompleteMatchPopup = ref(false)
+  const showPlayerOfMatchPopup = ref(false)
+
+  // Candidates for Player of the Match: everyone who actually appeared in at
+  // least one of the match's games (not just everyone marked available) -
+  // matches MatchControllerValidator.IsValidPlayerOfMatch's own requirement,
+  // so a selection made here can never be rejected by the server.
+  const playerOfMatchCandidates = computed(() => {
+    const games = matchDataStore.match?.games ?? []
+    const playerIds = Array.from(new Set(games.flatMap((g) => g.players)))
+    const availablePlayers = matchDataStore.getMatchAvailablePlayers()
+    return playerIds.map((playerId) => {
+      const found = availablePlayers.find((p) => p.playerId === playerId)
+      return { playerId, name: found?.name ?? playerId }
+    })
+  })
 
   async function onFinishLeg() {
     started.value= false
@@ -124,14 +147,34 @@
     await updateMatchScore((wins > losses))
     matchDataStore.doneWithSelectedGame()
 
-    //check if the match has now finished and update server if required
-    finishMatch()
-    emit('back')
-
+    // Once every game in the match is Complete, ask the scorer to confirm
+    // before finishing the match - hold off on emitting 'back' (which would
+    // otherwise return to the holding screen) until that's resolved.
+    if (isMatchComplete(matchDataStore.match?.games ?? [])) {
+      showCompleteMatchPopup.value = true
+    } else {
+      emit('back')
+    }
   }
 
-  async function finishMatch() {
+  function onCompleteMatchResult(confirmed: boolean) {
+    showCompleteMatchPopup.value = false
 
+    if (confirmed) {
+      showPlayerOfMatchPopup.value = true
+    } else {
+      emit('back')
+    }
+  }
+
+  async function onPlayerOfMatchResult(playerId: string | null) {
+    showPlayerOfMatchPopup.value = false
+
+    if (playerId) {
+      await completeMatch(playerId)
+    }
+
+    emit('back')
   }
 
 
