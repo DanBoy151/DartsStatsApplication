@@ -74,16 +74,16 @@
                   <tbody>
                     <tr v-for="pRow in leg.playerRows" :key="pRow.playerId">
                       <td class="player-label">{{ pRow.name }}</td>
-                      <td v-for="(col, ci) in leg.columns" :key="ci" :class="{ omit: col.omit }">
-                        {{ col.omit ? '…' : (pRow.scores[col.roundIndex] ?? '—') }}
+                      <td v-for="(col, ci) in leg.columns" :key="ci">
+                        {{ pRow.scores[col.roundIndex] ?? '—' }}
                       </td>
                     </tr>
                     <tr class="rem-row">
                       <td>Rem</td>
                       <td v-for="(col, ci) in leg.columns"
                           :key="ci"
-                          :class="{ omit: col.omit, 'final-cell': ci === leg.columns.length - 1, win: ci === leg.columns.length - 1 && leg.result === 'Win' }">
-                        {{ col.omit ? '…' : (leg.remRow[col.roundIndex] ?? '') }}
+                          :class="{ 'final-cell': ci === leg.columns.length - 1, win: ci === leg.columns.length - 1 && leg.result === 'Win' }">
+                        {{ leg.remRow[col.roundIndex] ?? '' }}
                       </td>
                     </tr>
                   </tbody>
@@ -130,9 +130,8 @@
 
   interface LegColumn {
     label: string
-    /** Index into playerRow.scores / remRow, or -1 for the ellipsis placeholder. */
+    /** Index into playerRow.scores / remRow. */
     roundIndex: number
-    omit: boolean
   }
 
   interface ReportLeg {
@@ -161,22 +160,8 @@
   // Fixed regardless of play order, per the report's own convention.
   const SECTION_ORDER: ReportSection['type'][] = ['Trebles', 'Doubles', 'Singles']
 
-  // Long legs (most often one decided by bull-off, which runs to the game's
-  // max-rounds cap) would otherwise stretch a leg's table far past what fits
-  // on the page - collapse everything between the second and final round
-  // behind a single ellipsis column instead.
-  const ROUND_COLUMN_THRESHOLD = 7
-
   function buildColumns(roundCount: number): LegColumn[] {
-    if (roundCount <= ROUND_COLUMN_THRESHOLD) {
-      return Array.from({ length: roundCount }, (_, i) => ({ label: String(i + 1), roundIndex: i, omit: false }))
-    }
-    return [
-      { label: '1', roundIndex: 0, omit: false },
-      { label: '2', roundIndex: 1, omit: false },
-      { label: '…', roundIndex: -1, omit: true },
-      { label: String(roundCount), roundIndex: roundCount - 1, omit: false },
-    ]
+    return Array.from({ length: roundCount }, (_, i) => ({ label: String(i + 1), roundIndex: i }))
   }
 
   function finishCaption(leg: Leg): string {
@@ -585,7 +570,6 @@
     font-size: 7.3px;
     color: var(--ink);
   }
-  table.ledger td.omit { color: var(--line); }
   table.ledger tr.rem-row td {
     color: var(--ink-soft);
     border-top: 0.35mm solid var(--line-soft);
