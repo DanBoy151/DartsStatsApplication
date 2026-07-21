@@ -20,6 +20,8 @@ function mapRawMatch(data: RawMatchData): Match {
     seasonId: data.data?.seasonId ?? null,
     startTime: data.data?.startTime ? new Date(data.data.startTime) : null,
     finishTime: data.data?.finishTime ? new Date(data.data.finishTime) : null,
+    result: data.data?.result === 'Win' || data.data?.result === 'Loss' ? data.data.result : null,
+    playerOfMatch: data.data?.playerOfMatch ?? null,
   }
 }
 
@@ -60,6 +62,8 @@ export async function getNextMatch(): Promise<Match | null> {
       seasonId: null,
       startTime: null,
       finishTime: null,
+      result: null,
+      playerOfMatch: null,
     }
     return mappedMatch
   }
@@ -155,6 +159,17 @@ export async function getGamesForMatch(matchId: string): Promise<Game[]> {
     }))
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching games for match')
+    return []
+  }
+}
+
+/** Every match, unpaginated (capped at 500 server-side) - for the Current Season fixtures list. */
+export async function getAllMatches(): Promise<Match[]> {
+  try {
+    const data = await apiGet<RawMatchData[]>('/api/Match/matches?take=500')
+    return data.map(mapRawMatch)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching matches')
     return []
   }
 }

@@ -12,6 +12,10 @@ export interface Match {
   seasonId: string | null;
   startTime: Date | null;
   finishTime: Date | null;
+  /** Set once the match is Completed (MatchService.CompleteMatch); null before then. */
+  result: 'Win' | 'Loss' | null;
+  /** Player id recorded as Player of the Match; null until the match is Completed. */
+  playerOfMatch: string | null;
 }
 
 /** Wire shape returned by the Match endpoints (next, start, update-match-score). */
@@ -28,6 +32,8 @@ export interface RawMatchData {
     seasonId?: string | null
     startTime?: string | null
     finishTime?: string | null
+    result?: string | null
+    playerOfMatch?: string | null
   }
 }
 
@@ -48,5 +54,7 @@ export function convertToMatchFromMatchDataState(matchDataState: MatchDataState 
     seasonId: null,
     startTime: null,
     finishTime: null,
+    result: null,
+    playerOfMatch: null,
   };
 }

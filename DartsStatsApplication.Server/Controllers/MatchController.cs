@@ -229,7 +229,7 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 MatchService service = new MatchService(session, match);
-                await service.CompleteMatch(data.playerOfMatch);
+                await service.CompleteMatch(data.playerOfMatch, data.result);
 
                 await session.SaveChangesAsync();
 

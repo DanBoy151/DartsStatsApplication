@@ -91,6 +91,7 @@ test.describe('Completing a match', () => {
       const body = await getRes.json()
       expect(body.data.status).toBe('Completed')
       expect(body.data.playerOfMatch).toBe(player.id)
+      expect(body.data.result).toBe('Win')
     })
   })
 })

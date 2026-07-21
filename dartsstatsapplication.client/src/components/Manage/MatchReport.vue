@@ -1,7 +1,7 @@
 <template>
   <div class="report-page">
     <div class="toolbar no-print">
-      <button type="button" class="back-btn" @click="$emit('done')" data-testid="match-report-back">&larr; Back to Matches</button>
+      <button type="button" class="back-btn" @click="$emit('done')" data-testid="match-report-back">&larr; Back to Current Season</button>
       <button type="button"
               class="download-btn"
               :disabled="!ready"

@@ -27,14 +27,15 @@
 </template>
 
 <script lang="ts">
-  // Most of the dropdown items below (Fixtures, History, Team/Player/Match
-  // stats) don't have pages behind them yet -- there's still no vue-router
-  // wired up (see main.ts), just App.vue swapping top-level views by hand.
-  // They're kept visible as a roadmap of what's planned, but rendered
-  // disabled so the UI doesn't imply you can click through to something that
-  // doesn't exist yet. Manage > Players/Matches are wired up (see App.vue's
-  // handleNavigate) - an item becomes clickable the moment it's given an
-  // `action`, which is what drives the disabled styling below.
+  // Most of the dropdown items below (Past Seasons, Team/Player/Match stats)
+  // don't have pages behind them yet -- there's still no vue-router wired up
+  // (see main.ts), just App.vue swapping top-level views by hand. They're
+  // kept visible as a roadmap of what's planned, but rendered disabled so
+  // the UI doesn't imply you can click through to something that doesn't
+  // exist yet. Fixtures > Current Season and Manage > Players/Matches are
+  // wired up (see App.vue's handleNavigate) - an item becomes clickable the
+  // moment it's given an `action`, which is what drives the disabled
+  // styling below.
   interface DropdownOption {
     label: string;
     // Present (and clickable) once a menu item has somewhere to navigate to; absent
@@ -55,8 +56,11 @@
       return {
         menuItems: [
           {
-            label: 'Match',
-            dropdown: [{ label: 'Fixtures' }, { label: 'History' }],
+            label: 'Fixtures',
+            dropdown: [
+              { label: 'Current Season', action: 'current-season' },
+              { label: 'Past Seasons' },
+            ],
             open: false,
           },
           {

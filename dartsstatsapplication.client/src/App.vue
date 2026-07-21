@@ -11,15 +11,17 @@
   import NewSeasonForm from './components/Manage/NewSeasonForm.vue'
   import TeamStatistics from './components/Statistics/TeamStatistics.vue'
   import PlayerStatistics from './components/Statistics/PlayerStatistics.vue'
+  import CurrentSeasonMatches from './components/Match/CurrentSeasonMatches.vue'
 
-  type View = 'main' | 'new-player' | 'new-match' | 'new-league' | 'new-team' | 'new-season' | 'statistics' | 'player-statistics' | 'match-report'
+  type View = 'main' | 'new-player' | 'new-match' | 'new-league' | 'new-team' | 'new-season' | 'statistics' | 'player-statistics' | 'match-report' | 'current-season'
 
   const currentView = ref<View>('main')
   // Set when arriving at Player Statistics via a specific player (from the
   // menu it stays null, and PlayerStatistics.vue starts with its own
   // selector blank).
   const selectedPlayerId = ref<string | null>(null)
-  // Set when arriving at the Match Report via Manage > Matches' View action.
+  // Set when arriving at the Match Report via Fixtures > Current Season's
+  // View action.
   const selectedMatchId = ref<string | null>(null)
 
   function handleNavigate(action: string) {
@@ -29,7 +31,8 @@
       action === 'new-league' ||
       action === 'new-team' ||
       action === 'new-season' ||
-      action === 'statistics'
+      action === 'statistics' ||
+      action === 'current-season'
     ) {
       currentView.value = action
     } else if (action === 'player-statistics') {
@@ -63,13 +66,14 @@
     <main>
       <MainContent v-if="currentView === 'main'" @view-statistics="() => (currentView = 'statistics')" />
       <NewPlayerForm v-else-if="currentView === 'new-player'" @done="goToMain" />
-      <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" @view-match="handleViewMatch" />
+      <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" />
       <NewLeagueForm v-else-if="currentView === 'new-league'" @done="goToMain" />
       <NewTeamForm v-else-if="currentView === 'new-team'" @done="goToMain" />
       <NewSeasonForm v-else-if="currentView === 'new-season'" @done="goToMain" />
       <TeamStatistics v-else-if="currentView === 'statistics'" @done="goToMain" @view-player="handleViewPlayer" />
       <PlayerStatistics v-else-if="currentView === 'player-statistics'" :initial-player-id="selectedPlayerId ?? undefined" @done="goToMain" />
-      <MatchReport v-else-if="currentView === 'match-report'" :match-id="selectedMatchId ?? ''" @done="currentView = 'new-match'" />
+      <CurrentSeasonMatches v-else-if="currentView === 'current-season'" @done="goToMain" @view-match="handleViewMatch" />
+      <MatchReport v-else-if="currentView === 'match-report'" :match-id="selectedMatchId ?? ''" @done="currentView = 'current-season'" />
     </main>
     <ErrorToast />
   </div>

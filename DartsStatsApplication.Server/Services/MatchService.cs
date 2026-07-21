@@ -167,10 +167,11 @@ namespace DartsStatsApplication.Server.Services
         /// validator can stay a pure function over them). Throws ValidationException if the
         /// match isn't eligible to be completed yet.
         /// </summary>
-        public async Task CompleteMatch(Guid playerOfMatch)
+        public async Task CompleteMatch(Guid playerOfMatch, MatchResult result)
         {
             _match.data.status = MatchStatus.Completed;
             _match.data.playerOfMatch = playerOfMatch;
+            _match.data.result = result;
             _match.data.finishTime = DateTime.UtcNow;
 
             var games = (await _documentSession.Query<Game>()
