@@ -60,27 +60,34 @@ test.describe('League-configured max rounds and bull-off', () => {
       startingScore: 501,
       maxRounds: 2,
     })
-    const leg = await createLeg(api, { gameID: game.id, remainingScore: 501 })
 
     // 1 player, maxRounds=2: 3 visits already recorded means round 3 has
-    // started - past the limit, normal completion must be rejected.
+    // started - past the limit. Two separate legs exercise the two ways a
+    // leg can still end past that point: a normal Loss (the scorer
+    // confirming the opponent already checked out) and a bull-off (neither
+    // side checked out).
     const threeVisits = [
       { playerId: player.id, score: 60 },
       { playerId: player.id, score: 60 },
       { playerId: player.id, score: 60 },
     ]
 
-    await test.step('normal completion is rejected once the leg is past the max rounds', async () => {
+    await test.step('a normal Loss completion past max rounds still succeeds (the opponent checked out)', async () => {
+      const leg = await createLeg(api, { gameID: game.id, order: 0, remainingScore: 501 })
       const res = await api.put(`/api/Leg/${leg.id}/complete`, {
         data: { score: threeVisits, result: 'Loss', finishDarts: null, remainingScore: 321 },
       })
-      expect(res.status()).toBe(400)
+      expect(res.status()).toBe(200)
       const body = await res.json()
-      expect(body.detail).toContain('bull-off')
+      expect(body.data.status).toBe('Completed')
+      expect(body.data.result).toBe('Loss')
+      expect(body.data.wonByBullOff).toBe(false)
     })
 
+    const bullOffLeg = await createLeg(api, { gameID: game.id, order: 1, remainingScore: 501 })
+
     await test.step('the bull-off endpoint completes the leg, persisting the real pre-threshold throws', async () => {
-      const res = await api.put(`/api/Leg/${leg.id}/complete-bull-off`, {
+      const res = await api.put(`/api/Leg/${bullOffLeg.id}/complete-bull-off`, {
         data: { score: threeVisits, result: 'Win', remainingScore: 321 },
       })
       expect(res.status()).toBe(200)
@@ -92,7 +99,7 @@ test.describe('League-configured max rounds and bull-off', () => {
       expect(body.data.score).toHaveLength(3)
     })
 
-    await test.step('team stats count the bull-off win, but exclude it from checkout/best-leg stats', async () => {
+    await test.step('team stats count both legs, but exclude the bull-off win from checkout/best-leg stats', async () => {
       const res = await api.get(`/api/Team/${team.id}/stats?seasonId=${season.id}`)
       expect(res.status()).toBe(200)
       const stats: {
@@ -107,10 +114,11 @@ test.describe('League-configured max rounds and bull-off', () => {
       const playerStats = stats.find((s) => s.playerId === player.id)
       expect(playerStats).toBeDefined()
       expect(playerStats!.legsWon).toBe(1)
-      expect(playerStats!.legsLost).toBe(0)
-      // 3 visits x 3 darts = 9 darts, 180 points -> 180/9*3 = 60.
+      expect(playerStats!.legsLost).toBe(1)
+      // Both legs: 3 visits x 3 darts = 9 darts, 180 points each -> (180+180)/(9+9)*3 = 60.
       expect(playerStats!.threeDartAverage).toBe(60)
-      // No real checkout was thrown, and there's no meaningful "leg total darts" either.
+      // Neither leg had a real checkout - the Loss never reached 0, and the
+      // Win was decided by bull-off, not a checkout throw.
       expect(playerStats!.highestCheckout).toBeNull()
       expect(playerStats!.bestLegDarts).toBeNull()
     })
@@ -125,7 +133,7 @@ test.describe('League-configured max rounds and bull-off', () => {
 
       const row = teamStatisticsScreen.rows.filter({ hasText: player.data.name })
       await expect(row).toBeVisible()
-      await expect(row).toContainText('1-0')
+      await expect(row).toContainText('1-1')
     })
   })
 

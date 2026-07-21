@@ -110,7 +110,7 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 LegService service = new LegService(session, existLeg);
-                await service.CompleteLeg(leg);
+                service.CompleteLeg(leg);
 
                 await session.SaveChangesAsync();
 

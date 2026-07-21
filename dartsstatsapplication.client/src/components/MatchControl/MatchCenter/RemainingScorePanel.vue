@@ -12,7 +12,7 @@
       </template>
       <template v-else>
         <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
-        <button v-else-if="!showBullOffPrompt" class="finish-btn" @click="finish">Finish</button>
+        <button v-else class="finish-btn" @click="finish">Finish</button>
         <button v-if="!started" class="cancel-btn" @click="cancelMatch">Cancel</button>
         <button v-else class="back-btn" @click="backMatch">Back</button>
       </template>
@@ -29,7 +29,6 @@
   import WonBullControl from './WonBullControl.vue'
   import DoublesFinishControl from './DoublesFinishControl.vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
-  import { currentRound, isBullOffRound } from '@/models/gameProgress'
 
   const matchDataStore = useMatchDataStore()
 
@@ -96,16 +95,6 @@
     if (type === 'singles' || type === 'single') return 501
     return score
   }
-
-  // Which round the *next* throw would fall in - matches EnterScorePanel's
-  // computation so both panels agree on when the bull-off popup replaces
-  // normal play.
-  const showBullOffPrompt = computed(() => {
-    const throwCount = matchDataStore.selectedLeg?.score.length ?? 0
-    const playerCount = matchDataStore.selectedGame?.players.length ?? 1
-    const round = currentRound(throwCount, playerCount)
-    return isBullOffRound(round, matchDataStore.selectedGame?.maxRounds ?? null)
-  })
 
   function startMatch() {
     started.value = true

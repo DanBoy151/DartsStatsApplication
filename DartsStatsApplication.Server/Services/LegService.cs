@@ -24,13 +24,9 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_leg);
         }
 
-        public async Task CompleteLeg(CompleteLegData legData)
+        public void CompleteLeg(CompleteLegData legData)
         {
-            // Load the leg's game so the validator can check its max-rounds config
-            // while staying a pure function over what's passed in.
-            var game = await _documentSession.LoadAsync<Game>(_leg.data.gameID);
-
-            _validator.IsValidToCompleteLeg(legData, game);
+            _validator.IsValidToCompleteLeg(legData);
 
             _leg.data.finishDarts = legData.finishDarts;
             _leg.data.result = legData.result;

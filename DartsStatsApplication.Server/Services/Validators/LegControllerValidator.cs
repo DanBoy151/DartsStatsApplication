@@ -38,13 +38,14 @@ namespace DartsStatsApplication.Server.Services.Validators
         /// target. The supplied <paramref name="legData"/>.score is the full ordered history
         /// of every throw; busts are recorded as 0 entries, so a won leg sums exactly to the
         /// starting score and a lost leg sums to less than it.
+        ///
+        /// A normal Win or Loss stays valid at any round count, including past the game's
+        /// configured max rounds - a real checkout, or the scorer confirming the opponent
+        /// already checked out, both end the leg legitimately without needing a bull-off.
+        /// Bull-off (<see cref="IsValidToCompleteLegByBullOff"/>) is only for the remaining
+        /// case: past max rounds, with neither side having checked out.
         /// </remarks>
-        /// <param name="game">
-        /// The leg's game, loaded by the caller (LegService.CompleteLeg) - used only to check
-        /// the game's configured max rounds, if any. Null is safe (no game found, or the game
-        /// has no league config - either way there's no round limit to enforce).
-        /// </param>
-        public void IsValidToCompleteLeg(CompleteLegData legData, Game? game)
+        public void IsValidToCompleteLeg(CompleteLegData legData)
         {
             // Leg must be in progress: reject Pending (never started) and Completed (already done).
             if (_leg.data.status != LegStatus.Started)
@@ -56,19 +57,6 @@ namespace DartsStatsApplication.Server.Services.Validators
             if (legData.result == null)
             {
                 throw new ValidationException("A Leg result (Win/Loss) is required to complete the Leg");
-            }
-
-            // Once a leg has passed the game's configured max rounds, it must be decided via
-            // bull-off (IsValidToCompleteLegByBullOff), not a normal completion - defends
-            // server-side against a client that bypasses the bull-off popup.
-            if (game?.data.maxRounds != null)
-            {
-                int playersPerRound = Math.Max(game.data.playerIds?.Count ?? 1, 1);
-                int roundsPlayed = RoundsPlayed(legData.score?.Count ?? 0, playersPerRound);
-                if (roundsPlayed > game.data.maxRounds.Value)
-                {
-                    throw new ValidationException("Leg has passed the max rounds and must be decided via bull-off, not normal scoring");
-                }
             }
 
             int startingScore = _leg.data.remainingScore;

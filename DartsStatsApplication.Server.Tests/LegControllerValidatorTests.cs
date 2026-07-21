@@ -9,7 +9,7 @@ using Xunit;
 namespace DartsStatsApplication.Server.Tests.Services.Validators
 {
     // IsValidToCompleteLeg/IsValidToCompleteLegByBullOff only inspect the Leg, the supplied
-    // data, and the (pre-loaded, passed-in) Game; neither touches the IDocumentSession, so a
+    // data, and (for bull-off) the pre-loaded Game; neither touches the IDocumentSession, so a
     // null session is safe here.
     public class LegControllerValidatorTests
     {
@@ -94,7 +94,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(status, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3), null));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3)));
         }
 
         [Fact]
@@ -103,7 +103,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(null, 501, 3), null));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(null, 501, 3)));
         }
 
         [Fact]
@@ -112,7 +112,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3), null));
+            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3)));
 
             Assert.Null(exception);
         }
@@ -125,7 +125,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, totalScored, 3), null));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, totalScored, 3)));
         }
 
         [Theory]
@@ -137,7 +137,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, finishDarts), null));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, finishDarts)));
         }
 
         [Fact]
@@ -147,7 +147,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new LegControllerValidator(leg, null!);
 
             // A loss did not check out, and finishDarts is irrelevant.
-            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null), null));
+            var exception = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null)));
 
             Assert.Null(exception);
         }
@@ -158,7 +158,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
 
-            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 501, null), null));
+            Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 501, null)));
         }
 
         [Fact]
@@ -170,7 +170,7 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new LegControllerValidator(leg, null!);
 
             var ex = Assert.Throws<ValidationException>(
-                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 0), null));
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 0)));
             Assert.Contains("remainingScore does not reconcile", ex.Message);
         }
 
@@ -184,61 +184,36 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new LegControllerValidator(leg, null!);
 
             var ex = Record.Exception(
-                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 81), null));
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, remainingScore: 81)));
 
             Assert.Null(ex);
         }
 
         [Fact]
-        public void IsValidToCompleteLeg_NoGame_IgnoresRoundLimit()
+        public void IsValidToCompleteLeg_WinPastMaxRoundsViaRealCheckout_DoesNotThrow()
         {
-            // A leg whose game couldn't be loaded (or has no league config) has no
-            // round limit to enforce - normal completion still works.
+            // A genuine checkout throw is always a valid Win, regardless of how many
+            // rounds it took to get there - maxRounds only forces a resolution once
+            // NEITHER side has checked out, it never blocks a real checkout.
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
-
-            var ex = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3), null));
-
-            Assert.Null(ex);
-        }
-
-        [Fact]
-        public void IsValidToCompleteLeg_GameWithNoMaxRounds_IgnoresRoundLimit()
-        {
-            var leg = CreateLeg(LegStatus.Started, 501);
-            var validator = new LegControllerValidator(leg, null!);
-            var game = CreateGame(maxRounds: null);
-
-            var ex = Record.Exception(() => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3), game));
-
-            Assert.Null(ex);
-        }
-
-        [Fact]
-        public void IsValidToCompleteLeg_PastMaxRounds_Throws()
-        {
-            // 1 player, maxRounds=2: 3 visits already recorded means round 3 has
-            // started - past the 2-round limit, so normal completion must be rejected.
-            var leg = CreateLeg(LegStatus.Started, 501);
-            var validator = new LegControllerValidator(leg, null!);
-            var game = CreateGame(maxRounds: 2, playerCount: 1);
-
-            var ex = Assert.Throws<ValidationException>(
-                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 180, null, visits: 3), game));
-            Assert.Contains("must be decided via bull-off", ex.Message);
-        }
-
-        [Fact]
-        public void IsValidToCompleteLeg_AtMaxRounds_DoesNotThrow()
-        {
-            // Exactly at the limit (2 visits, maxRounds=2) - not past it yet, normal
-            // completion is still allowed.
-            var leg = CreateLeg(LegStatus.Started, 501);
-            var validator = new LegControllerValidator(leg, null!);
-            var game = CreateGame(maxRounds: 2, playerCount: 1);
 
             var ex = Record.Exception(
-                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 120, null, visits: 2), game));
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Win, 501, 3, visits: 3)));
+
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void IsValidToCompleteLeg_LossPastMaxRounds_DoesNotThrow()
+        {
+            // A normal Loss (the scorer confirming the opponent already checked out)
+            // stays valid no matter how many rounds/throws preceded it.
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+
+            var ex = Record.Exception(
+                () => validator.IsValidToCompleteLeg(Complete(LegResult.Loss, 420, null, visits: 6)));
 
             Assert.Null(ex);
         }

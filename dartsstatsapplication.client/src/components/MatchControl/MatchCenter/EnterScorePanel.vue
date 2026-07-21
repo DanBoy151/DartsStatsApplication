@@ -6,35 +6,35 @@
     </div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <template v-if="!showBullOffPrompt">
-      <div class="keypad-display">
-        <span class="keypad-value">{{ scoreValue || '0' }}</span>
-        <span class="keypad-preview" :class="{ bust: wouldBust }">
-          <template v-if="previewRemaining !== null">{{ wouldBust ? 'Bust' : `→ ${previewRemaining}` }}</template>
-        </span>
-      </div>
+    <div class="keypad-display">
+      <span class="keypad-value">{{ scoreValue || '0' }}</span>
+      <span class="keypad-preview" :class="{ bust: wouldBust }">
+        <template v-if="previewRemaining !== null">{{ wouldBust ? 'Bust' : `→ ${previewRemaining}` }}</template>
+      </span>
+    </div>
 
-      <div class="keypad-grid">
-        <button v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
-                :key="d"
-                type="button"
-                class="key"
-                :data-key="d"
-                @click="pressDigit(d)">{{ d }}</button>
-        <button type="button" class="key key-wide" data-key="clear" @click="clearValue">Clear</button>
-        <button type="button" class="key" data-key="0" @click="pressDigit('0')">0</button>
-        <button type="button" class="key key-wide" data-key="backspace" aria-label="Erase last digit" @click="backspace">⌫</button>
-      </div>
+    <div class="keypad-grid">
+      <button v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              :key="d"
+              type="button"
+              class="key"
+              :data-key="d"
+              @click="pressDigit(d)">{{ d }}</button>
+      <button type="button" class="key key-wide" data-key="clear" @click="clearValue">Clear</button>
+      <button type="button" class="key" data-key="0" @click="pressDigit('0')">0</button>
+      <button type="button" class="key key-wide" data-key="backspace" aria-label="Erase last digit" @click="backspace">⌫</button>
+    </div>
 
-      <div class="action-row">
-        <button class="no-score-btn" type="button" @click="noScore">No Score</button>
-        <button class="submit-btn" type="button" @click="submit">Submit</button>
-      </div>
-    </template>
+    <div class="action-row">
+      <button class="no-score-btn" type="button" @click="noScore">No Score</button>
+      <button class="submit-btn" type="button" @click="submit">Submit</button>
+    </div>
 
     <DoublesFinishControl v-if="showDartsDoublePopup"
                           @result="onDoublesFinishResult" />
-    <BullOffControl v-if="showBullOffPrompt"
+    <OpponentCheckedOutControl v-if="showOpponentCheckedOutPopup"
+                          @result="onOpponentCheckedOutResult" />
+    <BullOffControl v-if="showBullOffPopup"
                     @result="onBullOffResult" />
   </div>
 </template>
@@ -44,6 +44,7 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { currentRound, isBullOffRound } from '@/models/gameProgress'
   import DoublesFinishControl from './DoublesFinishControl.vue'
+  import OpponentCheckedOutControl from './OpponentCheckedOutControl.vue'
   import BullOffControl from './BullOffControl.vue'
 
   const props = defineProps<{
@@ -55,6 +56,8 @@
   }>()
 
   const showDartsDoublePopup = ref(false)
+  const showOpponentCheckedOutPopup = ref(false)
+  const showBullOffPopup = ref(false)
 
   const matchDataStore = useMatchDataStore()
 
@@ -67,18 +70,15 @@
 
   const currentRemaining = computed(() => matchDataStore.selectedLeg?.remainingScore ?? 0)
 
-  // Which round the *next* throw would fall in - once that's past the
-  // game's configured max rounds (if any), normal scoring is replaced by
-  // the bull-off popup instead.
+  // Which round the *next* throw would fall in - once a non-checkout throw
+  // in this round is past the game's configured max rounds (if any), it's
+  // followed by the "did opponent check out?" / bull-off prompts instead of
+  // just advancing to the next player.
   const currentRoundNumber = computed(() => {
     const throwCount = matchDataStore.selectedLeg?.score.length ?? 0
     const playerCount = matchDataStore.selectedGame?.players.length ?? 1
     return currentRound(throwCount, playerCount)
   })
-
-  const showBullOffPrompt = computed(() =>
-    isBullOffRound(currentRoundNumber.value, matchDataStore.selectedGame?.maxRounds ?? null)
-  )
 
   const scoreValue = ref('');
   const error = ref('');
@@ -121,7 +121,7 @@
   // darts-count popup is open, so it never fires as a side effect of
   // typing somewhere else on the page.
   function handleKeydown(e: KeyboardEvent) {
-    if (props.disabled || showDartsDoublePopup.value || showBullOffPrompt.value) return
+    if (props.disabled || showDartsDoublePopup.value || showOpponentCheckedOutPopup.value || showBullOffPopup.value) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
 
     const target = e.target as HTMLElement | null
@@ -169,10 +169,39 @@
     emit('legComplete')
   }
 
+  /**
+   * Once max rounds (if configured) has been passed, a throw that doesn't
+   * itself check out (a normal continuing score, or a bust via noScore())
+   * can't just advance to the next player indefinitely - the scorer is
+   * asked whether the opponent already checked out (a normal Loss) before
+   * falling back to a bull-off.
+   */
+  function onOpponentCheckedOutResult(opponentCheckedOut: boolean) {
+    showOpponentCheckedOutPopup.value = false
+
+    if (opponentCheckedOut) {
+      matchDataStore.completeSelectedLeg('Loss', 0)
+      emit('legComplete')
+    } else {
+      showBullOffPopup.value = true
+    }
+  }
+
   function onBullOffResult(won: boolean) {
+    showBullOffPopup.value = false
     matchDataStore.completeSelectedLegByBullOff(won ? 'Win' : 'Loss')
 
     emit('legComplete')
+  }
+
+  /** Advances to the next player, unless this throw's round is past the game's configured max rounds - then the leg must be resolved via the opponent-checkout/bull-off prompts instead. */
+  function handlePostThrow(throwRound: number) {
+    const maxRounds = matchDataStore.selectedGame?.maxRounds ?? null
+    if (isBullOffRound(throwRound, maxRounds)) {
+      showOpponentCheckedOutPopup.value = true
+    } else {
+      getNextPlayer()
+    }
   }
 
   function submit() {
@@ -181,6 +210,10 @@
     }
 
     if (!matchDataStore.currentPlayer || !matchDataStore.selectedLeg) return;
+
+    // Capture which round this throw belongs to before recording it -
+    // handlePostThrow() only applies once the throw itself didn't check out.
+    const throwRound = currentRoundNumber.value
 
     //Identify if the score will bust the result, ie send it to be less than 0
     if (matchDataStore.selectedLeg?.remainingScore - Number(scoreValue.value) < 0 || matchDataStore.selectedLeg?.remainingScore - Number(scoreValue.value) === 1 ) {
@@ -198,8 +231,7 @@
       const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) };
       matchDataStore.updateSelectedLegScore(score);
 
-      //update the next player from the list
-      getNextPlayer();
+      handlePostThrow(throwRound)
     }
   //reset the score
   scoreValue.value = '';
@@ -226,13 +258,18 @@
   function noScore() {
     if (!matchDataStore.currentPlayer) return;
 
+    // Captured before recording the throw, same as submit()'s own throwRound -
+    // called both directly (No Score button) and internally from submit()'s
+    // bust branch, so it must be self-sufficient rather than relying on a
+    // caller-supplied round.
+    const throwRound = currentRoundNumber.value
+
     //set the score in the data store
     const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(0) };
 
     matchDataStore.updateSelectedLegScore(score);
 
-    //update the next player from the list
-    getNextPlayer();
+    handlePostThrow(throwRound)
 
     //reset the score
     scoreValue.value = '';
