@@ -44,6 +44,11 @@
                     Delete
                   </button>
                 </template>
+                <template v-else-if="match.status === 'Completed'">
+                  <button type="button" class="link-btn" @click="$emit('view-match', match.id)" data-testid="match-view-btn">
+                    View
+                  </button>
+                </template>
                 <span v-else class="not-editable" title="Only Scheduled matches can be edited or deleted">—</span>
               </td>
             </tr>
@@ -163,6 +168,7 @@
 
   defineEmits<{
     (e: 'done'): void
+    (e: 'view-match', matchId: string): void
   }>()
 
   const matchDataStore = useMatchDataStore()

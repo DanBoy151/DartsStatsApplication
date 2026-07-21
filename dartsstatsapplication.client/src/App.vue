@@ -5,19 +5,22 @@
   import ErrorToast from './components/ErrorToast.vue'
   import NewPlayerForm from './components/Manage/NewPlayerForm.vue'
   import NewMatchForm from './components/Manage/NewMatchForm.vue'
+  import MatchReport from './components/Manage/MatchReport.vue'
   import NewLeagueForm from './components/Manage/NewLeagueForm.vue'
   import NewTeamForm from './components/Manage/NewTeamForm.vue'
   import NewSeasonForm from './components/Manage/NewSeasonForm.vue'
   import TeamStatistics from './components/Statistics/TeamStatistics.vue'
   import PlayerStatistics from './components/Statistics/PlayerStatistics.vue'
 
-  type View = 'main' | 'new-player' | 'new-match' | 'new-league' | 'new-team' | 'new-season' | 'statistics' | 'player-statistics'
+  type View = 'main' | 'new-player' | 'new-match' | 'new-league' | 'new-team' | 'new-season' | 'statistics' | 'player-statistics' | 'match-report'
 
   const currentView = ref<View>('main')
   // Set when arriving at Player Statistics via a specific player (from the
   // menu it stays null, and PlayerStatistics.vue starts with its own
   // selector blank).
   const selectedPlayerId = ref<string | null>(null)
+  // Set when arriving at the Match Report via Manage > Matches' View action.
+  const selectedMatchId = ref<string | null>(null)
 
   function handleNavigate(action: string) {
     if (
@@ -40,6 +43,11 @@
     currentView.value = 'player-statistics'
   }
 
+  function handleViewMatch(matchId: string) {
+    selectedMatchId.value = matchId
+    currentView.value = 'match-report'
+  }
+
   function goToMain() {
     // v-if (not v-show) below, so this remounts MainContent, which re-fetches
     // the next match - picking up anything just created in these forms.
@@ -55,12 +63,13 @@
     <main>
       <MainContent v-if="currentView === 'main'" @view-statistics="() => (currentView = 'statistics')" />
       <NewPlayerForm v-else-if="currentView === 'new-player'" @done="goToMain" />
-      <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" />
+      <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" @view-match="handleViewMatch" />
       <NewLeagueForm v-else-if="currentView === 'new-league'" @done="goToMain" />
       <NewTeamForm v-else-if="currentView === 'new-team'" @done="goToMain" />
       <NewSeasonForm v-else-if="currentView === 'new-season'" @done="goToMain" />
       <TeamStatistics v-else-if="currentView === 'statistics'" @done="goToMain" @view-player="handleViewPlayer" />
       <PlayerStatistics v-else-if="currentView === 'player-statistics'" :initial-player-id="selectedPlayerId ?? undefined" @done="goToMain" />
+      <MatchReport v-else-if="currentView === 'match-report'" :match-id="selectedMatchId ?? ''" @done="currentView = 'new-match'" />
     </main>
     <ErrorToast />
   </div>

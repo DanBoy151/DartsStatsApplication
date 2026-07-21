@@ -108,6 +108,27 @@ export async function fetchLegs() {
   }
 }
 
+/** Every leg for a game, without touching matchDataStore - for viewing a completed match's report. */
+export async function getLegsForGame(gameId: string): Promise<Leg[]> {
+  try {
+    const data = await apiGet<RawLeg[]>(`/api/Game/${gameId}/legs`)
+    return data.map((g) => ({
+      legId: g.id,
+      gameId: g.data?.gameID || '',
+      status: g.data?.status || 'Unknown',
+      score: g.data?.score ?? [],
+      result: g.data?.result || 'N/A',
+      finishDarts: g.data?.finishDarts || 0,
+      order: g.data?.order || 0,
+      remainingScore: g.data?.remainingScore || 0,
+      wonByBullOff: g.data?.wonByBullOff ?? false,
+    }))
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching legs for game')
+    return []
+  }
+}
+
 /**
  * Creates the next leg for the selected game, on demand - legs are no longer
  * all pre-created when the game starts (see GameService.CreateNextLeg

@@ -126,6 +126,39 @@ export async function createMatch(input: CreateMatchInput): Promise<CreatedMatch
   }
 }
 
+/** Fetch a single match by id, without touching matchDataStore - for viewing a completed match's report. */
+export async function getMatch(matchId: string): Promise<Match | null> {
+  try {
+    const data = await apiGet<RawMatchData>(`/api/Match/${matchId}`)
+    return mapRawMatch(data)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching match')
+    return null
+  }
+}
+
+/** Every game for a match, without touching matchDataStore - for viewing a completed match's report. */
+export async function getGamesForMatch(matchId: string): Promise<Game[]> {
+  try {
+    const data = await apiGet<RawGameData[]>(`/api/Match/${matchId}/games`)
+    return data.map((g) => ({
+      id: g.id ?? '',
+      players: g.data?.playerIds ?? [],
+      type: g.data?.type ?? '',
+      status: g.data?.status ?? '',
+      result: g.data?.result ?? '',
+      wonBull: g.data?.wonBull ?? false,
+      order: g.data?.order ?? 0,
+      legsToPlay: g.data?.legsToPlay ?? 0,
+      startingScore: g.data?.startingScore ?? 0,
+      maxRounds: g.data?.maxRounds ?? null,
+    }))
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching games for match')
+    return []
+  }
+}
+
 /** Fetches one (0-based) page of matches for the match management table. Not cached. */
 export async function fetchMatchesPage(pageIndex: number): Promise<Page<Match>> {
   try {
