@@ -6,7 +6,9 @@
           class="menu-item"
           @mouseenter="openDropdown(index)"
           @mouseleave="closeDropdown(index)">
-        <button class="menu-button">
+        <button class="menu-button"
+                :data-testid="item.action ? `menu-${item.action}` : undefined"
+                @click="item.action && select(item.action, index)">
           {{ item.label }}
         </button>
         <ul v-if="item.dropdown && item.open" class="dropdown-list">
@@ -44,7 +46,10 @@
 
   interface MenuItem {
     label: string;
-    dropdown: DropdownOption[];
+    // Present on a plain top-level link (e.g. Home) that navigates directly
+    // on click and has no dropdown of its own.
+    action?: string;
+    dropdown?: DropdownOption[];
     open: boolean;
   }
 
@@ -54,6 +59,11 @@
     data() {
       return {
         menuItems: [
+          {
+            label: 'Home',
+            action: 'main',
+            open: false,
+          },
           {
             label: 'Fixtures',
             dropdown: [

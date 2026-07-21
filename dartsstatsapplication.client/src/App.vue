@@ -23,6 +23,15 @@
   // Set when arriving at the Match Report via Fixtures > Current Season's
   // View action.
   const selectedMatchId = ref<string | null>(null)
+  // Bumped every time we navigate Home, and used as MainContent's :key.
+  // currentView is already 'main' throughout a live match (MainContent
+  // switches to MatchControl internally, via its own showMatchControl ref -
+  // App.vue never sees that change), so setting currentView.value = 'main'
+  // again while mid-match would be a no-op and leave the match showing.
+  // Changing the key forces Vue to destroy and recreate MainContent instead,
+  // which is the only way to reliably land back on the launch screen from
+  // anywhere, including mid-match.
+  const homeKey = ref(0)
 
   function handleNavigate(action: string) {
     if (
@@ -38,6 +47,8 @@
     } else if (action === 'player-statistics') {
       selectedPlayerId.value = null
       currentView.value = action
+    } else if (action === 'main') {
+      goToMain()
     }
   }
 
@@ -54,6 +65,9 @@
   function goToMain() {
     // v-if (not v-show) below, so this remounts MainContent, which re-fetches
     // the next match - picking up anything just created in these forms.
+    // Bumping homeKey too guarantees a fresh MainContent even when
+    // currentView was already 'main' (see homeKey's own comment above).
+    homeKey.value++
     currentView.value = 'main'
   }
 </script>
@@ -64,7 +78,7 @@
       <MenuBar @navigate="handleNavigate" />
     </header>
     <main>
-      <MainContent v-if="currentView === 'main'" @view-statistics="() => (currentView = 'statistics')" />
+      <MainContent v-if="currentView === 'main'" :key="homeKey" @view-statistics="() => (currentView = 'statistics')" />
       <NewPlayerForm v-else-if="currentView === 'new-player'" @done="goToMain" />
       <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" />
       <NewLeagueForm v-else-if="currentView === 'new-league'" @done="goToMain" />
