@@ -194,5 +194,31 @@ namespace DartsStatsApplication.Server.Controllers
 
         }
 
+        /// <summary>
+        /// Create the next Leg for a Game, on demand - the client calls this
+        /// once it determines (gameProgress.ts's isGameDecided) that another
+        /// leg is actually needed, rather than every leg being created upfront
+        /// when the game starts.
+        /// </summary>
+        [HttpPost("{id}/legs")]
+        public async Task<ActionResult<Leg>> CreateNextLeg(Guid id)
+        {
+            using (var session = _documentStore.LightweightSession())
+            {
+                var game = await session.LoadAsync<Game>(id);
+                if (game == null)
+                {
+                    return NotFound();
+                }
+
+                GameService service = new GameService(session, game);
+                var leg = await service.CreateNextLeg();
+
+                await session.SaveChangesAsync();
+
+                return Ok(leg);
+            }
+        }
+
     }
 }

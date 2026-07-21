@@ -51,15 +51,20 @@ namespace DartsStatsApplication.Server.Services.Validators
 
             // Every leg must be completed, UNLESS the outcome is already
             // mathematically decided (a player has enough leg wins/losses that
-            // the remaining, still-Pending legs can no longer change the result -
-            // e.g. a best-of-3 Singles game won/lost 2-0).
+            // any leg(s) still to come can no longer change the result - e.g. a
+            // best-of-3 Singles game won/lost 2-0). Majority is computed from
+            // the game's configured legsToPlay, not legs.Count/legs.Length -
+            // legs are now created one at a time as they're actually needed
+            // (see GameService.CreateNextLeg), so a game decided early
+            // legitimately has fewer Leg documents than legsToPlay, and
+            // legs.Count alone would understate what "majority" really means.
             int legWins = legs.Count(l => l.data.result == LegResult.Win);
             int legLosses = legs.Count(l => l.data.result == LegResult.Loss);
-            int legsNeededToWin = (legs.Count + 1) / 2; // ceil(count / 2)
+            int legsNeededToWin = (_game.data.legsToPlay + 1) / 2; // ceil(legsToPlay / 2)
             bool decided = legWins >= legsNeededToWin || legLosses >= legsNeededToWin;
-            bool allLegsCompleted = legs.All(l => l.data.status == LegStatus.Completed);
+            bool allLegsPlayed = legs.Count >= _game.data.legsToPlay && legs.All(l => l.data.status == LegStatus.Completed);
 
-            if (!allLegsCompleted && !decided)
+            if (!allLegsPlayed && !decided)
             {
                 throw new ValidationException("Unable to complete a Game while it has Legs that are not Completed");
             }
@@ -93,6 +98,25 @@ namespace DartsStatsApplication.Server.Services.Validators
             {
                 throw new ValidationException(
                     $"Invalid number of players for a {_game.data.type} game. Required: {requiredPlayers}");
+            }
+        }
+
+        /// <summary>
+        /// Validate that another Leg can be created for this game: it must be
+        /// In Progress, and not already have as many Legs as its configured
+        /// legsToPlay (the caller passes the count of Legs that already exist,
+        /// loaded from the session, so this stays a pure function).
+        /// </summary>
+        public void IsValidToCreateNextLeg(int existingLegCount)
+        {
+            if (_game.data.status != GameStatus.InProgress)
+            {
+                throw new ValidationException("Unable to create a Leg for a Game that is not In Progress");
+            }
+
+            if (existingLegCount >= _game.data.legsToPlay)
+            {
+                throw new ValidationException("This Game has already reached its configured number of Legs");
             }
         }
 

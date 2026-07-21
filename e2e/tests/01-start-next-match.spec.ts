@@ -304,6 +304,16 @@ test.describe.serial('Start next match', () => {
       await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
       const singles = gameSummaryPanel.gameBoxByType('Singles')
       await expect(singles).toContainText('Complete')
+
+      // The actual point of lazy leg creation: a 2-0 decided best-of-3 must
+      // have exactly 2 Leg documents, not a 3rd unused one left behind for
+      // the leg that was never played.
+      const gamesRes = await api.get(`/api/Match/${match.id}/games`)
+      const games: { id: string; data: { type: string; playerIds: string[] } }[] = await gamesRes.json()
+      const decidedSingles = games.find((g) => g.data.type === 'Singles' && g.data.playerIds?.includes(players[0]!.id))!
+      const legsRes = await api.get(`/api/Game/${decidedSingles.id}/legs`)
+      const legs: unknown[] = await legsRes.json()
+      expect(legs).toHaveLength(2)
     })
 
     await test.step('viewing a Complete game shows its last leg, read-only', async () => {

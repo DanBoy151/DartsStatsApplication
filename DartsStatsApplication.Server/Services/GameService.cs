@@ -32,8 +32,36 @@ namespace DartsStatsApplication.Server.Services
             _validator.IsValidToStartGame();
             _game.data.wonBull = wonBull;
             _game.data.status = GameStatus.InProgress;
-            CreatePendingLegs();
+            ResolveLegConfigCompat();
+
+            // Only the first leg is created here - further legs are created one
+            // at a time, on demand, via CreateNextLeg() as the game actually
+            // needs them, so a game decided early (e.g. 2-0 in a best-of-3)
+            // never leaves an unused Leg document behind for the leg(s) that
+            // were never played.
+            var firstLeg = BuildLeg(order: 0, startingScore: _game.data.startingScore);
+            _documentSession.Store(firstLeg);
             _documentSession.Store(_game);
+        }
+
+        /// <summary>
+        /// Creates the next Leg for this game (order = however many already
+        /// exist), as long as the game is In Progress and hasn't already
+        /// reached its configured legsToPlay. Called by the client once it
+        /// determines (via gameProgress.ts's isGameDecided) that another leg
+        /// is actually needed, rather than every leg being pre-created upfront.
+        /// </summary>
+        public async Task<Leg> CreateNextLeg()
+        {
+            var existingLegs = (await _documentSession.Query<Leg>()
+                .Where(l => l.data.gameID == _game.Id)
+                .ToListAsync()).ToList();
+
+            _validator.IsValidToCreateNextLeg(existingLegs.Count);
+
+            var leg = BuildLeg(order: existingLegs.Count, startingScore: _game.data.startingScore);
+            _documentSession.Store(leg);
+            return leg;
         }
 
         public async Task CompleteGame(CompleteGameData data)
@@ -49,61 +77,48 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_game);
         }
 
-        private void CreatePendingLegs()
+        /// <summary>
+        /// Compat guard: Marten has no migrations, so a Game document persisted
+        /// before League config existed deserializes legsToPlay/startingScore at
+        /// C#'s int default of 0 (missing JSON properties). Treat that as "not
+        /// populated" and fall back to the same hardcoded values this always used
+        /// - and write them back onto the game itself (not just use them locally)
+        /// - so legsToPlay/startingScore are guaranteed correct by the time the
+        /// game reaches InProgress, which both CreateNextLeg() and the client's
+        /// early-completion logic depend on.
+        /// </summary>
+        private void ResolveLegConfigCompat()
         {
-            int legsToCreate = _game.data.legsToPlay;
-            int startingScore = _game.data.startingScore;
-
-            // Compat guard: Marten has no migrations, so a Game document persisted
-            // before League config existed deserializes legsToPlay/startingScore at
-            // C#'s int default of 0 (missing JSON properties). Treat that as "not
-            // populated" and fall back to the same hardcoded values this always used
-            // - and write them back onto the game itself (not just use them locally),
-            // so legsToPlay/startingScore are guaranteed correct on every game by the
-            // time it reaches InProgress, which the client's early-completion logic
-            // depends on.
-            if (legsToCreate <= 0 || startingScore <= 0)
+            if (_game.data.legsToPlay <= 0 || _game.data.startingScore <= 0)
             {
                 switch (_game.data.type)
                 {
                     case GameType.Singles:
-                        legsToCreate = 3;
-                        startingScore = 501;
+                        _game.data.legsToPlay = 3;
+                        _game.data.startingScore = 501;
                         break;
                     case GameType.Doubles:
-                        legsToCreate = 1;
-                        startingScore = 601;
+                        _game.data.legsToPlay = 1;
+                        _game.data.startingScore = 601;
                         break;
                     case GameType.Trebles:
-                        legsToCreate = 1;
-                        startingScore = 701;
+                        _game.data.legsToPlay = 1;
+                        _game.data.startingScore = 701;
                         break;
                 }
-                _game.data.legsToPlay = legsToCreate;
-                _game.data.startingScore = startingScore;
-            }
-
-            int count = 0;
-            while (count < legsToCreate)
-            {
-                CreateLegs(count, startingScore);
-                count++;
             }
         }
 
-        private void CreateLegs(int count, int startingScore)
+        private Leg BuildLeg(int order, int startingScore)
         {
             Leg leg = new Leg();
             leg.Id = Guid.NewGuid();
             leg.data = new LegData();
             leg.data.gameID = _game.Id;
             leg.data.status = LegStatus.Pending;
-            leg.data.order = count;
+            leg.data.order = order;
             leg.data.remainingScore = startingScore;
-
-            _documentSession.Store<Leg>(leg);
+            return leg;
         }
-
-
     }
 }

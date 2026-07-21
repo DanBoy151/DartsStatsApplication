@@ -34,7 +34,7 @@
   import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
   import StatsPanel from './MatchCenter/StatsPanel.vue'
   import EnterScorePanel from './MatchCenter/EnterScorePanel.vue'
-  import { startGame, fetchLegs, completeGame } from '@/actions/GameService'
+  import { startGame, fetchLegs, completeGame, createNextLeg } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg, completeLegByBullOff } from '@/actions/LegService'
@@ -89,7 +89,10 @@
   }
 
   async function startNextLeg() {
-    const nextLeg = matchDataStore.selectedGame?.legs.find(leg => leg.status === 'Pending')
+    // Legs are created one at a time, on demand - not all pre-created when
+    // the game starts - so the next leg has to be created here rather than
+    // just found already sitting Pending in the store.
+    const nextLeg = await createNextLeg()
     if (!nextLeg) return;
 
     matchDataStore.setSelectedLeg(nextLeg.legId)

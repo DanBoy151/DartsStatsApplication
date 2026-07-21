@@ -108,6 +108,53 @@ export async function fetchLegs() {
   }
 }
 
+/**
+ * Creates the next leg for the selected game, on demand - legs are no longer
+ * all pre-created when the game starts (see GameService.CreateNextLeg
+ * server-side), so a game decided early (e.g. 2-0 in a best-of-3) never
+ * leaves an unused Leg document behind for the leg(s) never played. Called
+ * by MatchCenter.vue's startNextLeg() once it determines (via
+ * gameProgress.ts's isGameDecided) that another leg is actually needed.
+ */
+export async function createNextLeg(): Promise<Leg | null> {
+  const matchDataStore = useMatchDataStore()
+  const gameId = matchDataStore.selectedGame?.gameId
+  if (!gameId) return null
+
+  try {
+    const data = await apiRequest<RawLeg>(`/api/Game/${gameId}/legs`, { method: 'POST' })
+
+    const leg: Leg = {
+      legId: data.id,
+      gameId: data.data?.gameID || '',
+      status: data.data?.status || 'Unknown',
+      score: data.data?.score ?? [],
+      result: data.data?.result || 'N/A',
+      finishDarts: data.data?.finishDarts || 0,
+      order: data.data?.order || 0,
+      remainingScore: data.data?.remainingScore || 0,
+      wonByBullOff: data.data?.wonByBullOff ?? false,
+    }
+
+    matchDataStore.setLegData(
+      leg.gameId,
+      leg.legId,
+      leg.status,
+      leg.score,
+      leg.result,
+      leg.finishDarts,
+      leg.order,
+      leg.remainingScore,
+      leg.wonByBullOff
+    )
+
+    return leg
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error creating next leg')
+    return null
+  }
+}
+
 export async function completeGame(result: string) {
   const matchDataStore = useMatchDataStore()
   const gameId = matchDataStore.selectedGame?.gameId
