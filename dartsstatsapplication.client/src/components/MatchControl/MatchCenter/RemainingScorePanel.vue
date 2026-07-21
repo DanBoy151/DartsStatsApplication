@@ -1,11 +1,5 @@
 <template>
   <div class="remaining-score-panel">
-    <div v-if="isSingles" class="leg-score-row">
-      Leg Score: 0 - 0
-    </div>
-    <div class="remaining-score-row">
-      {{ score }}
-    </div>
     <div class="button-row">
       <template v-if="readonly">
         <button class="back-btn" @click="backMatch">Back</button>
@@ -160,14 +154,6 @@
     align-items: center;
     justify-content: center;
     position: relative;
-  }
-
-  .leg-score-row {
-    font-size: 2rem;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 2rem;
-    width: 100%;
   }
 
   .remaining-score-row {
