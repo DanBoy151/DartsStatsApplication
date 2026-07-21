@@ -43,6 +43,7 @@
   import { ref, computed, onMounted, onUnmounted } from 'vue';
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { currentRound, isBullOffRound } from '@/models/gameProgress'
+  import { isValidDartScore, isValidCheckoutScore } from '@/models/dartScoring'
   import DoublesFinishControl from './DoublesFinishControl.vue'
   import OpponentCheckedOutControl from './OpponentCheckedOutControl.vue'
   import BullOffControl from './BullOffControl.vue'
@@ -157,6 +158,12 @@
       error.value = 'Score must be between 0 and 180.';
       return false;
     }
+    // Not every number in 0-180 is actually throwable with 3 real darts
+    // (e.g. 179) - reject anything a dartboard can't produce.
+    if (!isValidDartScore(num)) {
+      error.value = `${num} isn't a score that's possible with up to 3 darts.`;
+      return false;
+    }
     error.value = '';
     return true;
   }
@@ -221,6 +228,14 @@
     }
     //Identify if the score will finish the leg
     else if (matchDataStore.selectedLeg?.remainingScore - Number(scoreValue.value) === 0) {
+      // A checkout must be reachable with the last dart landing on a double -
+      // reject a score that finishes the leg but has no such combination
+      // (e.g. leaving exactly 1, or a total like 159/162/165/168).
+      if (!isValidCheckoutScore(Number(scoreValue.value))) {
+        error.value = `${scoreValue.value} can't be checked out - the last dart must land on a double.`;
+        return;
+      }
+
       const score: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) };
       matchDataStore.updateSelectedLegScore(score);
 

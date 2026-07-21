@@ -51,6 +51,7 @@
   import { computed, ref, watch, nextTick } from 'vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { buildLedgerRows, startingScoreForGameType } from '@/models/gameProgress'
+  import { isValidDartScore } from '@/models/dartScoring'
 
   const props = defineProps<{
     /** Allow correcting a previously-recorded throw - only while the game is
@@ -120,6 +121,10 @@
     }
     if (num < 0 || num > 180) {
       editError.value = 'Score must be between 0 and 180.'
+      return
+    }
+    if (!isValidDartScore(num)) {
+      editError.value = `${num} isn't a score that's possible with up to 3 darts.`
       return
     }
 
