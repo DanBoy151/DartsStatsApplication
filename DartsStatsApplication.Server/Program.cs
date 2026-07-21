@@ -1,12 +1,21 @@
 using System.Text.Json.Serialization;
 using DartsStatsApplication.Server.Exceptions;
 using DartsStatsApplication.Server.Middleware;
+using DartsStatsApplication.Server.Models;
+using JasperFx;
 using Marten;
 using NSwag;
 
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Enables Marten/JasperFx's native CLI tooling (db-apply, db-assert, etc.) -
+// see the RunJasperFxCommands call below. Needs Marten 9.16+; the previous
+// 9.15.3 didn't have it, and the separate Marten.CommandLine package that
+// used to provide it for older versions turned out incompatible - see git
+// history.
+builder.Host.ApplyJasperFxExtensions();
 
 // Add services to the container.
 
@@ -33,19 +42,27 @@ builder.Services.AddMarten(opts =>
 {
     opts.Connection(builder.Configuration.GetConnectionString("Database"));
 
+    // Marten normally discovers document types lazily, the first time a
+    // controller actually queries/stores one - fine at runtime, but it means
+    // an offline tool like `dotnet run -- db-apply` (which never executes
+    // any request handler) sees no document types at all and silently
+    // "succeeds" at applying nothing. Explicit registration is what gives
+    // the CLI tooling something real to work with.
+    opts.RegisterDocumentType<Match>();
+    opts.RegisterDocumentType<Game>();
+    opts.RegisterDocumentType<Leg>();
+    opts.RegisterDocumentType<Player>();
+    opts.RegisterDocumentType<Team>();
+    opts.RegisterDocumentType<Season>();
+    opts.RegisterDocumentType<League>();
+
     // Auto-syncing the schema on every boot is convenient for local dev (and
     // the e2e stack, which always runs Development against a throwaway
     // database), but applying unreviewed schema changes automatically is not
     // something we want happening against a real environment's database.
-    // Outside Development this now does nothing until schema changes are
-    // applied some other way - deliberately deferred: Marten.CommandLine
-    // 7.40.5 (the CLI package that would give us `dotnet run -- db-apply`)
-    // turned out to be runtime-incompatible with this project's Marten
-    // 9.15.3/Weasel.Core 9.16.3 (a mismatched-assembly TypeLoadException on
-    // every startup, not just when a CLI command is actually invoked - see
-    // git history for the revert). Picking a real migration mechanism is
-    // Phase 2/3 work, once we're closer to actually needing to run one
-    // against a real environment.
+    // Outside Development, schema changes must be applied deliberately via
+    // `dotnet run -- db-apply` (see RunJasperFxCommands below), as an
+    // explicit, reviewable deploy step.
     opts.AutoCreateSchemaObjects = builder.Environment.IsDevelopment()
         ? JasperFx.AutoCreate.All
         : JasperFx.AutoCreate.None;
@@ -122,4 +139,4 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+return await app.RunJasperFxCommands(args);
