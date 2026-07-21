@@ -19,6 +19,16 @@
             <option v-for="season in teamSeasons" :key="season.id" :value="season.id">{{ season.name }} ({{ season.status }})</option>
           </select>
         </label>
+
+        <label v-if="selectedTeamId" class="field">
+          <span class="field-label">Game Type</span>
+          <select v-model="selectedGameType" class="field-input" data-testid="team-statistics-game-type-filter">
+            <option value="">All Game Types</option>
+            <option value="Trebles">Trebles</option>
+            <option value="Doubles">Doubles</option>
+            <option value="Singles">Singles</option>
+          </select>
+        </label>
       </div>
 
       <div class="table-wrap">
@@ -104,6 +114,7 @@
   const teamSeasons = ref<Season[]>([])
   const selectedTeamId = ref('')
   const selectedSeasonId = ref('')
+  const selectedGameType = ref<'' | 'Singles' | 'Doubles' | 'Trebles'>('')
 
   // Only highlight a "leader" once someone's actually played - otherwise every
   // player sits at a tied, meaningless null average and row 1 is arbitrary.
@@ -124,21 +135,27 @@
   async function loadStats() {
     loading.value = true
     stats.value = selectedTeamId.value
-      ? await getTeamStats(selectedTeamId.value, selectedSeasonId.value || undefined)
+      ? await getTeamStats(selectedTeamId.value, selectedSeasonId.value || undefined, selectedGameType.value || undefined)
       : await getPlayerStats()
     loading.value = false
   }
 
-  // Switching teams resets the season filter (a season from the previous
-  // team's list would be meaningless here) and refreshes that team's season
-  // options; either dropdown changing refetches the stats.
+  // Switching teams resets the season and game type filters (either one
+  // carried over from the previous team would be meaningless here) and
+  // refreshes that team's season options; any of the three filters changing
+  // refetches the stats.
   watch(selectedTeamId, async (teamId) => {
     selectedSeasonId.value = ''
+    selectedGameType.value = ''
     teamSeasons.value = teamId ? await getTeamSeasons(teamId) : []
     await loadStats()
   })
 
   watch(selectedSeasonId, () => {
+    loadStats()
+  })
+
+  watch(selectedGameType, () => {
     loadStats()
   })
 

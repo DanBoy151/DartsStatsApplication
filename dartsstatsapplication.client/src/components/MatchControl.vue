@@ -122,8 +122,11 @@
 </script>
 
 <style scoped>
+  /* Anchored to <main> (see App.vue's `position: relative`), not the
+     viewport - position:fixed here covered the header too, making the menu
+     bar unclickable while a match was in progress. */
   .match-control-layout {
-    position: fixed;
+    position: absolute;
     inset: 0;
     display: flex;
     box-sizing: border-box;

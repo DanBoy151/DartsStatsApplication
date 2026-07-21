@@ -113,5 +113,9 @@
     padding: 0;
     background: #fff;
     overflow: auto;
+    /* Containing block for MatchControl.vue's absolutely-positioned
+       full-bleed layout, so it fills the content area below the header
+       instead of the whole viewport. */
+    position: relative;
   }
 </style>

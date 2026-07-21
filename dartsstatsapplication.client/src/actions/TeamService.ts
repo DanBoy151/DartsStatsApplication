@@ -85,11 +85,18 @@ export async function getTeamSeasons(teamId: string): Promise<Season[]> {
   }
 }
 
-/** This Team's aggregated player stats - optionally scoped to a single Season. */
-export async function getTeamStats(teamId: string, seasonId?: string): Promise<PlayerStats[]> {
+/** This Team's aggregated player stats - optionally scoped to a single Season and/or a single game type. */
+export async function getTeamStats(
+  teamId: string,
+  seasonId?: string,
+  gameType?: 'Singles' | 'Doubles' | 'Trebles'
+): Promise<PlayerStats[]> {
   try {
-    const query = seasonId ? `?seasonId=${seasonId}` : ''
-    const data = await apiGet<RawPlayerStats[]>(`/api/Team/${teamId}/stats${query}`)
+    const params = new URLSearchParams()
+    if (seasonId) params.set('seasonId', seasonId)
+    if (gameType) params.set('gameType', gameType)
+    const query = params.toString()
+    const data = await apiGet<RawPlayerStats[]>(`/api/Team/${teamId}/stats${query ? `?${query}` : ''}`)
     return data
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching team stats')

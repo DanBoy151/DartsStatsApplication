@@ -105,10 +105,11 @@ namespace DartsStatsApplication.Server.Controllers
 
         /// <summary>
         /// Get this Team's aggregated player stats - optionally scoped to a single
-        /// Season (query string), otherwise across every Season the team has played.
+        /// Season and/or a single game type (Singles/Doubles/Trebles), otherwise
+        /// across every Season/game type the team has played.
         /// </summary>
         [HttpGet("{id}/stats")]
-        public async Task<ActionResult<List<PlayerStatsData>>> GetTeamStats(Guid id, Guid? seasonId = null)
+        public async Task<ActionResult<List<PlayerStatsData>>> GetTeamStats(Guid id, Guid? seasonId = null, GameType? gameType = null)
         {
             using (var session = _documentStore.QuerySession())
             {
@@ -145,7 +146,10 @@ namespace DartsStatsApplication.Server.Controllers
                     .Where(g => matchIds.Contains(g.data.matchId))
                     .ToListAsync()).ToList();
 
-                var gameIds = games.Select(g => g.Id).ToList();
+                var gameIds = games
+                    .Where(g => gameType == null || g.data.type == gameType.Value)
+                    .Select(g => g.Id)
+                    .ToList();
                 var legs = (await session.Query<Leg>()
                     .Where(l => gameIds.Contains(l.data.gameID))
                     .ToListAsync()).ToList();
