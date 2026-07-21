@@ -140,9 +140,6 @@
     if (!val) started.value = true
   })
 
-  const isSingles = computed(() =>
-    props.gameType?.toLowerCase() === 'singles' || props.gameType?.toLowerCase() === 'single'
-  )
 </script>
 
 <style scoped>
