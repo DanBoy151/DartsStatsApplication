@@ -72,9 +72,10 @@
   const currentRemaining = computed(() => matchDataStore.selectedLeg?.remainingScore ?? 0)
 
   // Which round the *next* throw would fall in - once a non-checkout throw
-  // in this round is past the game's configured max rounds (if any), it's
+  // in this round has reached the game's configured max round (if any), it's
   // followed by the "did opponent check out?" / bull-off prompts instead of
-  // just advancing to the next player.
+  // just advancing to the next player. The max round itself is the last one
+  // played normally - no extra round beyond it is required first.
   const currentRoundNumber = computed(() => {
     const throwCount = matchDataStore.selectedLeg?.score.length ?? 0
     const playerCount = matchDataStore.selectedGame?.players.length ?? 1
@@ -177,7 +178,7 @@
   }
 
   /**
-   * Once max rounds (if configured) has been passed, a throw that doesn't
+   * Once max rounds (if configured) has been reached, a throw that doesn't
    * itself check out (a normal continuing score, or a bust via noScore())
    * can't just advance to the next player indefinitely - the scorer is
    * asked whether the opponent already checked out (a normal Loss) before
@@ -201,7 +202,7 @@
     emit('legComplete')
   }
 
-  /** Advances to the next player, unless this throw's round is past the game's configured max rounds - then the leg must be resolved via the opponent-checkout/bull-off prompts instead. */
+  /** Advances to the next player, unless this throw's round has reached the game's configured max rounds - then the leg must be resolved via the opponent-checkout/bull-off prompts instead. */
   function handlePostThrow(throwRound: number) {
     const maxRounds = matchDataStore.selectedGame?.maxRounds ?? null
     if (isBullOffRound(throwRound, maxRounds)) {

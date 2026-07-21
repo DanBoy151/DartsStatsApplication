@@ -297,13 +297,28 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
         [Fact]
         public void IsValidToCompleteLegByBullOff_ThresholdNotReached_Throws()
         {
-            // maxRounds=2, only 2 visits recorded - hasn't passed the threshold yet.
+            // maxRounds=2, only 1 visit recorded - round 1 of 2, still short of the threshold.
             var leg = CreateLeg(LegStatus.Started, 501);
             var validator = new LegControllerValidator(leg, null!);
             var game = CreateGame(maxRounds: 2, playerCount: 1);
 
-            var ex = Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLegByBullOff(BullOff(LegResult.Win, 2), game));
+            var ex = Assert.Throws<ValidationException>(() => validator.IsValidToCompleteLegByBullOff(BullOff(LegResult.Win, 1), game));
             Assert.Contains("has not reached the max rounds", ex.Message);
+        }
+
+        [Fact]
+        public void IsValidToCompleteLegByBullOff_ExactlyAtMaxRounds_DoesNotThrow()
+        {
+            // maxRounds=2, exactly 2 visits recorded - the max round itself is the
+            // last one played normally, so bull-off must already be available here,
+            // without needing a 3rd round to be played first.
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+            var game = CreateGame(maxRounds: 2, playerCount: 1);
+
+            var ex = Record.Exception(() => validator.IsValidToCompleteLegByBullOff(BullOff(LegResult.Win, 2), game));
+
+            Assert.Null(ex);
         }
 
         [Fact]

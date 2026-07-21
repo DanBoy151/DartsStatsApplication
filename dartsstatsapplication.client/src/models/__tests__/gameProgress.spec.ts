@@ -342,12 +342,12 @@ describe('isBullOffRound', () => {
     expect(isBullOffRound(100, null)).toBe(false)
   })
 
-  it('is false at or before the max round', () => {
+  it('is false before the max round', () => {
     expect(isBullOffRound(1, 2)).toBe(false)
-    expect(isBullOffRound(2, 2)).toBe(false)
   })
 
-  it('is true once the round exceeds the max', () => {
+  it('is true from the max round onward, not just once it is exceeded', () => {
+    expect(isBullOffRound(2, 2)).toBe(true)
     expect(isBullOffRound(3, 2)).toBe(true)
   })
 })

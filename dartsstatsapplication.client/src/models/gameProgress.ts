@@ -112,13 +112,16 @@ export function currentRound(throwCount: number, playerCount: number): number {
 }
 
 /**
- * True once a leg has passed the game's configured max rounds and must be
- * decided by bull-off instead of normal scoring. `maxRounds === null` means
- * no League is configured (or the League has no limit) - never a bull-off.
+ * True once a leg has reached the game's configured max rounds and (absent a
+ * genuine checkout) must be decided by bull-off instead of normal scoring -
+ * the max round itself is the last one played normally, not one before it,
+ * so this doesn't wait for an extra round beyond the limit. `maxRounds ===
+ * null` means no League is configured (or the League has no limit) - never
+ * a bull-off.
  */
 export function isBullOffRound(round: number, maxRounds: number | null): boolean {
   if (maxRounds == null) return false
-  return round > maxRounds
+  return round >= maxRounds
 }
 
 /**

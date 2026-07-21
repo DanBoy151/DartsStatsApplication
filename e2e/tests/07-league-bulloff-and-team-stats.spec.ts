@@ -137,7 +137,7 @@ test.describe('League-configured max rounds and bull-off', () => {
     })
   })
 
-  test('bull-off completion is rejected before the max rounds threshold is reached', async ({ api }) => {
+  test('bull-off completion is rejected before max rounds, but available the moment the max round itself is reached', async ({ api }) => {
     const league = await createLeague(api, {
       name: `E2E Early Bull-Off League ${Date.now()}`,
       numTrebles: 0,
@@ -174,20 +174,33 @@ test.describe('League-configured max rounds and bull-off', () => {
       startingScore: 501,
       maxRounds: 2,
     })
-    const leg = await createLeg(api, { gameID: game.id, remainingScore: 501 })
 
-    // Only 2 visits recorded - exactly at the limit, not past it - so
-    // bull-off isn't available yet, and normal completion is still valid.
-    const twoVisits = [
-      { playerId: player.id, score: 60 },
-      { playerId: player.id, score: 60 },
-    ]
+    await test.step('one visit recorded - only round 1 of 2 - bull-off is rejected', async () => {
+      const leg = await createLeg(api, { gameID: game.id, order: 0, remainingScore: 501 })
+      const oneVisit = [{ playerId: player.id, score: 60 }]
 
-    const bullOffRes = await api.put(`/api/Leg/${leg.id}/complete-bull-off`, {
-      data: { score: twoVisits, result: 'Win', remainingScore: 381 },
+      const bullOffRes = await api.put(`/api/Leg/${leg.id}/complete-bull-off`, {
+        data: { score: oneVisit, result: 'Win', remainingScore: 441 },
+      })
+      expect(bullOffRes.status()).toBe(400)
+      const body = await bullOffRes.json()
+      expect(body.detail).toContain('has not reached the max rounds')
     })
-    expect(bullOffRes.status()).toBe(400)
-    const body = await bullOffRes.json()
-    expect(body.detail).toContain('has not reached the max rounds')
+
+    await test.step('two visits recorded - exactly the max round itself - bull-off is available immediately, with no extra round required', async () => {
+      const leg = await createLeg(api, { gameID: game.id, order: 1, remainingScore: 501 })
+      const twoVisits = [
+        { playerId: player.id, score: 60 },
+        { playerId: player.id, score: 60 },
+      ]
+
+      const bullOffRes = await api.put(`/api/Leg/${leg.id}/complete-bull-off`, {
+        data: { score: twoVisits, result: 'Win', remainingScore: 381 },
+      })
+      expect(bullOffRes.status()).toBe(200)
+      const body = await bullOffRes.json()
+      expect(body.data.status).toBe('Completed')
+      expect(body.data.wonByBullOff).toBe(true)
+    })
   })
 })

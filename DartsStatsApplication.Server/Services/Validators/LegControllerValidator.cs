@@ -131,8 +131,9 @@ namespace DartsStatsApplication.Server.Services.Validators
 
         /// <summary>
         /// Validate that a leg can be completed via bull-off: it must actually have
-        /// reached the game's configured max rounds - this is what the leg genuinely
-        /// gets decided by once normal scoring is no longer an option.
+        /// reached the game's configured max rounds - the max round itself is the
+        /// last one played normally, so this doesn't require an extra round beyond
+        /// the limit before a bull-off is available.
         /// </summary>
         public void IsValidToCompleteLegByBullOff(CompleteLegBullOffData data, Game? game)
         {
@@ -148,7 +149,7 @@ namespace DartsStatsApplication.Server.Services.Validators
 
             int playersPerRound = Math.Max(game.data.playerIds?.Count ?? 1, 1);
             int roundsPlayed = RoundsPlayed(data.score?.Count ?? 0, playersPerRound);
-            if (roundsPlayed <= game.data.maxRounds.Value)
+            if (roundsPlayed < game.data.maxRounds.Value)
             {
                 throw new ValidationException("Leg has not reached the max rounds yet");
             }
