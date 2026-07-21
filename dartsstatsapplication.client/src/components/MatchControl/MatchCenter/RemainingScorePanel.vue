@@ -13,6 +13,8 @@
       <template v-else>
         <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
         <button v-else class="finish-btn" @click="finish">Finish</button>
+        <!-- Only while Ready (not yet started) - once InProgress the roster is locked in. -->
+        <button v-if="!started" class="edit-players-btn" @click="editPlayers">Edit Players</button>
         <button v-if="!started" class="cancel-btn" @click="cancelMatch">Cancel</button>
         <button v-else class="back-btn" @click="backMatch">Back</button>
       </template>
@@ -34,7 +36,7 @@
 
   const remainingScore = computed(() => matchDataStore.getSelectedLeg()?.remainingScore ?? 0)
 
-  const emit = defineEmits(['start-match', 'finish-leg', 'back-match', 'cancel-match'])
+  const emit = defineEmits(['start-match', 'finish-leg', 'back-match', 'cancel-match', 'edit-players'])
   const props = defineProps<{
     gameType: string
     disabled?: boolean
@@ -107,6 +109,10 @@
 
   function backMatch() {
     emit('back-match')
+  }
+
+  function editPlayers() {
+    emit('edit-players')
   }
 
   /**
@@ -221,6 +227,21 @@
 
     .start-btn:hover {
       background: #506E8BFF;
+    }
+
+  .edit-players-btn {
+    background: #7f8c9a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+    .edit-players-btn:hover {
+      background: #67757f;
     }
 
   .finish-btn {

@@ -136,6 +136,26 @@ test.describe.serial('Start next match', () => {
       await expect(holdingScreen.root).toBeVisible()
     })
 
+    await test.step('a Ready game (players already assigned) opens straight into MatchCenter, with Edit Players pre-filled and non-mutating', async () => {
+      // Uses the same Doubles(0) game the previous step just readied - Cancel
+      // at the end leaves its roster untouched for the "playing a game
+      // through to completion" step right after this one, which still
+      // expects players[0]/players[1].
+      await gameSummaryPanel.gameBoxByType('Doubles').click()
+      await expect(matchCenterScreen.root).toBeVisible()
+      await expect(selectPlayersGameScreen.root).not.toBeVisible()
+      await expect(matchCenterScreen.editPlayersButton).toBeVisible()
+
+      await matchCenterScreen.editPlayersButton.click()
+      await expect(selectPlayersGameScreen.root).toBeVisible()
+      await expect(selectPlayersGameScreen.heading).toHaveText('Select Players')
+      expect(await selectPlayersGameScreen.selectedPlayerName(0)).toBe(players[0]!.name)
+      expect(await selectPlayersGameScreen.selectedPlayerName(1)).toBe(players[1]!.name)
+
+      await selectPlayersGameScreen.cancelButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+    })
+
     await test.step('playing a game through to completion keeps the summary panel populated (BUGS.md #11-13)', async () => {
       // Regression test for the reported bug: "completing a game causes the
       // game summary panel to end up blank". Root cause chain, all fixed
@@ -332,6 +352,52 @@ test.describe.serial('Start next match', () => {
       await expect(matchCenterScreen.root).toBeVisible()
       expect(await matchCenterScreen.isReadonly()).toBe(false)
       await expect(matchCenterScreen.remainingScoreText).toHaveText('401')
+
+      await matchCenterScreen.backButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+    })
+
+    await test.step('players can be changed while a game is Ready, but the roster locks once it is In Progress', async () => {
+      // Uses a Singles game untouched by any earlier step (index 2 - indices
+      // 0 and 1 are already Complete/mid-leg from steps above), so changing
+      // and then starting it here can't interfere with anything later.
+      await gameSummaryPanel.gameBoxByType('Singles', 2).click()
+      await selectPlayersGameScreen.selectPlayer(0, players[3]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+
+      // Reopening a Ready game goes straight to MatchCenter; Edit Players
+      // reopens selection pre-filled with the roster just saved, and a
+      // change here actually updates the game once saved again.
+      await gameSummaryPanel.gameBoxByType('Singles', 2).click()
+      await expect(matchCenterScreen.root).toBeVisible()
+      await matchCenterScreen.editPlayersButton.click()
+      expect(await selectPlayersGameScreen.selectedPlayerName(0)).toBe(players[3]!.name)
+
+      await selectPlayersGameScreen.selectPlayer(0, players[4]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.gameBoxByType('Singles', 2)).toContainText(players[4]!.name)
+
+      // Once started (In Progress), the roster is locked in - no Edit
+      // Players option in the UI, and the server rejects a direct attempt too.
+      await gameSummaryPanel.gameBoxByType('Singles', 2).click()
+      await matchCenterScreen.startGame()
+      await expect(matchCenterScreen.editPlayersButton).not.toBeVisible()
+
+      // Identified by its assigned player rather than type+order+status:
+      // Singles(1) is also already In Progress (left mid-leg by an earlier
+      // step), so "the Singles game just started" isn't unique without this.
+      const gamesRes = await api.get(`/api/Match/${match.id}/games`)
+      const games: { id: string; data: { type: string; playerIds: string[] } }[] = await gamesRes.json()
+      const startedGame = games.find((g) => g.data.type === 'Singles' && g.data.playerIds?.includes(players[4]!.id))!
+
+      const res = await api.put(`/api/Game/${startedGame.id}/update-players`, {
+        data: { selectedPlayers: [players[0]!.id] },
+      })
+      expect(res.status()).toBe(400)
+      const body = await res.json()
+      expect(body.detail).toContain('already started')
 
       await matchCenterScreen.backButton.click()
       await expect(holdingScreen.root).toBeVisible()

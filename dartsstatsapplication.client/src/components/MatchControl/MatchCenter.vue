@@ -13,6 +13,7 @@
                            @back-match="$emit('back')"
                            @cancel-match="$emit('back')"
                            @finish-leg="onFinishLeg"
+                           @edit-players="$emit('edit-players')"
                            :game-type="selectedGame?.type"
                            :gamestarted="started"
                            :readonly="isComplete" />
@@ -42,7 +43,7 @@
 
   const matchDataStore = useMatchDataStore()
 
-  const emit = defineEmits(['back'])
+  const emit = defineEmits(['back', 'edit-players'])
 
   const props = defineProps<{
     game: Game

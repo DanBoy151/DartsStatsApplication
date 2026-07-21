@@ -67,8 +67,15 @@
           teamId: null
         }))
     }
-    // Reset selectedPlayerIds when players are fetched
-    selectedPlayerIds.value = Array(playerCount.value).fill('')
+    // Pre-fill with whatever's already assigned - a fresh Pending game has no
+    // players yet, so this naturally starts blank; re-opening an already-Ready
+    // game (Edit Players) shows its current selections instead of losing them.
+    const existingPlayerIds = matchDataStore.getSelectedGame()?.players ?? []
+    const prefilled = existingPlayerIds.slice(0, playerCount.value)
+    selectedPlayerIds.value = [
+      ...prefilled,
+      ...Array(Math.max(playerCount.value - prefilled.length, 0)).fill('')
+    ]
   }
 
   // Watch for playerCount changes and adjust selectedPlayerIds accordingly

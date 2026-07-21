@@ -20,4 +20,12 @@ export class SelectPlayersGameScreen {
   async selectPlayer(dropdownIndex: number, playerName: string) {
     await this.playerDropdowns.nth(dropdownIndex).selectOption({ label: playerName })
   }
+
+  /** The currently selected player's name in the dropdown at the given position (0-based) - used to verify pre-filled selections when re-opening an already-Ready game. */
+  async selectedPlayerName(dropdownIndex: number): Promise<string> {
+    const dropdown = this.playerDropdowns.nth(dropdownIndex)
+    const value = await dropdown.inputValue()
+    const label = await dropdown.locator(`option[value="${value}"]`).textContent()
+    return label?.trim() ?? ''
+  }
 }

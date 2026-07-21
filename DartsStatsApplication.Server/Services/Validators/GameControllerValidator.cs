@@ -98,10 +98,12 @@ namespace DartsStatsApplication.Server.Services.Validators
 
         public void ValidateSelectedPlayers()
         {
-            //Is the game in the correct status to update player selection
-            if (_game.data.status != GameStatus.Pending)
+            // Players can be assigned for the first time (Pending) or changed any
+            // time before the game actually starts (Ready) - once InProgress or
+            // Complete, the roster is locked in.
+            if (_game.data.status != GameStatus.Pending && _game.data.status != GameStatus.Ready)
             {
-                throw new ValidationException("Unable to add players to a Game that is not Pending");
+                throw new ValidationException("Unable to update players for a Game that has already started");
             }
 
             //Has the player been added to a game of the same type within the match (where 6+ players are available)

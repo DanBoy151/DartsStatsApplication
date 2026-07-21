@@ -113,14 +113,26 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             Assert.Throws<ValidationException>(() => validator.ValidateSelectedPlayers());
         }
 
+        [Fact]
+        public void ValidateSelectedPlayers_StatusReady_WithValidPlayerCount_DoesNotThrow()
+        {
+            // A game that already has players assigned (Ready) can still have
+            // them changed, as long as it hasn't actually started yet.
+            var game = CreateGame(GameType.Singles, GameStatus.Ready, Players(1));
+            var validator = new GameControllerValidator(game, null!);
+
+            var exception = Record.Exception(() => validator.ValidateSelectedPlayers());
+
+            Assert.Null(exception);
+        }
+
         [Theory]
-        [InlineData(GameStatus.Ready)]
         [InlineData(GameStatus.InProgress)]
         [InlineData(GameStatus.Complete)]
-        public void ValidateSelectedPlayers_StatusNotPending_ThrowsRegardlessOfPlayerCount(GameStatus status)
+        public void ValidateSelectedPlayers_StatusInProgressOrComplete_ThrowsRegardlessOfPlayerCount(GameStatus status)
         {
-            // Correct player count for Singles (1), but status isn't Pending,
-            // so this should still throw -- status is checked before count.
+            // Correct player count for Singles (1), but the game has already
+            // started, so this should still throw -- status is checked before count.
             var game = CreateGame(GameType.Singles, status, Players(1));
             var validator = new GameControllerValidator(game, null!);
 

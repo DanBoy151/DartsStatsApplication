@@ -6,7 +6,7 @@
                         @select-game="handleSelectGame" />
     </div>
     <div class="center-panel">
-      <SelectPlayersGameControl v-if="selectedGameId && selectedGame && selectedGame?.status=='Pending'"
+      <SelectPlayersGameControl v-if="selectedGameId && selectedGame && (selectedGame?.status=='Pending' || editingPlayers)"
                                 @save="handleSave"
                                 @cancel="handleCancel" />
 
@@ -14,6 +14,7 @@
                    class="match-center"
                    :game="selectedGame"
                    @back="handleMatchCenterBack"
+                   @edit-players="handleEditPlayers"
                    />
 
       <HoldingScreenControl v-else-if="showHoldingScreen"
@@ -45,6 +46,10 @@
   const showHoldingScreen = ref(false)
   const selectedGameId = ref<string | null>(null)
   const selectedGame = ref<Game | null > (null)
+  // True while editing an already-Ready game's roster (RemainingScorePanel's
+  // "Edit Players" button) - distinct from selectedGame.status === 'Pending',
+  // which is a fresh game that's never had players assigned at all.
+  const editingPlayers = ref(false)
 
 
   //Need to update this and the Prop into the next screen
@@ -57,6 +62,7 @@
     selectedGame.value =  convertToGameFromGameDataState(matchDataStore.getSelectedGame())
 
     showHoldingScreen.value = false
+    editingPlayers.value = false
 
     // Whatever leg/current-player was selected belongs to the PREVIOUS
     // game - clear it before possibly reselecting below, so a fresh/
@@ -80,22 +86,31 @@
   function handleSave() {
     selectedGameId.value = null
     selectedGame.value = null
+    editingPlayers.value = false
     showHoldingScreen.value = true
   }
   function handleCancel() {
     selectedGameId.value = null
     selectedGame.value = null
+    editingPlayers.value = false
     showHoldingScreen.value = true
   }
   function handleExit() {
     showHoldingScreen.value = false
     selectedGameId.value = null
+    editingPlayers.value = false
   }
 
   function handleMatchCenterBack() {
     showHoldingScreen.value = true
     selectedGameId.value = null
     selectedGame.value = null
+    editingPlayers.value = false
+  }
+
+  /** RemainingScorePanel's "Edit Players" button, only available while a game is Ready (not yet started). */
+  function handleEditPlayers() {
+    editingPlayers.value = true
   }
 </script>
 
