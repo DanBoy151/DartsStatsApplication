@@ -9,10 +9,15 @@
   import NewTeamForm from './components/Manage/NewTeamForm.vue'
   import NewSeasonForm from './components/Manage/NewSeasonForm.vue'
   import TeamStatistics from './components/Statistics/TeamStatistics.vue'
+  import PlayerStatistics from './components/Statistics/PlayerStatistics.vue'
 
-  type View = 'main' | 'new-player' | 'new-match' | 'new-league' | 'new-team' | 'new-season' | 'statistics'
+  type View = 'main' | 'new-player' | 'new-match' | 'new-league' | 'new-team' | 'new-season' | 'statistics' | 'player-statistics'
 
   const currentView = ref<View>('main')
+  // Set when arriving at Player Statistics via a specific player (from the
+  // menu it stays null, and PlayerStatistics.vue starts with its own
+  // selector blank).
+  const selectedPlayerId = ref<string | null>(null)
 
   function handleNavigate(action: string) {
     if (
@@ -24,7 +29,15 @@
       action === 'statistics'
     ) {
       currentView.value = action
+    } else if (action === 'player-statistics') {
+      selectedPlayerId.value = null
+      currentView.value = action
     }
+  }
+
+  function handleViewPlayer(playerId: string) {
+    selectedPlayerId.value = playerId
+    currentView.value = 'player-statistics'
   }
 
   function goToMain() {
@@ -46,7 +59,8 @@
       <NewLeagueForm v-else-if="currentView === 'new-league'" @done="goToMain" />
       <NewTeamForm v-else-if="currentView === 'new-team'" @done="goToMain" />
       <NewSeasonForm v-else-if="currentView === 'new-season'" @done="goToMain" />
-      <TeamStatistics v-else-if="currentView === 'statistics'" @done="goToMain" />
+      <TeamStatistics v-else-if="currentView === 'statistics'" @done="goToMain" @view-player="handleViewPlayer" />
+      <PlayerStatistics v-else-if="currentView === 'player-statistics'" :initial-player-id="selectedPlayerId ?? undefined" @done="goToMain" />
     </main>
     <ErrorToast />
   </div>

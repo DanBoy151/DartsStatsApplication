@@ -1,5 +1,9 @@
 import type { Player, RawPlayer } from '@/models/PlayerModel'
 import type { PlayerStats, RawPlayerStats } from '@/models/PlayerStatsModel'
+import type { Season, RawSeasonResponse } from '@/models/SeasonModel'
+import { mapRawSeasonResponse } from '@/models/SeasonModel'
+import type { PlayerForm, RawPlayerForm } from '@/models/PlayerFormModel'
+import { mapRawPlayerForm } from '@/models/PlayerFormModel'
 import { useMatchDataStore } from '@/stores/matchDataStore'
 import { apiGet, apiRequest } from '@/actions/apiClient'
 import { skipFor, takeForFetch, splitPage, type Page } from '@/pagination/page'
@@ -117,5 +121,50 @@ export async function getPlayerStats(): Promise<PlayerStats[]> {
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching player stats')
     return []
+  }
+}
+
+/**
+ * One player's aggregated stats, optionally scoped to a single Season and/or
+ * a single game type - the Player Statistics screen calls this once per
+ * section (Overall/Singles/Doubles/Trebles), each with its own filters.
+ */
+export async function getPlayerDetailStats(
+  playerId: string,
+  seasonId?: string,
+  gameType?: 'Singles' | 'Doubles' | 'Trebles'
+): Promise<PlayerStats | null> {
+  try {
+    const params = new URLSearchParams()
+    if (seasonId) params.set('seasonId', seasonId)
+    if (gameType) params.set('gameType', gameType)
+    const query = params.toString()
+    const data = await apiGet<RawPlayerStats>(`/api/Player/${playerId}/stats${query ? `?${query}` : ''}`)
+    return data
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching player detail stats')
+    return null
+  }
+}
+
+/** Every Season this player has actually appeared in, each with its computed status - for the Player Statistics screen's season dropdowns. */
+export async function getPlayerSeasons(playerId: string): Promise<Season[]> {
+  try {
+    const data = await apiGet<RawSeasonResponse[]>(`/api/Player/${playerId}/seasons`)
+    return data.map(mapRawSeasonResponse)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching player seasons')
+    return []
+  }
+}
+
+/** A player's last 5 completed Singles games and whether their average is trending up or down. */
+export async function getPlayerForm(playerId: string): Promise<PlayerForm | null> {
+  try {
+    const data = await apiGet<RawPlayerForm>(`/api/Player/${playerId}/form`)
+    return mapRawPlayerForm(data)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching player form')
+    return null
   }
 }

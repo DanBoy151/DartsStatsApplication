@@ -20,6 +20,11 @@ export class TeamStatisticsScreen {
     return this.rows.nth(index)
   }
 
+  /** Clicks a player's name, which navigates to their Player Statistics page. */
+  async clickPlayerName(name: string) {
+    await this.rows.filter({ hasText: name }).locator('[data-testid="stats-player-link"]').click()
+  }
+
   async filterByTeam(teamName: string) {
     await this.teamFilter.selectOption({ label: teamName })
   }

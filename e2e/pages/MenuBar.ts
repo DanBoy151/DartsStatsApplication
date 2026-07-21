@@ -10,6 +10,7 @@ export class MenuBar {
   readonly newSeasonOption: Locator
   readonly statisticsMenuItem: Locator
   readonly teamStatisticsOption: Locator
+  readonly playerStatisticsOption: Locator
 
   constructor(private readonly page: Page) {
     this.manageMenuItem = page.locator('.menu-item', { hasText: 'Manage' })
@@ -20,6 +21,7 @@ export class MenuBar {
     this.newSeasonOption = page.locator('[data-testid="menu-new-season"]')
     this.statisticsMenuItem = page.locator('.menu-item', { hasText: 'Statistics' })
     this.teamStatisticsOption = page.locator('[data-testid="menu-statistics"]')
+    this.playerStatisticsOption = page.locator('[data-testid="menu-player-statistics"]')
   }
 
   async openNewPlayerForm() {
@@ -50,5 +52,10 @@ export class MenuBar {
   async openTeamStatistics() {
     await this.statisticsMenuItem.hover()
     await this.teamStatisticsOption.click()
+  }
+
+  async openPlayerStatistics() {
+    await this.statisticsMenuItem.hover()
+    await this.playerStatisticsOption.click()
   }
 }

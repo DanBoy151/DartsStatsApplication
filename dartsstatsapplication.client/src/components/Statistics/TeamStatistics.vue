@@ -54,7 +54,9 @@
                   :class="{ leader: index === 0 && hasAnyLegs }"
                   data-testid="stats-row">
                 <td class="rank-col">{{ index + 1 }}</td>
-                <td class="name-col">{{ player.name }}</td>
+                <td class="name-col">
+                  <button type="button" class="player-link" data-testid="stats-player-link" @click="$emit('view-player', player.playerId)">{{ player.name }}</button>
+                </td>
                 <td>{{ player.legsPlayed }}</td>
                 <td>{{ player.legsWon }}-{{ player.legsLost }}</td>
                 <td>{{ formatPercent(player.winPercentage) }}</td>
@@ -93,6 +95,7 @@
 
   defineEmits<{
     (e: 'done'): void
+    (e: 'view-player', playerId: string): void
   }>()
 
   const stats = ref<PlayerStats[]>([])
@@ -282,6 +285,20 @@
     color: #2c3e50;
     font-weight: 600;
   }
+
+  .player-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: #3498db;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+    .player-link:hover {
+      text-decoration: underline;
+    }
 
   .data-row td.headline-col {
     color: #3498db;
