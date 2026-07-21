@@ -8,6 +8,17 @@ COPY . .
 # API host/port); defaults to the value baked in .env.production.
 ARG VITE_API_BASE_URL=http://localhost:5001
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# Empty by default (matches ApiKeyMiddleware's own no-op-when-unset behavior
+# server-side) - set at build time once ApiSecurity:ApiKey is actually
+# configured server-side, so the two stay in sync. Yes, this bakes a value
+# into the image via ARG/ENV, which Docker's linter flags as a secrets
+# anti-pattern - that check doesn't really apply here, since a VITE_* value
+# is compiled straight into the public, client-side JS bundle by design
+# regardless of how it's passed in. It's a shared gate against casual/bot
+# traffic (see ApiKeyMiddleware's own "lightweight" framing), not a secret
+# that needs to stay confidential from the browser.
+ARG VITE_API_KEY=""
+ENV VITE_API_KEY=$VITE_API_KEY
 RUN npm run build
 
 # production stage
