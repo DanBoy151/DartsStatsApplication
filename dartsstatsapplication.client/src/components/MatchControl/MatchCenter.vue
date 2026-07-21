@@ -36,7 +36,7 @@
   import { startGame, fetchLegs, completeGame } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
-  import { startLeg, completeLeg } from '@/actions/LegService'
+  import { startLeg, completeLeg, completeLegByBullOff } from '@/actions/LegService'
   import { updateMatchScore } from '@/actions/MatchService'
   import { isGameDecided, nextPlayerId } from '@/models/gameProgress'
 
@@ -61,15 +61,25 @@
     // server rejects completing a game while any of its legs aren't yet
     // marked Completed - racing ahead of this PUT resolving meant that
     // check always failed.
-    await completeLeg()
+    // A leg decided by bull-off was completed locally by
+    // EnterScorePanel/RemainingScorePanel calling completeSelectedLegByBullOff()
+    // - calling the normal completeLeg() here would hit the normal endpoint,
+    // which the server now rejects once a leg is past its max rounds.
+    if (matchDataStore.selectedLeg?.wonByBullOff) {
+      await completeLegByBullOff()
+    } else {
+      await completeLeg()
+    }
     matchDataStore.doneWithSelectedLeg()
 
     if (!matchDataStore.selectedGame) return;
 
     // The game is over once every leg has been played, or one side has
     // already won enough legs that the outcome can't change (e.g. 2-0 in a
-    // best-of-3 Singles game - the 3rd leg would be pointless).
-    if (isGameDecided(matchDataStore.selectedGame.legs, matchDataStore.selectedGame.type)) {
+    // best-of-3 Singles game - the 3rd leg would be pointless). Prefer the
+    // game's actual configured leg count (from its League) over the
+    // gameType default.
+    if (isGameDecided(matchDataStore.selectedGame.legs, matchDataStore.selectedGame.type, matchDataStore.selectedGame.legsToPlay)) {
       await finishGame()
     }
     else {

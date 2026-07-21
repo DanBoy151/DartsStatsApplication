@@ -6,39 +6,45 @@
     </div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <div class="keypad-display">
-      <span class="keypad-value">{{ scoreValue || '0' }}</span>
-      <span class="keypad-preview" :class="{ bust: wouldBust }">
-        <template v-if="previewRemaining !== null">{{ wouldBust ? 'Bust' : `→ ${previewRemaining}` }}</template>
-      </span>
-    </div>
+    <template v-if="!showBullOffPrompt">
+      <div class="keypad-display">
+        <span class="keypad-value">{{ scoreValue || '0' }}</span>
+        <span class="keypad-preview" :class="{ bust: wouldBust }">
+          <template v-if="previewRemaining !== null">{{ wouldBust ? 'Bust' : `→ ${previewRemaining}` }}</template>
+        </span>
+      </div>
 
-    <div class="keypad-grid">
-      <button v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
-              :key="d"
-              type="button"
-              class="key"
-              :data-key="d"
-              @click="pressDigit(d)">{{ d }}</button>
-      <button type="button" class="key key-wide" data-key="clear" @click="clearValue">Clear</button>
-      <button type="button" class="key" data-key="0" @click="pressDigit('0')">0</button>
-      <button type="button" class="key key-wide" data-key="backspace" aria-label="Erase last digit" @click="backspace">⌫</button>
-    </div>
+      <div class="keypad-grid">
+        <button v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+                :key="d"
+                type="button"
+                class="key"
+                :data-key="d"
+                @click="pressDigit(d)">{{ d }}</button>
+        <button type="button" class="key key-wide" data-key="clear" @click="clearValue">Clear</button>
+        <button type="button" class="key" data-key="0" @click="pressDigit('0')">0</button>
+        <button type="button" class="key key-wide" data-key="backspace" aria-label="Erase last digit" @click="backspace">⌫</button>
+      </div>
 
-    <div class="action-row">
-      <button class="no-score-btn" type="button" @click="noScore">No Score</button>
-      <button class="submit-btn" type="button" @click="submit">Submit</button>
-    </div>
+      <div class="action-row">
+        <button class="no-score-btn" type="button" @click="noScore">No Score</button>
+        <button class="submit-btn" type="button" @click="submit">Submit</button>
+      </div>
+    </template>
 
     <DoublesFinishControl v-if="showDartsDoublePopup"
                           @result="onDoublesFinishResult" />
+    <BullOffControl v-if="showBullOffPrompt"
+                    @result="onBullOffResult" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { ref, computed, onMounted, onUnmounted } from 'vue';
   import { useMatchDataStore } from "@/stores/matchDataStore"
+  import { currentRound, isBullOffRound } from '@/models/gameProgress'
   import DoublesFinishControl from './DoublesFinishControl.vue'
+  import BullOffControl from './BullOffControl.vue'
 
   const props = defineProps<{
     disabled?: boolean
@@ -60,6 +66,19 @@
   });
 
   const currentRemaining = computed(() => matchDataStore.selectedLeg?.remainingScore ?? 0)
+
+  // Which round the *next* throw would fall in - once that's past the
+  // game's configured max rounds (if any), normal scoring is replaced by
+  // the bull-off popup instead.
+  const currentRoundNumber = computed(() => {
+    const throwCount = matchDataStore.selectedLeg?.score.length ?? 0
+    const playerCount = matchDataStore.selectedGame?.players.length ?? 1
+    return currentRound(throwCount, playerCount)
+  })
+
+  const showBullOffPrompt = computed(() =>
+    isBullOffRound(currentRoundNumber.value, matchDataStore.selectedGame?.maxRounds ?? null)
+  )
 
   const scoreValue = ref('');
   const error = ref('');
@@ -102,7 +121,7 @@
   // darts-count popup is open, so it never fires as a side effect of
   // typing somewhere else on the page.
   function handleKeydown(e: KeyboardEvent) {
-    if (props.disabled || showDartsDoublePopup.value) return
+    if (props.disabled || showDartsDoublePopup.value || showBullOffPrompt.value) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
 
     const target = e.target as HTMLElement | null
@@ -146,6 +165,12 @@
     showDartsDoublePopup.value = false
 
     matchDataStore.completeSelectedLeg('Win', Number(doubleFinishResult.value))
+
+    emit('legComplete')
+  }
+
+  function onBullOffResult(won: boolean) {
+    matchDataStore.completeSelectedLegByBullOff(won ? 'Win' : 'Loss')
 
     emit('legComplete')
   }

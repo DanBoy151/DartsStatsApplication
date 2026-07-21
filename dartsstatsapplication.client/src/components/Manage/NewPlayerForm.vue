@@ -79,6 +79,17 @@
         <p v-if="fieldError" class="field-error" role="alert" data-testid="new-player-error">
           {{ fieldError }}
         </p>
+
+        <label class="field">
+          <span class="field-label">Team</span>
+          <select v-model="teamId"
+                  class="field-input"
+                  :disabled="submitting"
+                  data-testid="new-player-team-input">
+            <option value="">No Team</option>
+            <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+          </select>
+        </label>
         <p v-if="successMessage" class="success-message" role="status" aria-live="polite" data-testid="new-player-success">
           {{ successMessage }}
         </p>
@@ -103,14 +114,17 @@
   import { computed, onMounted, ref } from 'vue'
   import { validatePlayerName } from '@/validation/playerValidation'
   import { createPlayer, deletePlayer, fetchPlayersPage, updatePlayer } from '@/actions/PlayerService'
+  import { getTeams } from '@/actions/TeamService'
   import { pageAfterDelete } from '@/pagination/page'
   import type { Player } from '@/models/PlayerModel'
+  import type { Team } from '@/models/TeamModel'
 
   defineEmits<{
     (e: 'done'): void
   }>()
 
   const players = ref<Player[]>([])
+  const teams = ref<Team[]>([])
   const pageIndex = ref(0)
   const hasNextPage = ref(false)
   const loadingTable = ref(true)
@@ -124,6 +138,7 @@
   })
 
   const name = ref('')
+  const teamId = ref('')
   const fieldError = ref<string | null>(null)
   const successMessage = ref<string | null>(null)
   const submitting = ref(false)
@@ -148,6 +163,7 @@
   function startEdit(player: Player) {
     editingPlayerId.value = player.playerId
     name.value = player.name
+    teamId.value = player.teamId ?? ''
     fieldError.value = null
     successMessage.value = null
     deletingId.value = null
@@ -156,6 +172,7 @@
   function cancelEdit() {
     editingPlayerId.value = null
     name.value = ''
+    teamId.value = ''
     fieldError.value = null
   }
 
@@ -180,17 +197,18 @@
     submitting.value = true
     try {
       if (isEditing.value) {
-        const player = await updatePlayer(editingPlayerId.value!, name.value.trim())
+        const player = await updatePlayer(editingPlayerId.value!, name.value.trim(), teamId.value || null)
         if (player) {
           successMessage.value = `"${player.name}" saved.`
           cancelEdit()
           await loadPage(pageIndex.value)
         }
       } else {
-        const player = await createPlayer(name.value.trim())
+        const player = await createPlayer(name.value.trim(), teamId.value || null)
         if (player) {
           successMessage.value = `"${player.name}" added.`
           name.value = ''
+          teamId.value = ''
           await loadPage(0)
         }
       }
@@ -199,8 +217,9 @@
     }
   }
 
-  onMounted(() => {
-    loadPage(0)
+  onMounted(async () => {
+    teams.value = await getTeams()
+    await loadPage(0)
   })
 </script>
 

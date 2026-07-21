@@ -110,7 +110,35 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 LegService service = new LegService(session, existLeg);
-                service.CompleteLeg(leg);
+                await service.CompleteLeg(leg);
+
+                await session.SaveChangesAsync();
+
+                return Ok(existLeg);
+            }
+        }
+
+        /// <summary>
+        /// Complete a Leg via bull-off - once the game's configured max rounds has
+        /// been reached with no winner, the leg is decided by this instead of a
+        /// normal checkout.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [HttpPut("{id}/complete-bull-off")]
+        public async Task<ActionResult<Leg>> CompleteLegByBullOff(Guid id, [FromBody] CompleteLegBullOffData data)
+        {
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var existLeg = await session.LoadAsync<Leg>(id);
+                if (existLeg == null)
+                {
+                    return NotFound();
+                }
+
+                LegService service = new LegService(session, existLeg);
+                await service.CompleteLegByBullOff(data);
 
                 await session.SaveChangesAsync();
 

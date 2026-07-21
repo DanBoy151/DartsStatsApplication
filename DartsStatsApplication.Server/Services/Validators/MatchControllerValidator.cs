@@ -107,6 +107,20 @@ namespace DartsStatsApplication.Server.Services.Validators
             }
         }
 
+        /// <summary>
+        /// Validate that a match's chosen season (if any) actually exists.
+        /// </summary>
+        public static async Task ValidateSeasonExists(Guid? seasonId, IDocumentSession session)
+        {
+            if (seasonId == null) return;
+
+            var season = await session.LoadAsync<Season>(seasonId.Value);
+            if (season == null)
+            {
+                throw new ValidationException("Selected Season does not exist");
+            }
+        }
+
         public async Task IsValidToStartMatch()
         {
             //Validate that only no other In Progress Matches Exist

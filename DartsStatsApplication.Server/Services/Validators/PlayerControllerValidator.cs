@@ -50,5 +50,19 @@ namespace DartsStatsApplication.Server.Services.Validators
                 throw new ValidationException("Unable to delete a Player who has been selected for a Game");
             }
         }
+
+        /// <summary>
+        /// Validate that a player's chosen team (if any) actually exists.
+        /// </summary>
+        public static async Task ValidateTeamExists(Guid? teamId, IDocumentSession session)
+        {
+            if (teamId == null) return;
+
+            var team = await session.LoadAsync<Team>(teamId.Value);
+            if (team == null)
+            {
+                throw new ValidationException("Selected Team does not exist");
+            }
+        }
     }
 }

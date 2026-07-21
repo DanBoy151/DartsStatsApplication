@@ -3,6 +3,24 @@
     <div class="team-statistics">
       <h2 class="form-heading">Team Statistics</h2>
 
+      <div class="filter-row">
+        <label class="field">
+          <span class="field-label">Team</span>
+          <select v-model="selectedTeamId" class="field-input" data-testid="team-statistics-team-filter">
+            <option value="">All Players</option>
+            <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+          </select>
+        </label>
+
+        <label v-if="selectedTeamId" class="field">
+          <span class="field-label">Season</span>
+          <select v-model="selectedSeasonId" class="field-input" data-testid="team-statistics-season-filter">
+            <option value="">All Seasons</option>
+            <option v-for="season in teamSeasons" :key="season.id" :value="season.id">{{ season.name }} ({{ season.status }})</option>
+          </select>
+        </label>
+      </div>
+
       <div class="table-wrap">
         <div v-if="loading" class="loading-indicator">
           <span class="spinner"></span>
@@ -66,9 +84,12 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, onMounted, ref } from 'vue'
+  import { computed, onMounted, ref, watch } from 'vue'
   import { getPlayerStats } from '@/actions/PlayerService'
+  import { getTeams, getTeamSeasons, getTeamStats } from '@/actions/TeamService'
   import type { PlayerStats } from '@/models/PlayerStatsModel'
+  import type { Team } from '@/models/TeamModel'
+  import type { Season } from '@/models/SeasonModel'
 
   defineEmits<{
     (e: 'done'): void
@@ -76,6 +97,10 @@
 
   const stats = ref<PlayerStats[]>([])
   const loading = ref(true)
+  const teams = ref<Team[]>([])
+  const teamSeasons = ref<Season[]>([])
+  const selectedTeamId = ref('')
+  const selectedSeasonId = ref('')
 
   // Only highlight a "leader" once someone's actually played - otherwise every
   // player sits at a tied, meaningless null average and row 1 is arbitrary.
@@ -93,10 +118,30 @@
     return value === null ? '—' : `${value.toFixed(1)}%`
   }
 
-  onMounted(async () => {
+  async function loadStats() {
     loading.value = true
-    stats.value = await getPlayerStats()
+    stats.value = selectedTeamId.value
+      ? await getTeamStats(selectedTeamId.value, selectedSeasonId.value || undefined)
+      : await getPlayerStats()
     loading.value = false
+  }
+
+  // Switching teams resets the season filter (a season from the previous
+  // team's list would be meaningless here) and refreshes that team's season
+  // options; either dropdown changing refetches the stats.
+  watch(selectedTeamId, async (teamId) => {
+    selectedSeasonId.value = ''
+    teamSeasons.value = teamId ? await getTeamSeasons(teamId) : []
+    await loadStats()
+  })
+
+  watch(selectedSeasonId, () => {
+    loadStats()
+  })
+
+  onMounted(async () => {
+    teams.value = await getTeams()
+    await loadStats()
   })
 </script>
 
@@ -125,6 +170,39 @@
     margin: 0 0 1.5rem 0;
     color: #2c3e50;
     text-align: center;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 220px;
+  }
+
+  .field-label {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+  }
+
+  .field-input {
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #c3cbd4;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .field-input:focus {
+    outline: none;
+    border-color: #3498db;
   }
 
   .table-wrap {

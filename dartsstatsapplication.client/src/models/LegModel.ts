@@ -7,6 +7,7 @@ export interface Leg {
   finishDarts: number
   order: number
   remainingScore: number
+  wonByBullOff: boolean
 }
 
 
@@ -14,6 +15,13 @@ export interface LegResult {
   score: { playerId: string; score: number }[];
   result: string
   finishDarts: number
+  remainingScore: number
+}
+
+/** Body for PUT /api/Leg/{id}/complete-bull-off - no finishDarts, since there was no checkout. */
+export interface LegBullOffResult {
+  score: { playerId: string; score: number }[];
+  result: string
   remainingScore: number
 }
 
@@ -32,5 +40,6 @@ export interface RawLeg {
     finishDarts?: number
     order?: number
     remainingScore?: number
+    wonByBullOff?: boolean
   }
 }

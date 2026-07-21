@@ -1,0 +1,404 @@
+<template>
+  <div class="center-content">
+    <div class="manage-teams">
+      <h2 class="form-heading">Teams</h2>
+
+      <div class="table-wrap">
+        <div v-if="loadingTable" class="loading-indicator">
+          <span class="spinner"></span>
+        </div>
+        <table v-else class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th class="actions-col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="teams.length === 0">
+              <td colspan="2" class="empty-row">No teams yet.</td>
+            </tr>
+            <tr v-for="team in teams" :key="team.id" class="data-row" data-testid="team-row">
+              <td>{{ team.name }}</td>
+              <td class="actions-col">
+                <template v-if="deletingId === team.id">
+                  <span class="confirm-text">Delete "{{ team.name }}"?</span>
+                  <button type="button" class="link-btn danger" @click="doDelete(team)" data-testid="team-confirm-delete">
+                    Yes
+                  </button>
+                  <button type="button" class="link-btn" @click="deletingId = null" data-testid="team-cancel-delete">
+                    No
+                  </button>
+                </template>
+                <template v-else>
+                  <button type="button" class="link-btn" @click="startEdit(team)" data-testid="team-edit-btn">
+                    Edit
+                  </button>
+                  <button type="button" class="link-btn danger" @click="deletingId = team.id" data-testid="team-delete-btn">
+                    Delete
+                  </button>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="pagination">
+          <button type="button"
+                  class="control-btn back-btn"
+                  :disabled="pageIndex === 0 || loadingTable"
+                  @click="prevPage"
+                  data-testid="team-prev-page">
+            Previous
+          </button>
+          <span class="page-indicator" data-testid="team-page-indicator">Page {{ pageIndex + 1 }}</span>
+          <button type="button"
+                  class="control-btn back-btn"
+                  :disabled="!hasNextPage || loadingTable"
+                  @click="nextPage"
+                  data-testid="team-next-page">
+            Next
+          </button>
+        </div>
+      </div>
+
+      <h3 class="form-subheading">{{ isEditing ? 'Edit Team' : 'Add Team' }}</h3>
+
+      <form @submit.prevent="submit" novalidate>
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input v-model="name"
+                 type="text"
+                 class="field-input"
+                 :class="{ 'field-input--error': fieldError }"
+                 maxlength="150"
+                 autocomplete="off"
+                 :disabled="submitting"
+                 data-testid="new-team-name-input" />
+        </label>
+        <p v-if="fieldError" class="field-error" role="alert" data-testid="new-team-error">
+          {{ fieldError }}
+        </p>
+        <p v-if="successMessage" class="success-message" role="status" aria-live="polite" data-testid="new-team-success">
+          {{ successMessage }}
+        </p>
+
+        <div class="button-row">
+          <button type="submit" class="control-btn" :disabled="submitting" data-testid="new-team-submit">
+            {{ submitButtonLabel }}
+          </button>
+          <button v-if="isEditing" type="button" class="control-btn back-btn" @click="cancelEdit" data-testid="new-team-cancel-edit">
+            Cancel
+          </button>
+          <button type="button" class="control-btn back-btn" @click="$emit('done')" data-testid="new-team-done">
+            Done
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { computed, onMounted, ref } from 'vue'
+  import { validateTeamName } from '@/validation/teamValidation'
+  import { createTeam, deleteTeam, fetchTeamsPage, updateTeam } from '@/actions/TeamService'
+  import { pageAfterDelete } from '@/pagination/page'
+  import type { Team } from '@/models/TeamModel'
+
+  defineEmits<{
+    (e: 'done'): void
+  }>()
+
+  const teams = ref<Team[]>([])
+  const pageIndex = ref(0)
+  const hasNextPage = ref(false)
+  const loadingTable = ref(true)
+  const deletingId = ref<string | null>(null)
+
+  const editingTeamId = ref<string | null>(null)
+  const isEditing = computed(() => editingTeamId.value !== null)
+  const submitButtonLabel = computed(() => {
+    if (submitting.value) return isEditing.value ? 'Saving…' : 'Adding…'
+    return isEditing.value ? 'Save Changes' : 'Add Team'
+  })
+
+  const name = ref('')
+  const fieldError = ref<string | null>(null)
+  const successMessage = ref<string | null>(null)
+  const submitting = ref(false)
+
+  async function loadPage(index: number) {
+    loadingTable.value = true
+    const page = await fetchTeamsPage(index)
+    teams.value = page.items
+    hasNextPage.value = page.hasNextPage
+    pageIndex.value = index
+    loadingTable.value = false
+  }
+
+  function nextPage() {
+    if (hasNextPage.value) loadPage(pageIndex.value + 1)
+  }
+
+  function prevPage() {
+    if (pageIndex.value > 0) loadPage(pageIndex.value - 1)
+  }
+
+  function startEdit(team: Team) {
+    editingTeamId.value = team.id
+    name.value = team.name
+    fieldError.value = null
+    successMessage.value = null
+    deletingId.value = null
+  }
+
+  function cancelEdit() {
+    editingTeamId.value = null
+    name.value = ''
+    fieldError.value = null
+  }
+
+  async function doDelete(team: Team) {
+    deletingId.value = null
+    const deleted = await deleteTeam(team.id)
+    // On failure, apiClient already surfaced why via the global error toast
+    // (most commonly: a Player belongs to this team, or a Season links to it).
+    if (deleted) {
+      if (editingTeamId.value === team.id) cancelEdit()
+      await loadPage(pageAfterDelete(pageIndex.value, teams.value.length))
+    }
+  }
+
+  async function submit() {
+    successMessage.value = null
+
+    const error = validateTeamName(name.value)
+    fieldError.value = error
+    if (error) return
+
+    submitting.value = true
+    try {
+      if (isEditing.value) {
+        const team = await updateTeam(editingTeamId.value!, name.value.trim())
+        if (team) {
+          successMessage.value = `"${team.name}" saved.`
+          cancelEdit()
+          await loadPage(pageIndex.value)
+        }
+      } else {
+        const team = await createTeam(name.value.trim())
+        if (team) {
+          successMessage.value = `"${team.name}" added.`
+          name.value = ''
+          await loadPage(0)
+        }
+      }
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  onMounted(() => {
+    loadPage(0)
+  })
+</script>
+
+<style scoped>
+  .center-content {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 60vh;
+    width: 100%;
+    padding: 2rem 0;
+  }
+
+  .manage-teams {
+    width: 520px;
+    max-width: 90vw;
+    padding: 2rem;
+    padding-bottom: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(44, 62, 80, 0.10);
+  }
+
+  .form-heading {
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin: 0 0 1.5rem 0;
+    color: #2c3e50;
+    text-align: center;
+  }
+
+  .form-subheading {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin: 2rem 0 1rem 0;
+    color: #2c3e50;
+  }
+
+  .table-wrap {
+    min-height: 4rem;
+  }
+
+  .loading-indicator {
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem 0;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 5px solid #2c3e50;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table th {
+    text-align: left;
+    font-size: 0.85rem;
+    color: #7f8c9a;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #e1e6ea;
+  }
+
+  .data-row td {
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid #eef1f3;
+  }
+
+  .actions-col {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .empty-row {
+    text-align: center;
+    color: #7f8c9a;
+    padding: 1.5rem 0;
+  }
+
+  .confirm-text {
+    font-size: 0.85rem;
+    color: #2c3e50;
+    margin-right: 0.5rem;
+  }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+    .link-btn:hover {
+      text-decoration: underline;
+    }
+
+    .link-btn.danger {
+      color: #e74c3c;
+    }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .page-indicator {
+    font-size: 0.9rem;
+    color: #2c3e50;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .field-label {
+    font-weight: 600;
+    color: #2c3e50;
+  }
+
+  .field-input {
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #c3cbd4;
+    border-radius: 8px;
+  }
+
+  .field-input:focus {
+    outline: none;
+    border-color: #3498db;
+  }
+
+  .field-input--error {
+    border-color: #e74c3c;
+  }
+
+  .field-error {
+    color: #e74c3c;
+    font-size: 0.9rem;
+    margin: 0.5rem 0 0 0;
+  }
+
+  .success-message {
+    color: #1f8a4c;
+    font-size: 0.9rem;
+    margin: 0.5rem 0 0 0;
+  }
+
+  .button-row {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+  }
+
+  .control-btn {
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #2c3e50;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+    .control-btn:hover:not(:disabled) {
+      background: #506E8BFF;
+    }
+
+    .control-btn:disabled {
+      opacity: 0.7;
+      cursor: default;
+    }
+
+  .back-btn {
+    background: #888;
+    color: #fff;
+  }
+
+    .back-btn:hover:not(:disabled) {
+      background: #555;
+    }
+</style>

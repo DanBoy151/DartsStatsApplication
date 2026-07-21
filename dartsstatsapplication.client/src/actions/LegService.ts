@@ -1,5 +1,5 @@
 import { useMatchDataStore } from "@/stores/matchDataStore"
-import type { LegResult, RawLeg } from "@/models/LegModel"
+import type { LegBullOffResult, LegResult, RawLeg } from "@/models/LegModel"
 import { apiRequest } from "@/actions/apiClient"
 
 export async function startLeg() {
@@ -20,7 +20,8 @@ export async function startLeg() {
       data.data?.result ?? '',
       data.data?.finishDarts ?? 0,
       data.data?.order ?? 0,
-      data.data?.remainingScore ?? 0)
+      data.data?.remainingScore ?? 0,
+      data.data?.wonByBullOff ?? false)
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error calling start API')
   }
@@ -57,10 +58,54 @@ export async function completeLeg() {
       data.data?.result ?? '',
       data.data?.finishDarts ?? 0,
       data.data?.order ?? 0,
-      data.data?.remainingScore ?? 0)
+      data.data?.remainingScore ?? 0,
+      data.data?.wonByBullOff ?? false)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating selected Leg ')
+  }
+}
+
+/**
+ * Completes a leg decided by bull-off (the game's configured max rounds was
+ * reached with no winner). The real pre-threshold throws are still sent -
+ * they still count for stats - but there's no finishDarts, since there was
+ * no checkout.
+ */
+export async function completeLegByBullOff() {
+  const matchDataStore = useMatchDataStore()
+  const legId = matchDataStore.selectedLeg?.legId
+
+  if (!matchDataStore.selectedLeg && !legId) return;
+
+  const result: LegBullOffResult = {
+    score: scoreToArray(matchDataStore.selectedLeg?.score),
+    result: matchDataStore.selectedLeg?.result ?? '',
+    remainingScore: matchDataStore.selectedLeg?.remainingScore ?? 0
+  }
+
+  try {
+    const data = await apiRequest<RawLeg>(
+      `/api/Leg/${legId}/complete-bull-off`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result)
+      }
+    )
+    matchDataStore.setLegData(
+      data.data?.gameID ?? '',
+      data.id ?? '',
+      data.data?.status ?? '',
+      data.data?.score ?? [],
+      data.data?.result ?? '',
+      data.data?.finishDarts ?? 0,
+      data.data?.order ?? 0,
+      data.data?.remainingScore ?? 0,
+      data.data?.wonByBullOff ?? false)
+
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error completing selected Leg by bull-off')
   }
 }
 

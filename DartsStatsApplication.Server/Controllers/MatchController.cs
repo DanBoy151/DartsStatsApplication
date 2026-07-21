@@ -136,6 +136,8 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
+                await MatchControllerValidator.ValidateSeasonExists(data.seasonId, session);
+
                 var Id = Guid.NewGuid();
                 Match match = new Match
                 {
@@ -169,10 +171,12 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 MatchControllerValidator.ValidateEditMatch(match, data);
+                await MatchControllerValidator.ValidateSeasonExists(data.seasonId, session);
 
                 match.data.opponent = data.opponent.Trim();
                 match.data.date = data.date;
                 match.data.location = data.location;
+                match.data.seasonId = data.seasonId;
 
                 session.Store(match);
                 await session.SaveChangesAsync();

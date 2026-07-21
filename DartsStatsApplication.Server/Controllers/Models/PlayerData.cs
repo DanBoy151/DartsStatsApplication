@@ -3,5 +3,8 @@
     public class PlayerData
     {
         public string name { get; set; } = "";
+
+        /// <summary>Which Team this player belongs to, if any.</summary>
+        public Guid? teamId { get; set; }
     }
 }

@@ -12,7 +12,7 @@
       </template>
       <template v-else>
         <button v-if="!started" class="start-btn" @click="showBullPopup = true">Start</button>
-        <button v-else class="finish-btn" @click="finish">Finish</button>
+        <button v-else-if="!showBullOffPrompt" class="finish-btn" @click="finish">Finish</button>
         <button v-if="!started" class="cancel-btn" @click="cancelMatch">Cancel</button>
         <button v-else class="back-btn" @click="backMatch">Back</button>
       </template>
@@ -29,6 +29,7 @@
   import WonBullControl from './WonBullControl.vue'
   import DoublesFinishControl from './DoublesFinishControl.vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
+  import { currentRound, isBullOffRound } from '@/models/gameProgress'
 
   const matchDataStore = useMatchDataStore()
 
@@ -82,12 +83,29 @@
     if (hasMatchStarted() || props.readonly) {
       return remainingScore.value
     }
+    // Prefer the game's actual configured starting score (from its League,
+    // or the compat-guard default written server-side) - the hardcoded
+    // table below only covers today's fixed defaults, and is a fallback
+    // for the rare case a game object doesn't have the field yet.
+    const configured = matchDataStore.selectedGame?.startingScore
+    if (configured && configured > 0) return configured
+
     const type = props.gameType?.toLowerCase()
     if (type === 'trebles' || type === 'treble') return 701
     if (type === 'doubles' || type === 'double') return 601
     if (type === 'singles' || type === 'single') return 501
     return score
   }
+
+  // Which round the *next* throw would fall in - matches EnterScorePanel's
+  // computation so both panels agree on when the bull-off popup replaces
+  // normal play.
+  const showBullOffPrompt = computed(() => {
+    const throwCount = matchDataStore.selectedLeg?.score.length ?? 0
+    const playerCount = matchDataStore.selectedGame?.players.length ?? 1
+    const round = currentRound(throwCount, playerCount)
+    return isBullOffRound(round, matchDataStore.selectedGame?.maxRounds ?? null)
+  })
 
   function startMatch() {
     started.value = true

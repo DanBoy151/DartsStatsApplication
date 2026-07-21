@@ -52,8 +52,9 @@ namespace DartsStatsApplication.Server.Services
                     if (lost) stats.legsLost++;
 
                     // Was this player's last visit literally the leg-ending checkout
-                    // throw? (Only meaningful on a Win - a Loss never checks out.)
-                    bool tookCheckout = won && leg.data.score!.Count > 0 && leg.data.score[^1].playerId == player.Id;
+                    // throw? (Only meaningful on a Win - a Loss never checks out, and
+                    // a bull-off win has no checkout visit at all - the leg just ends.)
+                    bool tookCheckout = won && !leg.data.wonByBullOff && leg.data.score!.Count > 0 && leg.data.score[^1].playerId == player.Id;
 
                     for (int i = 0; i < playerVisits.Count; i++)
                     {
@@ -83,7 +84,9 @@ namespace DartsStatsApplication.Server.Services
                         if (highestCheckout is null || checkoutScore > highestCheckout) highestCheckout = checkoutScore;
                     }
 
-                    if (won)
+                    // A bull-off win has no real checkout, so "leg total darts" would be
+                    // meaningless (ComputeLegTotalDarts assumes the last visit finished it).
+                    if (won && !leg.data.wonByBullOff)
                     {
                         int legTotalDarts = ComputeLegTotalDarts(leg);
                         if (bestLegDarts is null || legTotalDarts < bestLegDarts) bestLegDarts = legTotalDarts;

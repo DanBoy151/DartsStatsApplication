@@ -13,6 +13,7 @@ export async function getPlayers(): Promise<Player[]> {
     players = matchDataStore.matchAvailablePlayers.map((p) => ({
       playerId: p.playerId,
       name: p.name,
+      teamId: null,
     }))
     return players
   }
@@ -23,6 +24,7 @@ export async function getPlayers(): Promise<Player[]> {
     players = data.map((p) => ({
       playerId: p.id,
       name: p.data?.name ?? '',
+      teamId: p.data?.teamId ?? null,
     })) || []
 
     matchDataStore.setMatchAvailablePlayers(players)
@@ -39,17 +41,18 @@ export async function getPlayers(): Promise<Player[]> {
  * the roster cache is scoped to a specific match's screen and gets rebuilt from
  * GET /api/Player next time it's needed, so this stays a plain create-and-report call.
  */
-export async function createPlayer(name: string): Promise<Player | null> {
+export async function createPlayer(name: string, teamId: string | null = null): Promise<Player | null> {
   try {
     const data = await apiRequest<RawPlayer>('/api/Player', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, teamId })
     })
 
     return {
       playerId: data.id ?? '',
       name: data.data?.name ?? name,
+      teamId: data.data?.teamId ?? teamId,
     }
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error creating player')
@@ -63,7 +66,7 @@ export async function fetchPlayersPage(pageIndex: number): Promise<Page<Player>>
     const data = await apiGet<RawPlayer[]>(`/api/Player?skip=${skipFor(pageIndex)}&take=${takeForFetch()}`)
     const page = splitPage(data)
     return {
-      items: page.items.map((p) => ({ playerId: p.id ?? '', name: p.data?.name ?? '' })),
+      items: page.items.map((p) => ({ playerId: p.id ?? '', name: p.data?.name ?? '', teamId: p.data?.teamId ?? null })),
       hasNextPage: page.hasNextPage,
     }
   } catch (err) {
@@ -72,17 +75,18 @@ export async function fetchPlayersPage(pageIndex: number): Promise<Page<Player>>
   }
 }
 
-export async function updatePlayer(playerId: string, name: string): Promise<Player | null> {
+export async function updatePlayer(playerId: string, name: string, teamId: string | null = null): Promise<Player | null> {
   try {
     const data = await apiRequest<RawPlayer>(`/api/Player/${playerId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, teamId })
     })
 
     return {
       playerId: data.id ?? playerId,
       name: data.data?.name ?? name,
+      teamId: data.data?.teamId ?? teamId,
     }
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating player')

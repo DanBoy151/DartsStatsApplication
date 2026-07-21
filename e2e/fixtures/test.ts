@@ -12,6 +12,9 @@ import { NewPlayerScreen } from '../pages/NewPlayerScreen'
 import { NewMatchScreen } from '../pages/NewMatchScreen'
 import { MatchCenterScreen } from '../pages/MatchCenterScreen'
 import { TeamStatisticsScreen } from '../pages/TeamStatisticsScreen'
+import { NewLeagueScreen } from '../pages/NewLeagueScreen'
+import { NewTeamScreen } from '../pages/NewTeamScreen'
+import { NewSeasonScreen } from '../pages/NewSeasonScreen'
 
 export interface SeededMatchData {
   match: SeededMatch
@@ -39,6 +42,9 @@ interface Fixtures {
   newMatchScreen: NewMatchScreen
   matchCenterScreen: MatchCenterScreen
   teamStatisticsScreen: TeamStatisticsScreen
+  newLeagueScreen: NewLeagueScreen
+  newTeamScreen: NewTeamScreen
+  newSeasonScreen: NewSeasonScreen
 }
 
 export const test = base.extend<Fixtures>({
@@ -87,6 +93,15 @@ export const test = base.extend<Fixtures>({
   },
   teamStatisticsScreen: async ({ page }, use) => {
     await use(new TeamStatisticsScreen(page))
+  },
+  newLeagueScreen: async ({ page }, use) => {
+    await use(new NewLeagueScreen(page))
+  },
+  newTeamScreen: async ({ page }, use) => {
+    await use(new NewTeamScreen(page))
+  },
+  newSeasonScreen: async ({ page }, use) => {
+    await use(new NewSeasonScreen(page))
   },
 })
 

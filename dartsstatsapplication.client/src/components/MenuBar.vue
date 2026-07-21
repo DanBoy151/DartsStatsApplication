@@ -69,6 +69,9 @@
             dropdown: [
               { label: 'Players', action: 'new-player' },
               { label: 'Matches', action: 'new-match' },
+              { label: 'Leagues', action: 'new-league' },
+              { label: 'Teams', action: 'new-team' },
+              { label: 'Seasons', action: 'new-season' },
             ],
             open: false,
           },

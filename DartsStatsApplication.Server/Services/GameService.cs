@@ -51,23 +51,38 @@ namespace DartsStatsApplication.Server.Services
 
         private void CreatePendingLegs()
         {
-            int legsToCreate = 0;
-            int startingScore = 0;
-            switch (_game.data.type)
+            int legsToCreate = _game.data.legsToPlay;
+            int startingScore = _game.data.startingScore;
+
+            // Compat guard: Marten has no migrations, so a Game document persisted
+            // before League config existed deserializes legsToPlay/startingScore at
+            // C#'s int default of 0 (missing JSON properties). Treat that as "not
+            // populated" and fall back to the same hardcoded values this always used
+            // - and write them back onto the game itself (not just use them locally),
+            // so legsToPlay/startingScore are guaranteed correct on every game by the
+            // time it reaches InProgress, which the client's early-completion logic
+            // depends on.
+            if (legsToCreate <= 0 || startingScore <= 0)
             {
-                case GameType.Singles:
-                    legsToCreate = 3;
-                    startingScore = 501;
-                    break;
-                case GameType.Doubles:
-                    legsToCreate = 1;
-                    startingScore = 601;
-                    break;
-                case GameType.Trebles:
-                    legsToCreate = 1;
-                    startingScore = 701;
-                    break; 
+                switch (_game.data.type)
+                {
+                    case GameType.Singles:
+                        legsToCreate = 3;
+                        startingScore = 501;
+                        break;
+                    case GameType.Doubles:
+                        legsToCreate = 1;
+                        startingScore = 601;
+                        break;
+                    case GameType.Trebles:
+                        legsToCreate = 1;
+                        startingScore = 701;
+                        break;
+                }
+                _game.data.legsToPlay = legsToCreate;
+                _game.data.startingScore = startingScore;
             }
+
             int count = 0;
             while (count < legsToCreate)
             {

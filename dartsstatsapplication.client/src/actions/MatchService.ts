@@ -17,6 +17,9 @@ function mapRawMatch(data: RawMatchData): Match {
     status: data.data?.status ?? '',
     gamesFor: data.data?.gamesFor ?? 0,
     gamesAgainst: data.data?.gamesAgainst ?? 0,
+    seasonId: data.data?.seasonId ?? null,
+    startTime: data.data?.startTime ? new Date(data.data.startTime) : null,
+    finishTime: data.data?.finishTime ? new Date(data.data.finishTime) : null,
   }
 }
 
@@ -52,6 +55,11 @@ export async function getNextMatch(): Promise<Match | null> {
       status: existingMatch.status ?? '',
       gamesFor: existingMatch.gamesFor ?? 0,
       gamesAgainst: existingMatch.gamesAgainst ?? 0,
+      // Not tracked in the live-match store - only relevant to the Manage
+      // Matches table and season stats, not active gameplay.
+      seasonId: null,
+      startTime: null,
+      finishTime: null,
     }
     return mappedMatch
   }
@@ -80,6 +88,7 @@ export interface CreateMatchInput {
   opponent: string
   date: string // yyyy-mm-dd
   location: 'Home' | 'Away'
+  seasonId?: string | null
 }
 
 export interface CreatedMatch {
@@ -106,6 +115,7 @@ export async function createMatch(input: CreateMatchInput): Promise<CreatedMatch
         location: input.location,
         gamesFor: 0,
         gamesAgainst: 0,
+        seasonId: input.seasonId ?? null,
       })
     })
 
@@ -141,6 +151,7 @@ export async function updateMatch(matchId: string, input: CreateMatchInput): Pro
         opponent: input.opponent,
         date: input.date,
         location: input.location,
+        seasonId: input.seasonId ?? null,
       })
     })
 
@@ -234,7 +245,10 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
         status: g.data?.status ?? '',
         result: g.data?.result ?? '',
         wonBull: g.data?.wonBull ?? false,
-        order: g.data?.order ?? 0
+        order: g.data?.order ?? 0,
+        legsToPlay: g.data?.legsToPlay ?? 0,
+        startingScore: g.data?.startingScore ?? 0,
+        maxRounds: g.data?.maxRounds ?? null,
       }))
       : []
 
@@ -246,7 +260,10 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
         game.status,
         game.result,
         game.wonBull,
-        game.order
+        game.order,
+        game.legsToPlay,
+        game.startingScore,
+        game.maxRounds
       )
     })
 

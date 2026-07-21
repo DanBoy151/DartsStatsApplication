@@ -28,7 +28,10 @@ export async function setAvailablePlayers(players: Player[]) {
       data.data?.status ?? '',
       data.data?.result ?? '',
       data.data?.wonBull ?? false,
-      data.data?.order ?? 0)
+      data.data?.order ?? 0,
+      data.data?.legsToPlay ?? 0,
+      data.data?.startingScore ?? 0,
+      data.data?.maxRounds ?? null)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating players')
@@ -49,7 +52,10 @@ export async function startGame(wonBull: boolean) {
       data.data?.status ?? '',
       data.data?.result ?? '',
       data.data?.wonBull ?? false,
-      data.data?.order ?? 0)
+      data.data?.order ?? 0,
+      data.data?.legsToPlay ?? 0,
+      data.data?.startingScore ?? 0,
+      data.data?.maxRounds ?? null)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error calling start API')
@@ -79,6 +85,7 @@ export async function fetchLegs() {
       finishDarts: g.data?.finishDarts || 0,
       order: g.data?.order || 0,
       remainingScore: g.data?.remainingScore || 0,
+      wonByBullOff: g.data?.wonByBullOff ?? false,
     })) || []
 
     legs.forEach(leg => {
@@ -90,7 +97,8 @@ export async function fetchLegs() {
         leg.result,
         leg.finishDarts,
         leg.order,
-        leg.remainingScore
+        leg.remainingScore,
+        leg.wonByBullOff
       );
     });
 
@@ -123,7 +131,10 @@ export async function completeGame(result: string) {
       data.data?.status ?? '',
       data.data?.result ?? '',
       data.data?.wonBull ?? false,
-      data.data?.order ?? 0)
+      data.data?.order ?? 0,
+      data.data?.legsToPlay ?? 0,
+      data.data?.startingScore ?? 0,
+      data.data?.maxRounds ?? null)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating Game Record')

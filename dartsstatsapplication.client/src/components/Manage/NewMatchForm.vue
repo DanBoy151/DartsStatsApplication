@@ -115,6 +115,17 @@
           </span>
         </label>
 
+        <label class="field">
+          <span class="field-label">Season</span>
+          <select v-model="seasonId"
+                  class="field-input"
+                  :disabled="submitting"
+                  data-testid="new-match-season-input">
+            <option value="">No Season</option>
+            <option v-for="season in seasons" :key="season.id" :value="season.id">{{ seasonLabel(season) }}</option>
+          </select>
+        </label>
+
         <p v-if="successMessage" class="success-message" role="status" aria-live="polite" data-testid="new-match-success">
           {{ successMessage }}
         </p>
@@ -139,15 +150,24 @@
   import { computed, onMounted, ref } from 'vue'
   import { validateNewMatch, hasErrors, type NewMatchErrors } from '@/validation/matchValidation'
   import { createMatch, deleteMatch, fetchMatchesPage, updateMatch } from '@/actions/MatchService'
+  import { getSeasons } from '@/actions/SeasonService'
+  import { getLeagues } from '@/actions/LeagueService'
+  import { getTeams } from '@/actions/TeamService'
   import { pageAfterDelete } from '@/pagination/page'
   import { formatDisplayDate, toDateInputValue } from '@/utils/dateFormat'
   import type { Match } from '@/models/MatchModel'
+  import type { Season } from '@/models/SeasonModel'
+  import type { League } from '@/models/LeagueModel'
+  import type { Team } from '@/models/TeamModel'
 
   defineEmits<{
     (e: 'done'): void
   }>()
 
   const matches = ref<Match[]>([])
+  const seasons = ref<Season[]>([])
+  const leagues = ref<League[]>([])
+  const teams = ref<Team[]>([])
   const pageIndex = ref(0)
   const hasNextPage = ref(false)
   const loadingTable = ref(true)
@@ -163,9 +183,19 @@
   const opponent = ref('')
   const date = ref('')
   const location = ref<'Home' | 'Away'>('Home')
+  const seasonId = ref('')
   const errors = ref<NewMatchErrors>({})
   const successMessage = ref<string | null>(null)
   const submitting = ref(false)
+
+  // A flat season list has no other context, so label each option with its
+  // team and league - otherwise identically-named seasons across leagues
+  // would be indistinguishable in the dropdown.
+  function seasonLabel(season: Season): string {
+    const teamName = teams.value.find((t) => t.id === season.teamId)?.name ?? 'Unknown Team'
+    const leagueName = leagues.value.find((l) => l.id === season.leagueId)?.name ?? 'Unknown League'
+    return `${teamName} — ${leagueName} — ${season.name}`
+  }
 
   async function loadPage(index: number) {
     loadingTable.value = true
@@ -189,6 +219,7 @@
     opponent.value = match.opponent
     date.value = toDateInputValue(match.date)
     location.value = match.location === 'Away' ? 'Away' : 'Home'
+    seasonId.value = match.seasonId ?? ''
     errors.value = {}
     successMessage.value = null
     deletingId.value = null
@@ -199,6 +230,7 @@
     opponent.value = ''
     date.value = ''
     location.value = 'Home'
+    seasonId.value = ''
     errors.value = {}
   }
 
@@ -227,6 +259,7 @@
           opponent: opponent.value.trim(),
           date: date.value,
           location: location.value,
+          seasonId: seasonId.value || null,
         })
         if (match) {
           successMessage.value = `Match vs "${match.opponent}" saved.`
@@ -238,6 +271,7 @@
           opponent: opponent.value.trim(),
           date: date.value,
           location: location.value,
+          seasonId: seasonId.value || null,
         })
         // On failure, apiClient already surfaced the reason via the global error
         // toast (see actions/apiClient.ts) - nothing extra to show here. On
@@ -250,6 +284,7 @@
           opponent.value = ''
           date.value = ''
           location.value = 'Home'
+          seasonId.value = ''
           errors.value = {}
           await loadPage(0)
         }
@@ -259,8 +294,12 @@
     }
   }
 
-  onMounted(() => {
-    loadPage(0)
+  onMounted(async () => {
+    const [seasonList, leagueList, teamList] = await Promise.all([getSeasons(), getLeagues(), getTeams()])
+    seasons.value = seasonList
+    leagues.value = leagueList
+    teams.value = teamList
+    await loadPage(0)
   })
 </script>
 

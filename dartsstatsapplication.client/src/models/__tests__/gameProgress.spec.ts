@@ -11,6 +11,8 @@ import {
   computeLegAverages,
   padLegAverages,
   nextPlayerId,
+  currentRound,
+  isBullOffRound,
   type LegOutcome,
 } from '../gameProgress'
 
@@ -89,6 +91,14 @@ describe('isGameDecided', () => {
   it('is decided after the single leg for Doubles/Trebles', () => {
     expect(isGameDecided([leg('Completed', 'Win')], 'Doubles')).toBe(true)
     expect(isGameDecided([leg('Completed', 'Loss')], 'Trebles')).toBe(true)
+  })
+
+  it('prefers a legsToPlayOverride over the gameType default', () => {
+    // A League-configured best-of-5 Singles game: 2-0 is not yet decided
+    // (majority of 5 is 3), even though it would be for the default best-of-3.
+    const legs = [leg('Completed', 'Win'), leg('Completed', 'Win')]
+    expect(isGameDecided(legs, 'Singles', 5)).toBe(false)
+    expect(isGameDecided([...legs, leg('Completed', 'Win')], 'Singles', 5)).toBe(true)
   })
 })
 
@@ -305,6 +315,40 @@ describe('padLegAverages', () => {
   it('does not pad a single-leg game type once its one leg is present', () => {
     const padded = padLegAverages([{ order: 0, average: 66.2, result: 'live' }], 'Trebles')
     expect(padded).toHaveLength(1)
+  })
+})
+
+describe('currentRound', () => {
+  it('numbers rounds by player rotation, one throw per player per round', () => {
+    expect(currentRound(0, 3)).toBe(1)
+    expect(currentRound(2, 3)).toBe(1)
+    expect(currentRound(3, 3)).toBe(2)
+    expect(currentRound(6, 3)).toBe(3)
+  })
+
+  it('numbers every throw as its own round for a single-player (Singles) leg', () => {
+    expect(currentRound(0, 1)).toBe(1)
+    expect(currentRound(1, 1)).toBe(2)
+  })
+
+  it('does not divide by zero when playerCount is 0', () => {
+    expect(currentRound(0, 0)).toBe(1)
+  })
+})
+
+describe('isBullOffRound', () => {
+  it('is never true when maxRounds is null (no League limit configured)', () => {
+    expect(isBullOffRound(1, null)).toBe(false)
+    expect(isBullOffRound(100, null)).toBe(false)
+  })
+
+  it('is false at or before the max round', () => {
+    expect(isBullOffRound(1, 2)).toBe(false)
+    expect(isBullOffRound(2, 2)).toBe(false)
+  })
+
+  it('is true once the round exceeds the max', () => {
+    expect(isBullOffRound(3, 2)).toBe(true)
   })
 })
 

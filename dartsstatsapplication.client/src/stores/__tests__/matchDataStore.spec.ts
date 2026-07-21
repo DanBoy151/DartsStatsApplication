@@ -65,7 +65,7 @@ describe('matchDataStore.setMatchData', () => {
     // blank right after completing a game.
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
-    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', true, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', true, 0, 3, 501, null)
 
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 1, 0)
 
@@ -76,7 +76,7 @@ describe('matchDataStore.setMatchData', () => {
   it('resets to an empty games list when switching to a DIFFERENT match', () => {
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
-    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', true, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', true, 0, 3, 501, null)
 
     store.setMatchData('match-2', 'Different Opponent', new Date(), 'Away', [], 'Scheduled', 0, 0)
 
@@ -102,14 +102,14 @@ describe('matchDataStore.doneWithSelectedGame', () => {
     // status back to whatever it was before completion.
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
-    store.setGameData('game-1', ['player-1'], 'Singles', 'InProgress', '', false, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'InProgress', '', false, 0, 3, 501, null)
     store.setSelectedGame('game-1')
-    store.setLegData('game-1', 'leg-1', 'Completed', [], 'Win', 3, 0, 0)
+    store.setLegData('game-1', 'leg-1', 'Completed', [], 'Win', 3, 0, 0, false)
 
     // Simulates completeGame(): setGameData() replaces the array entry with
     // fresh server data (Complete/Win), but doesn't update selectedGame's
     // reference, so selectedGame still points at the pre-completion object.
-    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', false, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', false, 0, 3, 501, null)
 
     store.doneWithSelectedGame()
 
@@ -143,14 +143,14 @@ describe('matchDataStore.doneWithSelectedLeg', () => {
     // reads game.legs, not selectedLeg) to see the wrong result.
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
-    store.setGameData('game-1', ['player-1'], 'Doubles', 'InProgress', '', false, 0)
-    store.setLegData('game-1', 'leg-1', 'Started', [], '', 0, 0, 601)
+    store.setGameData('game-1', ['player-1'], 'Doubles', 'InProgress', '', false, 0, 1, 601, null)
+    store.setLegData('game-1', 'leg-1', 'Started', [], '', 0, 0, 601, false)
     store.setSelectedLeg('leg-1')
 
     // Simulates completeLeg(): setLegData() replaces the array entry with
     // fresh server data (Completed/Win), but doesn't update selectedLeg's
     // reference, so selectedLeg still points at the pre-completion object.
-    store.setLegData('game-1', 'leg-1', 'Completed', [], 'Win', 2, 0, 0)
+    store.setLegData('game-1', 'leg-1', 'Completed', [], 'Win', 2, 0, 0, false)
 
     store.doneWithSelectedLeg()
 
@@ -178,14 +178,14 @@ describe('matchDataStore.setLegData resyncing selectedLeg', () => {
     // a leg is left mid-play (Back) rather than completed.
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
-    store.setGameData('game-1', ['player-1'], 'Singles', 'InProgress', '', false, 0)
-    store.setLegData('game-1', 'leg-1', 'Pending', [], '', 0, 0, 501)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'InProgress', '', false, 0, 3, 501, null)
+    store.setLegData('game-1', 'leg-1', 'Pending', [], '', 0, 0, 501, false)
     store.setSelectedGame('game-1')
 
     store.setSelectedLeg('leg-1')
     // Simulates startLeg()'s response arriving after setSelectedLeg() was
     // already called, replacing the leg object in game.legs[].
-    store.setLegData('game-1', 'leg-1', 'Started', [], '', 0, 0, 501)
+    store.setLegData('game-1', 'leg-1', 'Started', [], '', 0, 0, 501, false)
 
     store.updateSelectedLegScore({ 'player-1': 100 })
 
@@ -209,8 +209,8 @@ describe('matchDataStore.clearSelectedLeg', () => {
     // displayed for the new game.
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
-    store.setGameData('game-1', ['player-1'], 'Trebles', 'Complete', 'Loss', false, 0)
-    store.setLegData('game-1', 'leg-1', 'Completed', [{ playerId: 'player-1', score: 100 }], 'Loss', 0, 0, 601)
+    store.setGameData('game-1', ['player-1'], 'Trebles', 'Complete', 'Loss', false, 0, 1, 701, null)
+    store.setLegData('game-1', 'leg-1', 'Completed', [{ playerId: 'player-1', score: 100 }], 'Loss', 0, 0, 601, false)
     store.setSelectedGame('game-1')
     store.setSelectedLeg('leg-1')
     store.setNextPlayerTurn('player-1')
@@ -222,6 +222,33 @@ describe('matchDataStore.clearSelectedLeg', () => {
   })
 })
 
+describe('matchDataStore.completeSelectedLegByBullOff', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('sets the result and wonByBullOff, leaving finishDarts untouched', () => {
+    const store = useMatchDataStore()
+    store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'InProgress', '', false, 0, 3, 501, 2)
+    store.setLegData('game-1', 'leg-1', 'Started', [{ playerId: 'player-1', score: 60 }], '', 0, 0, 441, false)
+    store.setSelectedGame('game-1')
+    store.setSelectedLeg('leg-1')
+
+    store.completeSelectedLegByBullOff('Win')
+
+    expect(store.selectedLeg?.result).toBe('Win')
+    expect(store.selectedLeg?.wonByBullOff).toBe(true)
+    expect(store.selectedLeg?.finishDarts).toBe(0)
+  })
+
+  it('does nothing when there is no selected leg', () => {
+    const store = useMatchDataStore()
+    expect(() => store.completeSelectedLegByBullOff('Win')).not.toThrow()
+    expect(store.selectedLeg).toBeNull()
+  })
+})
+
 describe('matchDataStore.editSelectedLegScoreEntry', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -230,12 +257,12 @@ describe('matchDataStore.editSelectedLegScoreEntry', () => {
   function setupLeg() {
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
-    store.setGameData('game-1', ['p1', 'p2'], 'Doubles', 'InProgress', '', false, 0)
+    store.setGameData('game-1', ['p1', 'p2'], 'Doubles', 'InProgress', '', false, 0, 1, 601, null)
     store.setLegData('game-1', 'leg-1', 'Started', [
       { playerId: 'p1', score: 60 },
       { playerId: 'p2', score: 45 },
       { playerId: 'p1', score: 20 },
-    ], '', 0, 0, 476) // 601 - 60 - 45 - 20
+    ], '', 0, 0, 476, false) // 601 - 60 - 45 - 20
     store.setSelectedGame('game-1')
     store.setSelectedLeg('leg-1')
     return store

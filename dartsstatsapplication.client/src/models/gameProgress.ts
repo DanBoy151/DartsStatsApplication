@@ -28,9 +28,15 @@ export function startingScoreForGameType(gameType: string): number {
   return STARTING_SCORE[gameType.toLowerCase()] ?? 0
 }
 
-/** How many leg wins (or losses) it takes to decide the game outright. */
-export function legsRequiredToWin(gameType: string): number {
-  return Math.ceil(totalLegsForGameType(gameType) / 2)
+/**
+ * How many leg wins (or losses) it takes to decide the game outright.
+ * `legsToPlayOverride` - when a League configured a non-default leg count for
+ * this game (Game.legsToPlay from the server) - takes priority over the
+ * gameType lookup table, which only covers today's fixed defaults.
+ */
+export function legsRequiredToWin(gameType: string, legsToPlayOverride?: number): number {
+  const total = legsToPlayOverride && legsToPlayOverride > 0 ? legsToPlayOverride : totalLegsForGameType(gameType)
+  return Math.ceil(total / 2)
 }
 
 export interface LegOutcome {
@@ -45,13 +51,14 @@ export interface LegOutcome {
  * unnecessary). Only "Completed" legs count; a leg that's Pending or
  * Started hasn't produced a result yet.
  */
-export function isGameDecided(legs: LegOutcome[], gameType: string): boolean {
+export function isGameDecided(legs: LegOutcome[], gameType: string, legsToPlayOverride?: number): boolean {
   const completed = legs.filter((l) => l.status === 'Completed')
   const wins = completed.filter((l) => l.result === 'Win').length
   const losses = completed.filter((l) => l.result === 'Loss').length
-  const needed = legsRequiredToWin(gameType)
+  const totalLegs = legsToPlayOverride && legsToPlayOverride > 0 ? legsToPlayOverride : totalLegsForGameType(gameType)
+  const needed = legsRequiredToWin(gameType, legsToPlayOverride)
 
-  return completed.length >= totalLegsForGameType(gameType) || wins >= needed || losses >= needed
+  return completed.length >= totalLegs || wins >= needed || losses >= needed
 }
 
 /**
@@ -91,6 +98,27 @@ export interface LedgerRow {
    *  = floor(throw index / player count) + 1. Resets each leg, since throws
    *  are already scoped to a single leg's score history. */
   round: number
+}
+
+/**
+ * 1-based - every player throws once per round, in playerOrder, so round =
+ * floor(throwCount / playerCount) + 1. Same formula buildLedgerRows already
+ * uses per-row, exposed standalone so a caller can ask "what round is the
+ * *next* throw in" before that throw has been recorded.
+ */
+export function currentRound(throwCount: number, playerCount: number): number {
+  const playersPerRound = Math.max(playerCount, 1)
+  return Math.floor(throwCount / playersPerRound) + 1
+}
+
+/**
+ * True once a leg has passed the game's configured max rounds and must be
+ * decided by bull-off instead of normal scoring. `maxRounds === null` means
+ * no League is configured (or the League has no limit) - never a bull-off.
+ */
+export function isBullOffRound(round: number, maxRounds: number | null): boolean {
+  if (maxRounds == null) return false
+  return round > maxRounds
 }
 
 /**
@@ -208,10 +236,11 @@ export function computeLegAverages(legs: LegSummary[]): LegAverage[] {
  * Pads a leg-average list with pending placeholders up to however many legs
  * the game type has - for when game.legs hasn't loaded yet (e.g. before a
  * Singles game has even been started), so the leg-averages list still shows
- * all 3 rows rather than none.
+ * all 3 rows rather than none. `legsToPlayOverride` prefers the game's
+ * actual configured leg count (Game.legsToPlay) over the gameType default.
  */
-export function padLegAverages(averages: LegAverage[], gameType: string): LegAverage[] {
-  const total = totalLegsForGameType(gameType)
+export function padLegAverages(averages: LegAverage[], gameType: string, legsToPlayOverride?: number): LegAverage[] {
+  const total = legsToPlayOverride && legsToPlayOverride > 0 ? legsToPlayOverride : totalLegsForGameType(gameType)
   if (averages.length >= total) return averages
 
   const padded = [...averages]

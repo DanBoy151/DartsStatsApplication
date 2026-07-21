@@ -14,6 +14,15 @@ namespace DartsStatsApplication.Server.Controllers.Models
         public int gamesFor { get; set; }
         public int gamesAgainst { get; set; }
 
+        /// <summary>Which Season (and therefore League/Team) this match belongs to, if any. Null = plays by today's hardcoded defaults.</summary>
+        public Guid? seasonId { get; set; }
+
+        /// <summary>Set when the match is started (MatchService.StartMatch).</summary>
+        public DateTime? startTime { get; set; }
+
+        /// <summary>Set when the match is completed (MatchService.CompleteMatch).</summary>
+        public DateTime? finishTime { get; set; }
+
     }
 
     public class CompleteMatchData

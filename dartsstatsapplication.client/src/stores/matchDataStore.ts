@@ -28,6 +28,11 @@ export interface GameDataState {
   wonBull: boolean
   order: number
   legs: LegDataState[]
+  /** League-configured (or hardcoded-default) leg count/starting score for this game - an immutable snapshot set at game creation. */
+  legsToPlay: number
+  startingScore: number
+  /** null = no League limit configured - a leg never gets decided by bull-off. */
+  maxRounds: number | null
 }
 
 export interface LegDataState {
@@ -39,6 +44,8 @@ export interface LegDataState {
   finishDarts: number
   order: number
   remainingScore: number
+  /** True once this leg was decided by bull-off rather than a normal checkout. */
+  wonByBullOff: boolean
 }
 
 export const useMatchDataStore = defineStore('leg', {
@@ -132,7 +139,7 @@ export const useMatchDataStore = defineStore('leg', {
         .filter(p => p.isAvailable)
         .map(p => p.playerId);
     },
-    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number) {
+    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number, legsToPlay: number, startingScore: number, maxRounds: number | null) {
       if (!this.match) return;
 
       const existingIndex = this.match.games.findIndex(g => g.gameId === gameID);
@@ -146,6 +153,9 @@ export const useMatchDataStore = defineStore('leg', {
         legs: [],
         wonBull,
         order,
+        legsToPlay,
+        startingScore,
+        maxRounds,
       };
 
       if (existingIndex !== -1) {
@@ -188,7 +198,7 @@ export const useMatchDataStore = defineStore('leg', {
       }
       this.selectedGame = null;
     },
-    setLegData(gameId: string, legId: string, status: string, score: { playerId: string, score: number }[], result: string, finishDarts: number, order: number, remainingScore: number) {
+    setLegData(gameId: string, legId: string, status: string, score: { playerId: string, score: number }[], result: string, finishDarts: number, order: number, remainingScore: number, wonByBullOff: boolean) {
       if (
         !this.match ||
         !Array.isArray(this.match.games) ||
@@ -213,6 +223,7 @@ export const useMatchDataStore = defineStore('leg', {
         finishDarts,
         order,
         remainingScore,
+        wonByBullOff,
       };
 
       if (existingIndex !== -1) {
@@ -296,6 +307,18 @@ export const useMatchDataStore = defineStore('leg', {
       if (this.selectedLeg) {
         this.selectedLeg.result = result;
         this.selectedLeg.finishDarts = finishDarts;
+      }
+    },
+    /**
+     * Local-only completion for a leg decided by bull-off (the popup answer
+     * IS the result - there's no checkout to record). Mirrors
+     * completeSelectedLeg(); MatchCenter.vue's onFinishLeg() branches on
+     * wonByBullOff to call the matching server endpoint afterwards.
+     */
+    completeSelectedLegByBullOff(result: string) {
+      if (this.selectedLeg) {
+        this.selectedLeg.result = result;
+        this.selectedLeg.wonByBullOff = true;
       }
     },
     doneWithSelectedLeg() {

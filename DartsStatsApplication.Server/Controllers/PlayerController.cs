@@ -101,6 +101,8 @@ namespace DartsStatsApplication.Server.Controllers
 
             using (var session = _documentStore.LightweightSession())
             {
+                await PlayerControllerValidator.ValidateTeamExists(data.teamId, session);
+
                 var Id = Guid.NewGuid();
                 Player player = new Player
                 {
@@ -134,6 +136,8 @@ namespace DartsStatsApplication.Server.Controllers
                 {
                     return NotFound();
                 }
+
+                await PlayerControllerValidator.ValidateTeamExists(data.teamId, session);
 
                 player.data = data;
                 session.Store(player);

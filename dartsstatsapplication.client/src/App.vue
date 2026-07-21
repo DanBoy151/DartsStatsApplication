@@ -5,14 +5,24 @@
   import ErrorToast from './components/ErrorToast.vue'
   import NewPlayerForm from './components/Manage/NewPlayerForm.vue'
   import NewMatchForm from './components/Manage/NewMatchForm.vue'
+  import NewLeagueForm from './components/Manage/NewLeagueForm.vue'
+  import NewTeamForm from './components/Manage/NewTeamForm.vue'
+  import NewSeasonForm from './components/Manage/NewSeasonForm.vue'
   import TeamStatistics from './components/Statistics/TeamStatistics.vue'
 
-  type View = 'main' | 'new-player' | 'new-match' | 'statistics'
+  type View = 'main' | 'new-player' | 'new-match' | 'new-league' | 'new-team' | 'new-season' | 'statistics'
 
   const currentView = ref<View>('main')
 
   function handleNavigate(action: string) {
-    if (action === 'new-player' || action === 'new-match' || action === 'statistics') {
+    if (
+      action === 'new-player' ||
+      action === 'new-match' ||
+      action === 'new-league' ||
+      action === 'new-team' ||
+      action === 'new-season' ||
+      action === 'statistics'
+    ) {
       currentView.value = action
     }
   }
@@ -33,6 +43,9 @@
       <MainContent v-if="currentView === 'main'" @view-statistics="() => (currentView = 'statistics')" />
       <NewPlayerForm v-else-if="currentView === 'new-player'" @done="goToMain" />
       <NewMatchForm v-else-if="currentView === 'new-match'" @done="goToMain" />
+      <NewLeagueForm v-else-if="currentView === 'new-league'" @done="goToMain" />
+      <NewTeamForm v-else-if="currentView === 'new-team'" @done="goToMain" />
+      <NewSeasonForm v-else-if="currentView === 'new-season'" @done="goToMain" />
       <TeamStatistics v-else-if="currentView === 'statistics'" @done="goToMain" />
     </main>
     <ErrorToast />

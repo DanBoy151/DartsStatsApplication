@@ -24,15 +24,39 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_leg);
         }
 
-        public void CompleteLeg(CompleteLegData legData)
+        public async Task CompleteLeg(CompleteLegData legData)
         {
-         
-            _validator.IsValidToCompleteLeg(legData);
+            // Load the leg's game so the validator can check its max-rounds config
+            // while staying a pure function over what's passed in.
+            var game = await _documentSession.LoadAsync<Game>(_leg.data.gameID);
+
+            _validator.IsValidToCompleteLeg(legData, game);
 
             _leg.data.finishDarts = legData.finishDarts;
             _leg.data.result = legData.result;
             _leg.data.score = legData.score;
             _leg.data.remainingScore = legData.remainingScore;
+            _leg.data.status = LegStatus.Completed;
+            _documentSession.Store(_leg);
+        }
+
+        /// <summary>
+        /// Completes a leg that's been decided by bull-off (the game's configured max
+        /// rounds was reached with no winner). The real throws already made before the
+        /// threshold are persisted here too - they still count for stats - but no
+        /// checkout occurred, so finishDarts stays null and wonByBullOff is set.
+        /// </summary>
+        public async Task CompleteLegByBullOff(CompleteLegBullOffData data)
+        {
+            var game = await _documentSession.LoadAsync<Game>(_leg.data.gameID);
+
+            _validator.IsValidToCompleteLegByBullOff(data, game);
+
+            _leg.data.score = data.score ?? new List<PlayerScore>();
+            _leg.data.remainingScore = data.remainingScore;
+            _leg.data.result = data.result;
+            _leg.data.wonByBullOff = true;
+            _leg.data.finishDarts = null;
             _leg.data.status = LegStatus.Completed;
             _documentSession.Store(_leg);
         }

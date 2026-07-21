@@ -71,12 +71,19 @@
     return PLAYER_COLORS[playerIndex] ?? '#95a5a6'
   }
 
+  // Prefer the game's actual configured starting score (from its League) -
+  // the gameType lookup table only covers today's fixed defaults, and is a
+  // fallback for a game object that somehow lacks the field.
+  function resolveStartingScore(game: { type: string; startingScore: number }): number {
+    return game.startingScore > 0 ? game.startingScore : startingScoreForGameType(game.type)
+  }
+
   const rows = computed(() => {
     const leg = matchDataStore.getSelectedLeg()
     const game = matchDataStore.getSelectedGame()
     if (!leg || !game) return []
 
-    return buildLedgerRows(leg.score, startingScoreForGameType(game.type), game.players)
+    return buildLedgerRows(leg.score, resolveStartingScore(game), game.players)
   })
 
   function getPlayerName(playerId: string): string {
@@ -118,7 +125,7 @@
 
     const game = matchDataStore.getSelectedGame()
     if (!game) return
-    const ok = matchDataStore.editSelectedLegScoreEntry(index, num, startingScoreForGameType(game.type))
+    const ok = matchDataStore.editSelectedLegScoreEntry(index, num, resolveStartingScore(game))
     if (!ok) {
       editError.value = 'That score leaves the leg below zero remaining.'
       return

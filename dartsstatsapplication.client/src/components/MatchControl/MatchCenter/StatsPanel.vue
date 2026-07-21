@@ -63,7 +63,9 @@
   // are now that there's no separate leg counter doing that job.
   const showPlayerBreakdown = computed(() => {
     const game = matchDataStore.getSelectedGame()
-    return totalLegsForGameType(game?.type ?? '') === 1
+    if (!game) return false
+    const totalLegs = game.legsToPlay > 0 ? game.legsToPlay : totalLegsForGameType(game.type)
+    return totalLegs === 1
   })
 
   const visitStats = computed(() => computeVisitStats(matchDataStore.getSelectedLeg()?.score ?? []))
@@ -77,7 +79,7 @@
   const legAverages = computed(() => {
     const game = matchDataStore.getSelectedGame()
     if (!game) return []
-    return padLegAverages(computeLegAverages(game.legs), game.type)
+    return padLegAverages(computeLegAverages(game.legs), game.type, game.legsToPlay)
   })
 
   function getPlayerName(playerId: string): string {

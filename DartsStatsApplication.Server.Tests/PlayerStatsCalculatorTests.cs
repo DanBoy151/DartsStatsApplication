@@ -20,7 +20,7 @@ namespace DartsStatsApplication.Server.Tests.Services
 
         private static PlayerScore Visit(Guid playerId, int score) => new PlayerScore { playerId = playerId, score = score };
 
-        private static Leg MakeLeg(LegStatus status, LegResult? result, int? finishDarts, List<PlayerScore> score)
+        private static Leg MakeLeg(LegStatus status, LegResult? result, int? finishDarts, List<PlayerScore> score, bool wonByBullOff = false)
         {
             return new Leg
             {
@@ -33,7 +33,8 @@ namespace DartsStatsApplication.Server.Tests.Services
                     result = result,
                     finishDarts = finishDarts,
                     order = 0,
-                    remainingScore = 0
+                    remainingScore = 0,
+                    wonByBullOff = wonByBullOff
                 }
             };
         }
@@ -196,6 +197,30 @@ namespace DartsStatsApplication.Server.Tests.Services
             var result = Assert.Single(PlayerStatsCalculator.Calculate(new List<Player> { player }, new List<Leg> { slowLeg, fastLeg }));
 
             Assert.Equal(9, result.bestLegDarts);
+        }
+
+        [Fact]
+        public void Calculate_WonByBullOff_ExcludedFromCheckoutAndBestLegButStillCountsForWinAndAverage()
+        {
+            var player = MakePlayer("Dan", out var id);
+            // Passed the max rounds with no checkout - finishDarts is null, wonByBullOff is true.
+            // The real pre-threshold throws (2 visits, 60 each) still happened and must still count.
+            var leg = MakeLeg(LegStatus.Completed, LegResult.Win, finishDarts: null, score: new List<PlayerScore>
+            {
+                Visit(id, 60), Visit(id, 60),
+            }, wonByBullOff: true);
+
+            var result = Assert.Single(PlayerStatsCalculator.Calculate(new List<Player> { player }, new List<Leg> { leg }));
+
+            Assert.Equal(1, result.legsPlayed);
+            Assert.Equal(1, result.legsWon);
+            Assert.Equal(100.0, result.winPercentage);
+            // 6 darts (2 visits x 3, no checkout-dart adjustment), 120 points -> 120/6*3 = 60.0
+            Assert.Equal(60.0, result.threeDartAverage);
+
+            // No real checkout was thrown, and there's no meaningful "leg total darts" either.
+            Assert.Null(result.highestCheckout);
+            Assert.Null(result.bestLegDarts);
         }
 
         [Fact]

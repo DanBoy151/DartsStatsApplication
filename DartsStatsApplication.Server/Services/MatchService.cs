@@ -23,13 +23,69 @@ namespace DartsStatsApplication.Server.Services
             await _validator.IsValidToStartMatch();
             //Update the status of the match to In Progress
             _match.data.status = MatchStatus.Ready;
+            _match.data.startTime = DateTime.UtcNow;
             _documentSession.Store<Match>(_match);
 
-            //Create Pending Games for the Match
-            CreatePendingGames();
+            // Resolve the league (if any) BEFORE creating games, so every game
+            // created for this match gets its own immutable snapshot of the
+            // config that was actually in force when it was played.
+            var league = await ResolveLeague();
+            CreatePendingGames(league);
         }
 
-        private void CreateGame(GameType type, int gameOrder)
+        /// <summary>
+        /// Loads this match's League via its Season, or null if the match has no
+        /// season (today's hardcoded defaults apply instead - see
+        /// ResolveLegConfig). A seasonId that points at a missing Season/League
+        /// is a data-integrity bug, not a legitimate "no season" case, so both
+        /// throw rather than silently falling back.
+        /// </summary>
+        private async Task<League?> ResolveLeague()
+        {
+            if (_match.data.seasonId == null) return null;
+
+            var season = await _documentSession.LoadAsync<Season>(_match.data.seasonId.Value);
+            if (season == null)
+            {
+                throw new ValidationException("Match's Season no longer exists");
+            }
+
+            var league = await _documentSession.LoadAsync<League>(season.data.leagueId);
+            if (league == null)
+            {
+                throw new ValidationException("Season's League no longer exists");
+            }
+
+            return league;
+        }
+
+        /// <summary>
+        /// Today's hardcoded defaults (3 legs/501, 1 leg/601, 1 leg/701) when there's
+        /// no league; otherwise the league's configured values for this game type.
+        /// </summary>
+        private static (int legsToPlay, int startingScore) ResolveLegConfig(GameType type, League? league)
+        {
+            if (league == null)
+            {
+                return type switch
+                {
+                    GameType.Singles => (3, 501),
+                    GameType.Doubles => (1, 601),
+                    GameType.Trebles => (1, 701),
+                    _ => (1, 501),
+                };
+            }
+
+            return type switch
+            {
+                GameType.Singles => (league.data.singlesLegs, league.data.singlesStartScore),
+                GameType.Doubles => (league.data.doublesLegs, league.data.doublesStartScore),
+                GameType.Trebles => (league.data.treblesLegs, league.data.treblesStartScore),
+                _ => (1, 501),
+            };
+        }
+
+        private void CreateGame(GameType type, int gameOrder, int legsToPlay, int startingScore, int? maxRounds)
         {
             Game game = new Game();
             game.Id = Guid.NewGuid();
@@ -38,34 +94,44 @@ namespace DartsStatsApplication.Server.Services
             game.data.matchId = _match.Id;
             game.data.status = GameStatus.Pending;
             game.data.order = gameOrder;
+            game.data.legsToPlay = legsToPlay;
+            game.data.startingScore = startingScore;
+            game.data.maxRounds = maxRounds;
 
             _documentSession.Store<Game>(game);
         }
 
-        private void CreatePendingGames()
+        private void CreatePendingGames(League? league)
         {
             int gameOrder = 0;
-            //Create Blank Trebles Games that match the leagues config
+            int numTrebles = league?.data.numTrebles ?? 2;
+            int numDoubles = league?.data.numDoubles ?? 3;
+            int numSingles = league?.data.numSingles ?? 6;
+
+            //Create Blank Trebles Games that match the league's config
+            var (treblesLegs, treblesScore) = ResolveLegConfig(GameType.Trebles, league);
             int count = 0;
-            while (count < 2)
+            while (count < numTrebles)
             {
-                CreateGame(GameType.Trebles, gameOrder);
+                CreateGame(GameType.Trebles, gameOrder, treblesLegs, treblesScore, league?.data.maxRounds);
                 count++;
                 gameOrder++;
             }
-            //Create Blank Doubles Games that match the leagues config
+            //Create Blank Doubles Games that match the league's config
+            var (doublesLegs, doublesScore) = ResolveLegConfig(GameType.Doubles, league);
             count = 0;
-            while (count < 3)
+            while (count < numDoubles)
             {
-                CreateGame(GameType.Doubles, gameOrder);
+                CreateGame(GameType.Doubles, gameOrder, doublesLegs, doublesScore, league?.data.maxRounds);
                 count++;
                 gameOrder++;
             }
-            //Create Blank Singles Games that match the leagues config
+            //Create Blank Singles Games that match the league's config
+            var (singlesLegs, singlesScore) = ResolveLegConfig(GameType.Singles, league);
             count = 0;
-            while (count < 6)
+            while (count < numSingles)
             {
-                CreateGame(GameType.Singles, gameOrder);
+                CreateGame(GameType.Singles, gameOrder, singlesLegs, singlesScore, league?.data.maxRounds);
                 count++;
                 gameOrder++;
             }
@@ -105,6 +171,7 @@ namespace DartsStatsApplication.Server.Services
         {
             _match.data.status = MatchStatus.Completed;
             _match.data.playerOfMatch = playerOfMatch;
+            _match.data.finishTime = DateTime.UtcNow;
 
             var games = (await _documentSession.Query<Game>()
                 .Where(g => g.data.matchId == _match.Id)

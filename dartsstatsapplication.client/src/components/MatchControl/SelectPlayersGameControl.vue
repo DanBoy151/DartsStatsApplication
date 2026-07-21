@@ -63,7 +63,8 @@
         .filter(p => p.isAvailable)
         .map(p => ({
           playerId: p.playerId,
-          name: p.name
+          name: p.name,
+          teamId: null
         }))
     }
     // Reset selectedPlayerIds when players are fetched
