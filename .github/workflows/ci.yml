@@ -102,6 +102,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # `secrets` isn't a valid context inside a step-level `if:` - routing
+      # through `env` here is what lets the deploy-hook steps below check
+      # "is this secret actually set yet" further down.
+      RENDER_DEPLOY_HOOK_SERVER: ${{ secrets.RENDER_DEPLOY_HOOK_SERVER }}
+      RENDER_DEPLOY_HOOK_CLIENT: ${{ secrets.RENDER_DEPLOY_HOOK_CLIENT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -145,3 +151,17 @@ jobs:
             ghcr.io/danboy151/dartsstatsapplication-client:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Render deploys these images by pulling from GHCR rather than building
+      # from this repo itself, so it won't notice a new :latest tag on its
+      # own - these hooks are what actually trigger a redeploy. Each secret
+      # is genuinely optional: until the corresponding Render service exists
+      # and its Deploy Hook URL is added as a repo secret, these steps just
+      # skip rather than failing the build.
+      - name: Trigger Render deploy (server)
+        if: github.event_name == 'push' && env.RENDER_DEPLOY_HOOK_SERVER != ''
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_SERVER"
+
+      - name: Trigger Render deploy (client)
+        if: github.event_name == 'push' && env.RENDER_DEPLOY_HOOK_CLIENT != ''
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_CLIENT"
