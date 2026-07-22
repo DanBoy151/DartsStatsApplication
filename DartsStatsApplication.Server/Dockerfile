@@ -4,8 +4,12 @@
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 USER $APP_UID
 WORKDIR /app
+# Only 8080 is ever actually used (ASPNETCORE_HTTP_PORTS=8080, set via env var
+# at deploy time) - the app has no HTTPS listener configured, so there's
+# nothing behind 8081. A second EXPOSE here was ambiguous for Render's
+# port auto-detection, which defaulted to its own platform default (10000)
+# instead, leaving the health check probing a port nothing listens on.
 EXPOSE 8080
-EXPOSE 8081
 
 
 # This stage is used to build the service project
