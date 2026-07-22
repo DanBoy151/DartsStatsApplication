@@ -21,6 +21,16 @@ namespace DartsStatsApplication.Server.Middleware
 
         public async Task InvokeAsync(HttpContext context, IConfiguration configuration)
         {
+            // Health checks are hit by infrastructure (Render, uptime monitors,
+            // container orchestrators) that has no way to know this app's API
+            // key - a liveness probe has to stay reachable without
+            // credentials, or the host can never tell the app is actually up.
+            if (context.Request.Path.StartsWithSegments("/healthz"))
+            {
+                await _next(context);
+                return;
+            }
+
             // Preflight requests don't carry custom headers; let them through so
             // UseCors can still answer them.
             if (HttpMethods.IsOptions(context.Request.Method))
