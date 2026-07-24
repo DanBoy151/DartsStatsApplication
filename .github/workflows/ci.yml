@@ -138,19 +138,13 @@ jobs:
       # resolves to an empty secret (i.e. the key stays off) until
       # ApiSecurity:ApiKey is actually turned on server-side and a matching
       # VITE_API_KEY repo secret is added; no workflow change needed then.
-      #
-      # VITE_API_BASE_URL is TEMPORARILY the Render-assigned URL rather than
-      # https://renegadedartsapi.dhorridge.au, since dhorridge.au is still
-      # pending registration at GoDaddy. Switch this back once DNS is live -
-      # no other change needed, Cors:AllowedOrigins on the server already
-      # allows both origins so the cutover is just this one line.
       - name: Build & push client image
         uses: docker/build-push-action@v6
         with:
           context: ./dartsstatsapplication.client
           push: ${{ github.event_name == 'push' }}
           build-args: |
-            VITE_API_BASE_URL=https://dartsstatsapplication-server-latest.onrender.com
+            VITE_API_BASE_URL=https://renegadedartsapi.dhorridge.au
             VITE_API_KEY=${{ secrets.VITE_API_KEY }}
           tags: |
             ghcr.io/danboy151/dartsstatsapplication-client:latest
