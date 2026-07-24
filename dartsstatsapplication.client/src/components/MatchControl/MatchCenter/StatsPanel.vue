@@ -110,6 +110,10 @@
     box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
     padding: 0.9rem 1rem;
     overflow-y: auto;
+    /* See RemainingScorePanel.vue's own container-type comment - same fix,
+       same reason (this panel's width tracks the viewport far more loosely
+       than a straight vw-based font-size assumed). */
+    container-type: inline-size;
   }
 
   .stat-block {
@@ -126,7 +130,7 @@
   }
 
   .stat-hero {
-    font-size: clamp(1.8rem, 8vw, 2.4rem);
+    font-size: clamp(1.6rem, 9cqw, 2.4rem);
     font-weight: bold;
     color: #2c3e50;
     line-height: 1;

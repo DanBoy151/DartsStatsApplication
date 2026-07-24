@@ -154,6 +154,12 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    /* Lets descendants size off this panel's own width (cqw below) instead
+       of the viewport's - the panel's actual width varies a lot more than
+       the viewport does (e.g. the narrow desktop-grid column vs. the
+       near-full-width phone tab), so vw was sizing the number for the
+       wrong box and it overflowed whenever the two diverged. */
+    container-type: inline-size;
   }
 
   .leg-score-row {
@@ -165,9 +171,10 @@
   }
 
   .remaining-score-row {
-    /* Scales fluidly with viewport width instead of a fixed 8rem, which
-       overflows a phone-width column for a 3-4 digit remaining score. */
-    font-size: clamp(2.5rem, 12vw, 8rem);
+    /* Scales fluidly with the panel's own width (cqw, not vw - see
+       container-type above) instead of a fixed 8rem, which overflowed
+       whenever this panel was narrower than the viewport implied. */
+    font-size: clamp(2.25rem, 28cqw, 8rem);
     font-weight: bold;
     text-align: center;
     margin-bottom: auto;
@@ -179,6 +186,16 @@
     justify-content: flex-end;
     gap: 1rem;
     margin-top: auto;
+  }
+
+  /* Narrow container (the pinched desktop-grid column, or phone) - smaller
+     padding/text gives two buttons a real chance to sit side by side
+     before flex-wrap falls back to one per line. */
+  @container (max-width: 340px) {
+    .button-row button {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
   }
 
   @media (max-width: 600px) {

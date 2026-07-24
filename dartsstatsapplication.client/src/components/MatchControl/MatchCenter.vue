@@ -272,7 +272,14 @@
 <style scoped>
   .match-center-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr; /* Left wide, right narrow */
+    /* Right column floors at 240px - between here and the 1024px tablet
+       breakpoint, MatchControl.vue's left rail is still showing (it only
+       collapses at that same breakpoint), so the available width for this
+       whole grid shrinks well before the grid itself changes tier. Without
+       a floor, .quarter's min-width:0 (below) lets this 1fr track shrink
+       arbitrarily narrow, and RemainingScorePanel/StatsPanel's content
+       doesn't have anywhere to go but visibly overflow the box. */
+    grid-template-columns: 2fr minmax(240px, 1fr);
     grid-template-rows: 1fr 1fr 1fr; /* Three equal rows */
     width: 100%;
     height: 100%;
