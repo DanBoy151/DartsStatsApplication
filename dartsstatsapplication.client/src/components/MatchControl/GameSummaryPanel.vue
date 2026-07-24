@@ -1,5 +1,5 @@
 <template>
-  <div class="game-summary-panel">
+  <div class="game-summary-panel" :class="{ 'variant-drawer': props.variant === 'drawer' }">
     <div class="summary-header">
       <div class="summary-row">
         <span class="summary-label">Opposition:</span>
@@ -61,6 +61,10 @@
   const props = defineProps<{
     selectedGameId: string
     disabled?: boolean
+    /** 'drawer' drops the standalone card's own centering/shadow - used
+     *  inside GameListDrawer.vue, which already provides that chrome, so the
+     *  panel sits flush rather than nesting one card inside another. */
+    variant?: 'full' | 'drawer'
   }>()
 
   const formattedDate = computed(() => formatDisplayDate(matchDataStore.getMatchData()?.date))
@@ -171,6 +175,21 @@
     max-height: 100%;
     box-sizing: border-box;
     overflow: hidden;
+  }
+
+  /* GameListDrawer.vue's own panel already provides the card shadow/edge -
+     this just needs to fill it, not nest a second card inside. */
+  .game-summary-panel.variant-drawer {
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Room for GameListDrawer.vue's floating close button in the header's
+     top-right corner. */
+  .game-summary-panel.variant-drawer .summary-header {
+    padding-right: 3.2rem;
   }
 
   .summary-header {

@@ -1,6 +1,12 @@
 <template>
-  <div class="match-control-layout" :class="{ 'game-active': showingMatchCenter }">
-    <div class="left-panel">
+  <div class="match-control-layout">
+    <!-- GameSummaryPanel's job - picking a game to view - isn't useful
+         mid-scoring, and its fixed width has nothing to do with what
+         MatchCenter itself needs, so it's dropped from layout entirely
+         while a game is active - MatchCenter's own drawer (GameListDrawer)
+         gives on-demand access to the same list instead (see @select-game
+         below, which routes back through the same handler either way). -->
+    <div v-if="!showingMatchCenter" class="left-panel">
       <GameSummaryPanel :selected-game-id="selectedGameId ?? ''"
                         :disabled="!showHoldingScreen"
                         @select-game="handleSelectGame" />
@@ -16,6 +22,7 @@
                    @back="handleMatchCenterBack"
                    @edit-players="handleEditPlayers"
                    @game-complete="emit('game-complete')"
+                   @select-game="handleSelectGame"
                    />
 
       <HoldingScreenControl v-else-if="showHoldingScreen"
@@ -53,16 +60,17 @@
   const showHoldingScreen = ref(false)
   const selectedGameId = ref<string | null>(null)
   const selectedGame = ref<Game | null > (null)
-  // True while editing an already-Ready game's roster (RemainingScorePanel's
+  // True while editing an already-Ready game's roster (ScoringConsole's
   // "Edit Players" button) - distinct from selectedGame.status === 'Pending',
   // which is a fresh game that's never had players assigned at all.
   const editingPlayers = ref(false)
 
   // Single source of truth for "MatchCenter is what's showing right now" -
   // used both for :game (a non-null Game, so v-else-if="matchCenterGame"
-  // narrows the same way the old inline condition did) and for collapsing
-  // the left rail (GameSummaryPanel) below 1024px (see <style> below), since
-  // its job - picking a game to view - isn't useful mid-scoring.
+  // narrows the same way the old inline condition did) and for dropping the
+  // left rail (GameSummaryPanel) entirely while a game is active (see the
+  // template's v-if="!showingMatchCenter") - its job, picking a game to
+  // view, isn't useful mid-scoring, and MatchCenter's own drawer covers it.
   const matchCenterGame = computed<Game | null>(() => {
     if (!selectedGameId.value || !selectedGame.value) return null
     const status = selectedGame.value.status
@@ -85,7 +93,7 @@
     // Whatever leg/current-player was selected belongs to the PREVIOUS
     // game - clear it before possibly reselecting below, so a fresh/
     // not-yet-started game (no legs of its own yet) doesn't leak the old
-    // game's scores/next-player into ScoreLedgerPanel/EnterScorePanel.
+    // game's scores/next-player into ScoreLedgerPanel/ScoringConsole.
     matchDataStore.clearSelectedLeg()
 
     // A game that's already been played (Ready/InProgress/Complete) has legs
@@ -126,7 +134,7 @@
     editingPlayers.value = false
   }
 
-  /** RemainingScorePanel's "Edit Players" button, only available while a game is Ready (not yet started). */
+  /** ScoringConsole's "Edit Players" button, only available while a game is Ready (not yet started). */
   function handleEditPlayers() {
     editingPlayers.value = true
   }
@@ -166,31 +174,37 @@
   .center-panel {
     flex: 1 1 0;
     display: flex;
-    align-items: center; /* Center vertically */
+    /* "safe" falls back to start-aligned (scrollable from the top) instead
+       of clipping symmetrically top-and-bottom if content is ever taller
+       than the viewport - MatchCenter's new console+ledger+stats stack has
+       no fixed height (unlike the old grid), so this can genuinely happen
+       on a short window. */
+    align-items: safe center;
     justify-content: center; /* Center horizontally */
     min-width: 0;
+    min-height: 0;
     padding: 2rem;
     box-sizing: border-box;
+    overflow-y: auto;
   }
 
-    /* Only MatchCenter fills the panel */
+    /* MatchCenter (and only MatchCenter - other center-panel children size
+       to their own content) caps at a comfortable reading width instead of
+       stretching edge-to-edge on a wide monitor; its own children
+       (ScoringConsole, the ledger/stats cards) supply their own padding, so
+       no padding is added here. */
     .center-panel > .match-center {
-      padding: 2rem;
+      width: min(1100px, 94vw);
       box-sizing: border-box;
-      width: 100%;
-      height: 100%;
-      min-height: 0;
-      min-width: 0;
     }
 
   /* Below tablet/laptop width, .left-panel's fixed 380px (min 320px) basis
      doesn't fit beside anything - on a ~390px phone it alone leaves .center-
      panel ~0 width, hiding whatever's in it (holding screen, roster
-     selection, AvailablePlayersControl - not just MatchCenter). Stack
-     vertically instead of side-by-side so every one of those screens stays
-     usable, then - once a game is actually active - drop the rail
-     entirely, since GameSummaryPanel's job (picking a game to view) isn't
-     useful mid-scoring and MatchCenter needs the full width instead. */
+     selection, AvailablePlayersControl). Stack vertically instead of
+     side-by-side so every one of those screens stays usable. (MatchCenter
+     itself never shares this row with .left-panel at all any more - see
+     the template's v-if - so it isn't a factor here.) */
   @media (max-width: 1024px) {
     .match-control-layout {
       flex-direction: column;
@@ -214,14 +228,6 @@
       min-height: 0;
       padding: 1.25rem;
     }
-
-    .center-panel > .match-center {
-      padding: 1.25rem;
-    }
-
-    .match-control-layout.game-active .left-panel {
-      display: none;
-    }
   }
 
   @media (max-width: 600px) {
@@ -231,10 +237,6 @@
     }
 
     .center-panel {
-      padding: 0.75rem;
-    }
-
-    .center-panel > .match-center {
       padding: 0.75rem;
     }
   }

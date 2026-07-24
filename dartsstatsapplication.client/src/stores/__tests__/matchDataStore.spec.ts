@@ -173,7 +173,7 @@ describe('matchDataStore.setLegData resyncing selectedLeg', () => {
     // object. Without resyncing selectedLeg the same way selectedGame
     // already is, selectedLeg is left pointing at the orphaned pre-start
     // copy: further mutations (e.g. updateSelectedLegScore(), as
-    // EnterScorePanel calls on every throw) land on that orphan and never
+    // ScoringConsole calls on every throw) land on that orphan and never
     // reach match.games[].legs[], so progress silently vanishes the moment
     // a leg is left mid-play (Back) rather than completed.
     const store = useMatchDataStore()
@@ -205,7 +205,7 @@ describe('matchDataStore.clearSelectedLeg', () => {
     // selectedLeg when the newly-selected game already had legs of its own
     // (i.e. had been started before) - a fresh/Ready game with no legs left
     // the PREVIOUS game's selectedLeg/currentPlayer in place, which
-    // ScoreLedgerPanel/EnterScorePanel (reading them directly) then
+    // ScoreLedgerPanel/ScoringConsole (reading them directly) then
     // displayed for the new game.
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)

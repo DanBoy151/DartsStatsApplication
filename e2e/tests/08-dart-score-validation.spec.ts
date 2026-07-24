@@ -7,7 +7,7 @@ import { createScheduledMatch, createGame, createLeg } from '../fixtures/api-cli
 // Game/Leg directly via POST and exercises LegControllerValidator's new
 // per-visit dart-score checks through the real completion endpoints -
 // proving the server itself rejects an impossible score, not just the
-// client (EnterScorePanel.vue has the same checks, covered by
+// client (ScoringConsole.vue has the same checks, covered by
 // dartScoring.spec.ts and manual verification, not by this file).
 test.describe('Server-side dart score validation', () => {
   test('completing a leg with a score no dartboard can produce is rejected', async ({ api }) => {

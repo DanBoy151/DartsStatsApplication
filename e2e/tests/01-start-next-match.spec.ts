@@ -189,7 +189,7 @@ test.describe.serial('Start next match', () => {
       for (const throwScore of [180, 180, 180]) {
         await matchCenterScreen.enterScore(throwScore)
       }
-      await expect(matchCenterScreen.turnRemaining).toHaveText('61 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('61')
       await matchCenterScreen.enterScore(61)
       await matchCenterScreen.finishLeg(2)
 
@@ -220,7 +220,7 @@ test.describe.serial('Start next match', () => {
       await matchCenterScreen.startGame()
 
       await matchCenterScreen.enterScore(100)
-      await expect(matchCenterScreen.turnRemaining).toHaveText('601 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('601')
 
       await matchCenterScreen.clickFinish()
       await expect(matchCenterScreen.doublesFinishDialog).not.toBeVisible()
@@ -248,18 +248,18 @@ test.describe.serial('Start next match', () => {
 
       await matchCenterScreen.enterScore(60)
       await matchCenterScreen.enterScore(45)
-      await expect(matchCenterScreen.turnRemaining).toHaveText('496 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('496')
 
       // Editing the FIRST throw (60 -> 100) must cascade past the second,
       // already-recorded throw: 601 - 100 - 45 = 456.
       await matchCenterScreen.editLedgerScore(0, 100)
-      await expect(matchCenterScreen.turnRemaining).toHaveText('456 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('456')
 
       // An invalid edit is refused with an inline error, not silently
       // clamped or accepted.
       await matchCenterScreen.editLedgerScore(0, 999)
       await expect(matchCenterScreen.ledgerEditError).toBeVisible()
-      await expect(matchCenterScreen.turnRemaining).toHaveText('456 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('456')
 
       // Finish the leg as a Loss - Doubles is single-leg, so this also
       // completes the game and returns to the holding screen. The edited
@@ -292,7 +292,7 @@ test.describe.serial('Start next match', () => {
       // leg already under way at a fresh 501.
       await expect(matchCenterScreen.root).toBeVisible()
       await expect(holdingScreen.root).not.toBeVisible()
-      await expect(matchCenterScreen.turnRemaining).toHaveText('501 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('501')
 
       // Leg 2 (Win): 2-0 now decides it outright - leg 3 is never played.
       for (const throwScore of [180, 180, 141]) {
@@ -323,7 +323,7 @@ test.describe.serial('Start next match', () => {
       expect(await matchCenterScreen.isReadonly()).toBe(true)
       // Leg 2 (the last one actually played - leg 3 stayed Pending) was
       // checked out, so its final remaining score was 0.
-      await expect(matchCenterScreen.turnRemaining).toHaveText('0 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('0')
 
       await matchCenterScreen.backButton.click()
       await expect(holdingScreen.root).toBeVisible()
@@ -345,10 +345,10 @@ test.describe.serial('Start next match', () => {
         await matchCenterScreen.enterScore(throwScore)
       }
       await matchCenterScreen.finishLeg(3)
-      await expect(matchCenterScreen.turnRemaining).toHaveText('501 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('501')
 
       await matchCenterScreen.enterScore(100)
-      await expect(matchCenterScreen.turnRemaining).toHaveText('401 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('401')
 
       // Leave mid-leg via Back (available while started, not just in the
       // read-only view) - the leg stays Started server-side, unfinished.
@@ -360,7 +360,7 @@ test.describe.serial('Start next match', () => {
       await gameSummaryPanel.gameBoxByType('Singles', 1).click()
       await expect(matchCenterScreen.root).toBeVisible()
       expect(await matchCenterScreen.isReadonly()).toBe(false)
-      await expect(matchCenterScreen.turnRemaining).toHaveText('401 remaining')
+      await expect(matchCenterScreen.turnRemaining).toHaveText('401')
 
       await matchCenterScreen.backButton.click()
       await expect(holdingScreen.root).toBeVisible()

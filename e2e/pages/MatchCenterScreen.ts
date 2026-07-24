@@ -1,9 +1,9 @@
 import type { Locator, Page } from '@playwright/test'
 
 /**
- * POM for MatchControl/MatchCenter.vue and its children (RemainingScorePanel,
- * EnterScorePanel, WonBullControl, DoublesFinishControl) - the live-scoring
- * screen for a single game.
+ * POM for MatchControl/MatchCenter.vue and its children (ScoringConsole,
+ * ScoreLedgerPanel, StatsPanel, GameListDrawer, WonBullControl,
+ * DoublesFinishControl) - the live-scoring screen for a single game.
  */
 export class MatchCenterScreen {
   readonly root: Locator
@@ -17,6 +17,7 @@ export class MatchCenterScreen {
   readonly wonBullNoButton: Locator
 
   readonly nextPlayerHeading: Locator
+  /** The hero remaining-score number itself - there's no separate "N remaining" chip any more (see ScoringConsole.vue), so assertions compare against the bare number, not "N remaining" text. */
   readonly turnRemaining: Locator
   readonly keypad: Locator
   readonly submitScoreButton: Locator
@@ -27,15 +28,14 @@ export class MatchCenterScreen {
   readonly ledgerEditableScores: Locator
   readonly ledgerEditError: Locator
 
-  /** Phone-tier tab switcher (<=600px, see MatchCenter.vue) - hidden above that width, where every panel shows at once. */
-  readonly tabLedger: Locator
-  readonly tabRemaining: Locator
-  readonly tabEnter: Locator
-  readonly tabStats: Locator
-  readonly scoreLedgerPanelQuarter: Locator
-  readonly remainingScorePanelQuarter: Locator
-  readonly enterScorePanelQuarter: Locator
-  readonly statsPanelQuarter: Locator
+  /** Collapsible secondary cards (see ScoreLedgerPanel.vue/StatsPanel.vue's own <details> wrapper), siblings of ScoringConsole below it - not tab-switched panels any more. */
+  readonly scoreLedgerCard: Locator
+  readonly statsCard: Locator
+
+  /** On-demand game switcher, replacing the old permanent left rail while a game is active (see ScoringConsole.vue/GameListDrawer.vue). */
+  readonly gamesDrawerTrigger: Locator
+  readonly gamesDrawer: Locator
+  readonly gamesDrawerClose: Locator
 
   constructor(private readonly page: Page) {
     this.root = page.locator('.match-center')
@@ -48,25 +48,23 @@ export class MatchCenterScreen {
     this.wonBullYesButton = this.wonBullDialog.getByRole('button', { name: 'Yes' })
     this.wonBullNoButton = this.wonBullDialog.getByRole('button', { name: 'No' })
 
-    this.nextPlayerHeading = this.root.locator('.enter-score-panel h2')
-    this.turnRemaining = this.root.locator('.enter-score-panel .turn-remaining')
+    this.nextPlayerHeading = this.root.locator('.turn-heading')
+    this.turnRemaining = this.root.locator('.hero-score')
     this.keypad = this.root.locator('.keypad-grid')
     this.submitScoreButton = this.root.getByRole('button', { name: 'Submit' })
     this.noScoreButton = this.root.getByRole('button', { name: 'No Score' })
-    this.scoreErrorMessage = this.root.locator('.enter-score-panel .error-message')
+    this.scoreErrorMessage = this.root.locator('.error-message')
 
     this.doublesFinishDialog = page.locator('.doubles-finish-dialog')
     this.ledgerEditableScores = this.root.locator('.ledger-score-editable')
     this.ledgerEditError = this.root.locator('.ledger-edit-error')
 
-    this.tabLedger = this.root.locator('[data-testid="match-center-tab-ledger"]')
-    this.tabRemaining = this.root.locator('[data-testid="match-center-tab-remaining"]')
-    this.tabEnter = this.root.locator('[data-testid="match-center-tab-enter"]')
-    this.tabStats = this.root.locator('[data-testid="match-center-tab-stats"]')
-    this.scoreLedgerPanelQuarter = this.root.locator('.quarter.score-ledger')
-    this.remainingScorePanelQuarter = this.root.locator('.quarter.remaining-score')
-    this.enterScorePanelQuarter = this.root.locator('.quarter.enter-score')
-    this.statsPanelQuarter = this.root.locator('.quarter.stats')
+    this.scoreLedgerCard = this.root.locator('.score-ledger-panel')
+    this.statsCard = this.root.locator('.stats-panel')
+
+    this.gamesDrawerTrigger = this.root.locator('[data-testid="open-games-drawer"]')
+    this.gamesDrawer = page.locator('[aria-label="Games in this match"]')
+    this.gamesDrawerClose = page.locator('[data-testid="close-games-drawer"]')
   }
 
   async startGame() {
@@ -124,5 +122,10 @@ export class MatchCenterScreen {
     await this.root.locator(`[data-testid="ledger-score-${index}"]`).click()
     await this.root.locator(`[data-testid="ledger-edit-input-${index}"]`).fill(String(newValue))
     await this.root.locator(`[data-testid="ledger-edit-save-${index}"]`).click()
+  }
+
+  async openGamesDrawer() {
+    await this.gamesDrawerTrigger.click()
+    await this.gamesDrawer.waitFor({ state: 'visible' })
   }
 }
