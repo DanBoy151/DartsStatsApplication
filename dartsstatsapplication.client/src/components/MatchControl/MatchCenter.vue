@@ -1,5 +1,15 @@
 <template>
-  <div class="match-center-grid">
+  <div class="match-center-grid" :class="`tab-${activeTab}`">
+    <div class="tab-strip">
+      <button type="button" class="tab-btn" :class="{ active: activeTab === 'ledger' }"
+              data-testid="match-center-tab-ledger" @click="activeTab = 'ledger'">History</button>
+      <button type="button" class="tab-btn" :class="{ active: activeTab === 'remaining' }"
+              data-testid="match-center-tab-remaining" @click="activeTab = 'remaining'">Score</button>
+      <button type="button" class="tab-btn" :class="{ active: activeTab === 'enter' }"
+              data-testid="match-center-tab-enter" @click="activeTab = 'enter'">Enter</button>
+      <button type="button" class="tab-btn" :class="{ active: activeTab === 'stats' }"
+              data-testid="match-center-tab-stats" @click="activeTab = 'stats'">Stats</button>
+    </div>
     <div class="quarter score-ledger">
       <!-- No disabled/pointer-events-blocking class here: the ledger is
            read-only display with nothing to protect from accidental
@@ -67,6 +77,15 @@
   const isComplete = computed(() => matchDataStore.getSelectedGame()?.status === 'Complete')
   const showCompleteMatchPopup = ref(false)
   const showPlayerOfMatchPopup = ref(false)
+
+  // Phone-tier tab switcher (see @media (max-width: 600px) below) - desktop/
+  // tablet ignore this and show every panel at once. Defaults to whichever
+  // panel actually matters right now: Remaining Score (with its Start
+  // button) before a leg is underway, Enter Score (the keypad, used every
+  // throw) once it is - hasGameStarted() covers resuming an already
+  // in-progress game, the started watcher below covers every leg after.
+  type MatchCenterTab = 'ledger' | 'remaining' | 'enter' | 'stats'
+  const activeTab = ref<MatchCenterTab>(hasGameStarted() ? 'enter' : 'remaining')
 
   // Candidates for Player of the Match: everyone who actually appeared in at
   // least one of the match's games (not just everyone marked available) -
@@ -199,6 +218,14 @@
     return game?.status === 'InProgress'
   }
 
+  // Jumps the phone tab switcher to Enter Score the moment a leg starts
+  // (started flips false -> true) - covers onStartMatch() and every
+  // startNextLeg() after the first. Doesn't fight a manual tab tap once
+  // that leg is underway, since this only fires on the transition itself.
+  watch(started, (isStarted) => {
+    if (isStarted) activeTab.value = 'enter'
+  })
+
   // currentPlayer is otherwise only ever set explicitly, from
   // onStartMatch()/startNextLeg() - which never run when RESUMING a game
   // that's already In Progress (as opposed to freshly starting one), so it
@@ -284,7 +311,7 @@
       opacity: 0.5;
     }
 
-  /* Grid placement for each panel */
+  /* Grid placement for each panel - desktop/laptop (1025px+) */
   /* Left column */
   .score-ledger {
     grid-column: 1 / 2;
@@ -305,5 +332,95 @@
   .stats {
     grid-column: 2 / 3;
     grid-row: 2 / 4; /* Spans rows 2 and 3 */
+  }
+
+  /* Tab strip only exists for the phone tier below 600px - hidden here so
+     it never affects desktop/tablet layout or spacing. */
+  .tab-strip {
+    display: none;
+  }
+
+  /* Tablet (601-1024px): not enough width for the 2fr/1fr grid to stay
+     comfortable, but still enough to show every panel at once (unlike
+     phone) - collapse to a single reordered column instead of tabbing. */
+  @media (max-width: 1024px) {
+    .match-center-grid {
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      min-height: 100%;
+      overflow-y: auto;
+    }
+
+    .quarter {
+      height: auto;
+      min-height: 20rem;
+    }
+
+      .quarter > * {
+        height: auto;
+        min-height: 20rem;
+      }
+
+    /* Remaining Score and Enter Score are what's actually used while a leg
+       is live - put them first, ahead of the Ledger/Stats reference panels. */
+    .remaining-score { order: 1; }
+    .enter-score { order: 2; }
+    .score-ledger { order: 3; }
+    .stats { order: 4; }
+  }
+
+  /* Phone (<=600px, matches MenuBar.vue's existing breakpoint): four
+     panels can't all be usable at once, so show one at a time via tabs -
+     defaulting to whichever panel actually matters right now (see
+     activeTab in the script). All four panels stay mounted (display:none,
+     not v-if) so nothing here changes what the desktop e2e suite finds. */
+  @media (max-width: 600px) {
+    .match-center-grid {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      gap: 0.5rem;
+    }
+
+    .tab-strip {
+      display: flex;
+      flex: none;
+      gap: 0.4rem;
+    }
+
+    .tab-btn {
+      flex: 1 1 0;
+      padding: 0.6rem 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      color: #7f8c8d;
+      background: #f0f2f4;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+      .tab-btn.active {
+        color: #fff;
+        background: #2c3e50;
+      }
+
+    .quarter {
+      display: none;
+    }
+
+    .tab-ledger .score-ledger,
+    .tab-remaining .remaining-score,
+    .tab-enter .enter-score,
+    .tab-stats .stats {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
+    }
   }
 </style>

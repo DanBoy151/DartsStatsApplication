@@ -126,7 +126,7 @@
   }
 
   .stat-hero {
-    font-size: 2.4rem;
+    font-size: clamp(1.8rem, 8vw, 2.4rem);
     font-weight: bold;
     color: #2c3e50;
     line-height: 1;

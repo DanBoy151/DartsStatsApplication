@@ -1,37 +1,21 @@
 <template>
-  <div class="doubles-finish-overlay">
-    <div class="doubles-finish-dialog">
-      <div class="doubles-finish-question">How many darts to finish?</div>
-      <div class="doubles-finish-buttons">
-        <button @click="$emit('result', 1)">1</button>
-        <button @click="$emit('result', 2)">2</button>
-        <button @click="$emit('result', 3)">3</button>
-      </div>
+  <ModalDialog dialog-class="doubles-finish-dialog">
+    <div class="doubles-finish-question">How many darts to finish?</div>
+    <div class="doubles-finish-buttons">
+      <button @click="$emit('result', 1)">1</button>
+      <button @click="$emit('result', 2)">2</button>
+      <button @click="$emit('result', 3)">3</button>
     </div>
-  </div>
+  </ModalDialog>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+  import ModalDialog from './ModalDialog.vue'
+
+  defineEmits<{ result: [darts: 1 | 2 | 3] }>()
+</script>
 
 <style scoped>
-  .doubles-finish-overlay {
-    position: fixed;
-    z-index: 1000;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .doubles-finish-dialog {
-    background: #fff;
-    border-radius: 12px;
-    padding: 2rem 2.5rem;
-    box-shadow: 0 4px 24px rgba(44, 62, 80, 0.15);
-    text-align: center;
-  }
-
   .doubles-finish-question {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;

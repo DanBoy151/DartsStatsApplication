@@ -1,5 +1,5 @@
 <template>
-  <div class="match-control-layout">
+  <div class="match-control-layout" :class="{ 'game-active': showingMatchCenter }">
     <div class="left-panel">
       <GameSummaryPanel :selected-game-id="selectedGameId ?? ''"
                         :disabled="!showHoldingScreen"
@@ -10,9 +10,9 @@
                                 @save="handleSave"
                                 @cancel="handleCancel" />
 
-      <MatchCenter v-else-if="selectedGameId && selectedGame && (selectedGame?.status=='Ready' || selectedGame?.status=='InProgress' || selectedGame?.status=='Complete') "
+      <MatchCenter v-else-if="matchCenterGame"
                    class="match-center"
-                   :game="selectedGame"
+                   :game="matchCenterGame"
                    @back="handleMatchCenterBack"
                    @edit-players="handleEditPlayers"
                    @game-complete="emit('game-complete')"
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, computed } from 'vue'
   import GameSummaryPanel from './MatchControl/GameSummaryPanel.vue'
   import AvailablePlayersControl from './MatchControl/AvailablePlayersControl.vue'
   import HoldingScreenControl from './MatchControl/HoldingScreenControl.vue'
@@ -58,6 +58,17 @@
   // which is a fresh game that's never had players assigned at all.
   const editingPlayers = ref(false)
 
+  // Single source of truth for "MatchCenter is what's showing right now" -
+  // used both for :game (a non-null Game, so v-else-if="matchCenterGame"
+  // narrows the same way the old inline condition did) and for collapsing
+  // the left rail (GameSummaryPanel) below 1024px (see <style> below), since
+  // its job - picking a game to view - isn't useful mid-scoring.
+  const matchCenterGame = computed<Game | null>(() => {
+    if (!selectedGameId.value || !selectedGame.value) return null
+    const status = selectedGame.value.status
+    return status === 'Ready' || status === 'InProgress' || status === 'Complete' ? selectedGame.value : null
+  })
+  const showingMatchCenter = computed(() => matchCenterGame.value !== null)
 
   //Need to update this and the Prop into the next screen
   function handleProceed() {
@@ -171,4 +182,60 @@
       min-height: 0;
       min-width: 0;
     }
+
+  /* Below tablet/laptop width, .left-panel's fixed 380px (min 320px) basis
+     doesn't fit beside anything - on a ~390px phone it alone leaves .center-
+     panel ~0 width, hiding whatever's in it (holding screen, roster
+     selection, AvailablePlayersControl - not just MatchCenter). Stack
+     vertically instead of side-by-side so every one of those screens stays
+     usable, then - once a game is actually active - drop the rail
+     entirely, since GameSummaryPanel's job (picking a game to view) isn't
+     useful mid-scoring and MatchCenter needs the full width instead. */
+  @media (max-width: 1024px) {
+    .match-control-layout {
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .left-panel {
+      flex: 0 0 auto;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      height: auto;
+      max-height: 45vh;
+      padding: 1rem;
+      justify-content: center;
+    }
+
+    .center-panel {
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 0;
+      padding: 1.25rem;
+    }
+
+    .center-panel > .match-center {
+      padding: 1.25rem;
+    }
+
+    .match-control-layout.game-active .left-panel {
+      display: none;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .left-panel {
+      padding: 0.75rem;
+      max-height: 40vh;
+    }
+
+    .center-panel {
+      padding: 0.75rem;
+    }
+
+    .center-panel > .match-center {
+      padding: 0.75rem;
+    }
+  }
 </style>

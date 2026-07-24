@@ -83,12 +83,27 @@ jobs:
       - name: Run E2E suite
         run: npm test
 
-      - name: Upload Playwright report
+      # Separate invocations (not folded into the command above) - each
+      # `playwright test` call boots/tears down its own fresh stack via
+      # globalSetup/globalTeardown, which is what gives the responsive smoke
+      # spec its own empty database. Run together with the suite above in
+      # one invocation, they'd fight over the app's "one Match In Progress
+      # at a time" rule the moment a second one tries to start its own
+      # match (see playwright.config.ts's own comment on this).
+      - name: Run responsive smoke suite (mobile)
+        run: npm run test:mobile
+
+      - name: Run responsive smoke suite (tablet)
+        run: npm run test:tablet
+
+      - name: Upload Playwright reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: e2e/playwright-report/
+          # Each of the three steps above writes to its own suffixed folder
+          # (see playwright.config.ts) - glob catches whichever actually ran.
+          path: e2e/playwright-report*/
           retention-days: 14
 
   # Builds both deployable images on every push/PR (catches a broken

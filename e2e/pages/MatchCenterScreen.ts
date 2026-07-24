@@ -27,6 +27,16 @@ export class MatchCenterScreen {
   readonly ledgerEditableScores: Locator
   readonly ledgerEditError: Locator
 
+  /** Phone-tier tab switcher (<=600px, see MatchCenter.vue) - hidden above that width, where every panel shows at once. */
+  readonly tabLedger: Locator
+  readonly tabRemaining: Locator
+  readonly tabEnter: Locator
+  readonly tabStats: Locator
+  readonly scoreLedgerPanelQuarter: Locator
+  readonly remainingScorePanelQuarter: Locator
+  readonly enterScorePanelQuarter: Locator
+  readonly statsPanelQuarter: Locator
+
   constructor(private readonly page: Page) {
     this.root = page.locator('.match-center')
     this.startButton = this.root.getByRole('button', { name: 'Start' })
@@ -48,6 +58,15 @@ export class MatchCenterScreen {
     this.doublesFinishDialog = page.locator('.doubles-finish-dialog')
     this.ledgerEditableScores = this.root.locator('.ledger-score-editable')
     this.ledgerEditError = this.root.locator('.ledger-edit-error')
+
+    this.tabLedger = this.root.locator('[data-testid="match-center-tab-ledger"]')
+    this.tabRemaining = this.root.locator('[data-testid="match-center-tab-remaining"]')
+    this.tabEnter = this.root.locator('[data-testid="match-center-tab-enter"]')
+    this.tabStats = this.root.locator('[data-testid="match-center-tab-stats"]')
+    this.scoreLedgerPanelQuarter = this.root.locator('.quarter.score-ledger')
+    this.remainingScorePanelQuarter = this.root.locator('.quarter.remaining-score')
+    this.enterScorePanelQuarter = this.root.locator('.quarter.enter-score')
+    this.statsPanelQuarter = this.root.locator('.quarter.stats')
   }
 
   async startGame() {

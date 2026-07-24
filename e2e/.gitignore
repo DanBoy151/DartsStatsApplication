@@ -1,6 +1,9 @@
 node_modules/
-test-results/
-playwright-report/
+# Suffixed variants (test-results-mobile/, playwright-report-tablet/, etc.)
+# come from the separate mobile/tablet smoke-suite invocations - see
+# playwright.config.ts's reportDirSuffix.
+test-results*/
+playwright-report*/
 blob-report/
 playwright/.cache/
 .env.local

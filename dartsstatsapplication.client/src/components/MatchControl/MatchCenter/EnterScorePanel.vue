@@ -355,6 +355,7 @@
   .key {
     flex: 1 1 2.5rem;
     min-width: 2.5rem;
+    min-height: 3rem;
     padding: 0.5rem 0;
     text-align: center;
     font-size: 1.1rem;
@@ -375,6 +376,17 @@
     flex: 1.4 1 3.5rem;
     color: #7f8c8d;
     font-size: 0.9rem;
+  }
+
+  @media (max-width: 600px) {
+    .key {
+      min-height: 3.25rem;
+      font-size: 1.3rem;
+    }
+
+    .key-wide {
+      font-size: 1rem;
+    }
   }
 
   .action-row {

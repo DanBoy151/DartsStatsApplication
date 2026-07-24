@@ -165,7 +165,9 @@
   }
 
   .remaining-score-row {
-    font-size: 8rem;
+    /* Scales fluidly with viewport width instead of a fixed 8rem, which
+       overflows a phone-width column for a 3-4 digit remaining score. */
+    font-size: clamp(2.5rem, 12vw, 8rem);
     font-weight: bold;
     text-align: center;
     margin-bottom: auto;
@@ -173,9 +175,20 @@
 
   .button-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: 1rem;
     margin-top: auto;
+  }
+
+  @media (max-width: 600px) {
+    .button-row {
+      justify-content: stretch;
+    }
+
+    .button-row button {
+      flex: 1 1 45%;
+    }
   }
 
   .back-btn {

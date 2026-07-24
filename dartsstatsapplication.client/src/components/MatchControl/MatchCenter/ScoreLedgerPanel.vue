@@ -288,8 +288,10 @@
   }
 
   .ledger-edit-btn {
-    width: 1.7rem;
-    height: 1.7rem;
+    /* 44px - a 1.7rem (27px) round tap target was a genuine mis-tap risk on
+       any touchscreen, not just small ones. */
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: 50%;
     border: none;
     font-size: 0.9rem;
@@ -298,6 +300,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: none;
   }
 
   .ledger-edit-btn.save {
