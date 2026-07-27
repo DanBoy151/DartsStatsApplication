@@ -45,6 +45,18 @@ namespace DartsStatsApplication.Server.Services
         }
 
         /// <summary>
+        /// Corrects the recorded bull-off result after the fact - a factual
+        /// correction rather than a game-state transition, so (unlike
+        /// StartGame) this has no status precondition; it can be changed at
+        /// any time, including after the game is Complete.
+        /// </summary>
+        public void UpdateWonBull(Boolean wonBull)
+        {
+            _game.data.wonBull = wonBull;
+            _documentSession.Store(_game);
+        }
+
+        /// <summary>
         /// Creates the next Leg for this game (order = however many already
         /// exist), as long as the game is In Progress and hasn't already
         /// reached its configured legsToPlay. Called by the client once it

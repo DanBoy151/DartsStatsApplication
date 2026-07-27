@@ -141,6 +141,34 @@ namespace DartsStatsApplication.Server.Controllers
         }
 
         /// <summary>
+        /// Correct the recorded bull-off result for a Game. Unlike Start (which
+        /// requires the game to be Ready), this is a factual correction with no
+        /// status precondition - it can be changed at any time, including after
+        /// the game is Complete.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpPut("{id}/won-bull")]
+        public async Task<ActionResult<Game>> UpdateWonBull(Guid Id, Boolean wonBull)
+        {
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var game = await session.LoadAsync<Game>(Id);
+                if (game == null)
+                {
+                    return NotFound();
+                }
+
+                GameService service = new GameService(session, game);
+                service.UpdateWonBull(wonBull);
+
+                await session.SaveChangesAsync();
+                return Ok(game);
+            }
+        }
+
+        /// <summary>
         /// Update the selected players for a Game
         /// </summary>
         /// <param name="id"></param>

@@ -7,6 +7,7 @@
                     @edit-players="$emit('edit-players')"
                     @legComplete="onFinishLeg"
                     @open-games="showDrawer = true"
+                    @update-won-bull="onUpdateWonBull"
                     :game-type="selectedGame?.type"
                     :gamestarted="started"
                     :readonly="isComplete"
@@ -44,7 +45,7 @@
   import GameListDrawer from './MatchCenter/GameListDrawer.vue'
   import CompleteMatchControl from './MatchCenter/CompleteMatchControl.vue'
   import PlayerOfMatchControl from './MatchCenter/PlayerOfMatchControl.vue'
-  import { startGame, fetchLegs, completeGame, createNextLeg } from '@/actions/GameService'
+  import { startGame, fetchLegs, completeGame, createNextLeg, updateWonBull } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg, completeLegByBullOff } from '@/actions/LegService'
@@ -237,6 +238,10 @@
     },
     { immediate: true }
   )
+
+  async function onUpdateWonBull(newWonBull: boolean) {
+    await updateWonBull(newWonBull)
+  }
 
   async function onStartMatch(payload: { wonBull: boolean }) {
     started.value = true

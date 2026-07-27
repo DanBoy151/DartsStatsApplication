@@ -166,6 +166,23 @@ export const useMatchDataStore = defineStore('leg', {
         this.match.games.push(newGame);
       }
     },
+    /**
+     * Patches wonBull in place on both the match.games entry and (if it's
+     * the same game) selectedGame, rather than going through setGameData() -
+     * that helper always rebuilds the game object with legs:[], which would
+     * silently wipe out a game's already-recorded legs (see the comment on
+     * doneWithSelectedGame() below describing the same footgun elsewhere).
+     */
+    updateWonBull(gameId: string, wonBull: boolean) {
+      if (!this.match) return;
+
+      const game = this.match.games.find(g => g.gameId === gameId);
+      if (game) game.wonBull = wonBull;
+
+      if (this.selectedGame && this.selectedGame.gameId === gameId) {
+        this.selectedGame.wonBull = wonBull;
+      }
+    },
     setSelectedGame(gameID: string) {
       if (!this.match) return;
 

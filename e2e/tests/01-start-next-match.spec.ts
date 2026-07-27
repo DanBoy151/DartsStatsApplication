@@ -411,6 +411,44 @@ test.describe.serial('Start next match', () => {
       await expect(gameSummaryPanel.root).toBeVisible()
     })
 
+    await test.step('the bull-off prompt names the real players, and the recorded result can be corrected via the header chip', async () => {
+      // Trebles(1) - untouched by any earlier step.
+      await gameSummaryPanel.gameBoxByType('Trebles', 1).click()
+      await selectPlayersGameScreen.selectPlayer(0, players[0]!.name)
+      await selectPlayersGameScreen.selectPlayer(1, players[1]!.name)
+      await selectPlayersGameScreen.selectPlayer(2, players[2]!.name)
+      await selectPlayersGameScreen.saveButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+
+      await gameSummaryPanel.gameBoxByType('Trebles', 1).click()
+      await matchCenterScreen.startButton.click()
+      await expect(matchCenterScreen.wonBullDialog).toBeVisible()
+
+      // Regression test: the dialog used to hardcode the literal word
+      // "Player" instead of naming any of this game's actual players.
+      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[0]!.name)
+      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[1]!.name)
+      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[2]!.name)
+
+      await matchCenterScreen.wonBullYesButton.click()
+      await expect(matchCenterScreen.wonBullDialog).not.toBeVisible()
+      await expect(matchCenterScreen.bullResultChip).toHaveText(/Bull: Won/)
+
+      // Corrects a mis-click via the header chip, reusing the same dialog.
+      await matchCenterScreen.editBullResult(false)
+      await expect(matchCenterScreen.bullResultChip).toHaveText(/Bull: Lost/)
+
+      // The correction is a real server round-trip, not just local UI state -
+      // reopening the game (still In Progress, mid-leg) reflects it too.
+      await matchCenterScreen.backButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+      await gameSummaryPanel.gameBoxByType('Trebles', 1).click()
+      await expect(matchCenterScreen.bullResultChip).toHaveText(/Bull: Lost/)
+
+      await matchCenterScreen.backButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+    })
+
     await test.step('completing a game reaches validation instead of crashing (BUGS.md #10)', async () => {
       // API-level regression test: GameService.CompleteGame ran the exact
       // same kind of synchronous Marten query (`.ToList()` directly on the

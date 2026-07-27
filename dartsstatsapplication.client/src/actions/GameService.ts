@@ -63,6 +63,20 @@ export async function startGame(wonBull: boolean) {
 
 }
 
+/** Corrects the recorded bull-off result after the fact - see matchDataStore.updateWonBull for why this doesn't go through setGameData(). */
+export async function updateWonBull(wonBull: boolean) {
+  const matchDataStore = useMatchDataStore()
+  const gameId = matchDataStore.selectedGame?.gameId
+  if (!gameId) return
+
+  try {
+    await apiRequest<RawGameData>(`/api/Game/${gameId}/won-bull?wonBull=${wonBull}`, { method: 'PUT' })
+    matchDataStore.updateWonBull(gameId, wonBull)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error updating bull result')
+  }
+}
+
 export async function fetchLegs() {
   const matchDataStore = useMatchDataStore()
   const selectedGame = matchDataStore.getSelectedGame()

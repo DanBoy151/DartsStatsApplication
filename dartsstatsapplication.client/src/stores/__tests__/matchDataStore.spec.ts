@@ -249,6 +249,36 @@ describe('matchDataStore.completeSelectedLegByBullOff', () => {
   })
 })
 
+describe('matchDataStore.updateWonBull', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('patches wonBull on both match.games and selectedGame, preserving legs', () => {
+    // Regression test: going through setGameData() here (as every other Game
+    // endpoint response does) would rebuild the game object with legs:[],
+    // silently discarding whatever legs this game already has - updateWonBull()
+    // patches the field in place instead, precisely to avoid that.
+    const store = useMatchDataStore()
+    store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', false, 0, 3, 501, null)
+    store.setLegData('game-1', 'leg-1', 'Completed', [], 'Win', 3, 0, 0, false)
+    store.setSelectedGame('game-1')
+
+    store.updateWonBull('game-1', true)
+
+    const game = store.match?.games.find(g => g.gameId === 'game-1')
+    expect(game?.wonBull).toBe(true)
+    expect(game?.legs).toHaveLength(1)
+    expect(store.selectedGame?.wonBull).toBe(true)
+  })
+
+  it('does nothing when there is no match', () => {
+    const store = useMatchDataStore()
+    expect(() => store.updateWonBull('game-1', true)).not.toThrow()
+  })
+})
+
 describe('matchDataStore.editSelectedLegScoreEntry', () => {
   beforeEach(() => {
     setActivePinia(createPinia())

@@ -8,9 +8,19 @@
           <span class="turn-meta">{{ metaText }}</span>
         </div>
       </div>
-      <button v-if="gamesTotal" type="button" class="games-chip" data-testid="open-games-drawer" @click="emit('open-games')">
-        Games {{ gamesComplete }} / {{ gamesTotal }} <span class="chev">▸</span>
-      </button>
+      <div class="header-chips">
+        <button v-if="wonBullKnown"
+                type="button"
+                class="bull-chip"
+                :class="{ won: currentWonBull }"
+                data-testid="bull-result-chip"
+                @click="openBullEditor">
+          Bull: {{ currentWonBull ? 'Won' : 'Lost' }} <span class="edit-icon" aria-hidden="true">✎</span>
+        </button>
+        <button v-if="gamesTotal" type="button" class="games-chip" data-testid="open-games-drawer" @click="emit('open-games')">
+          Games {{ gamesComplete }} / {{ gamesTotal }} <span class="chev">▸</span>
+        </button>
+      </div>
     </div>
 
     <div v-if="error" class="error-message">{{ error }}</div>
@@ -60,7 +70,7 @@
       <button class="btn-quiet" type="button" @click="backMatch">Back</button>
     </div>
 
-    <WonBullControl v-if="showBullPopup" @result="onBullResult" />
+    <WonBullControl v-if="showBullPopup" :player-names="gamePlayerNames" @result="onBullResult" />
     <DoublesFinishControl v-if="showCheckoutDartsPopup" @result="onCheckoutDartsResult" />
     <OpponentCheckedOutControl v-if="showOpponentCheckedOutPopup" @result="onOpponentCheckedOutResult" />
     <BullOffControl v-if="showBullOffPopup" @result="onBullOffResult" />
@@ -97,6 +107,7 @@
     (e: 'edit-players'): void
     (e: 'legComplete'): void
     (e: 'open-games'): void
+    (e: 'update-won-bull', wonBull: boolean): void
   }>()
 
   const remainingScore = computed(() => matchDataStore.getSelectedLeg()?.remainingScore ?? 0)
@@ -121,6 +132,24 @@
     return currentPlayerName.value ? `${currentPlayerName.value} to throw` : 'Next throw'
   })
 
+  // Resolves this game's assigned player(s) to real name(s) for the bull-off
+  // prompt ("Did Dave Chisnall / Gary Anderson win the Bull-Off?"), same
+  // playerId -> name lookup pattern as currentPlayerName above and
+  // GameSummaryPanel.vue's displayPlayers().
+  const gamePlayerNames = computed(() => {
+    const players = matchDataStore.selectedGame?.players ?? []
+    if (players.length === 0) return ''
+    return players
+      .map((id) => matchDataStore.matchAvailablePlayers.find((p) => p.playerId === id)?.name ?? id)
+      .join(' / ')
+  })
+
+  // The bull result only has a value once the game has actually been
+  // started at some point - before that (Ready, not yet started) there's
+  // nothing recorded yet to show or edit.
+  const wonBullKnown = computed(() => started.value || !!props.readonly)
+  const currentWonBull = computed(() => matchDataStore.getSelectedGame()?.wonBull ?? false)
+
   const metaText = computed(() => props.gameType ?? '')
 
   function hasMatchStarted() {
@@ -134,6 +163,10 @@
   const showOpponentCheckedOutPopup = ref(false)
   const showBullOffPopup = ref(false)
   const wonBull = ref<boolean | null>(null)
+  // True while showBullPopup is open to correct an already-recorded result
+  // (via the header's Bull chip), rather than to decide it for the first
+  // time before Start - distinguishes the two in onBullResult() below.
+  const editingBullResult = ref(false)
   const score = ref<number | string>(getInitialScore())
   const actionRowEl = ref<HTMLDivElement | null>(null)
 
@@ -192,9 +225,21 @@
   }
 
   function onBullResult(result: boolean) {
-    wonBull.value = result
     showBullPopup.value = false
+
+    if (editingBullResult.value) {
+      editingBullResult.value = false
+      emit('update-won-bull', result)
+      return
+    }
+
+    wonBull.value = result
     startMatch()
+  }
+
+  function openBullEditor() {
+    editingBullResult.value = true
+    showBullPopup.value = true
   }
 
   function startMatch() {
@@ -509,6 +554,13 @@
     letter-spacing: 0.05em;
   }
 
+  .header-chips {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
   .games-chip {
     display: inline-flex;
     align-items: center;
@@ -533,6 +585,36 @@
     .games-chip .chev {
       color: #7f8c9a;
       font-size: 0.7rem;
+    }
+
+  .bull-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #fdecea;
+    border: 1px solid transparent;
+    color: #e74c3c;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    flex: none;
+  }
+
+    .bull-chip.won {
+      background: #e6f6ec;
+      color: #1f8a4c;
+    }
+
+    .bull-chip:hover {
+      opacity: 0.8;
+    }
+
+    .bull-chip .edit-icon {
+      font-size: 0.75rem;
+      opacity: 0.7;
     }
 
   .error-message {

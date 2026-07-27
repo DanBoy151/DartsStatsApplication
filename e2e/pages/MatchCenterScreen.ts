@@ -13,8 +13,10 @@ export class MatchCenterScreen {
   readonly editPlayersButton: Locator
 
   readonly wonBullDialog: Locator
+  readonly wonBullQuestion: Locator
   readonly wonBullYesButton: Locator
   readonly wonBullNoButton: Locator
+  readonly bullResultChip: Locator
 
   readonly nextPlayerHeading: Locator
   /** The hero remaining-score number itself - there's no separate "N remaining" chip any more (see ScoringConsole.vue), so assertions compare against the bare number, not "N remaining" text. */
@@ -45,8 +47,10 @@ export class MatchCenterScreen {
     this.editPlayersButton = this.root.getByRole('button', { name: 'Edit Players' })
 
     this.wonBullDialog = page.locator('.won-bull-dialog')
+    this.wonBullQuestion = this.wonBullDialog.locator('.won-bull-question')
     this.wonBullYesButton = this.wonBullDialog.getByRole('button', { name: 'Yes' })
     this.wonBullNoButton = this.wonBullDialog.getByRole('button', { name: 'No' })
+    this.bullResultChip = this.root.locator('[data-testid="bull-result-chip"]')
 
     this.nextPlayerHeading = this.root.locator('.turn-heading')
     this.turnRemaining = this.root.locator('.hero-score')
@@ -122,6 +126,14 @@ export class MatchCenterScreen {
     await this.root.locator(`[data-testid="ledger-score-${index}"]`).click()
     await this.root.locator(`[data-testid="ledger-edit-input-${index}"]`).fill(String(newValue))
     await this.root.locator(`[data-testid="ledger-edit-save-${index}"]`).click()
+  }
+
+  /** Corrects an already-recorded bull result via the header chip, reusing the same Yes/No dialog Start uses. */
+  async editBullResult(won: boolean) {
+    await this.bullResultChip.click()
+    await this.wonBullDialog.waitFor({ state: 'visible' })
+    await (won ? this.wonBullYesButton : this.wonBullNoButton).click()
+    await this.wonBullDialog.waitFor({ state: 'hidden' })
   }
 
   async openGamesDrawer() {

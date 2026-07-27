@@ -1,6 +1,6 @@
 <template>
   <ModalDialog dialog-class="won-bull-dialog">
-    <div class="won-bull-question">Did Player win the Bull-Off?</div>
+    <div class="won-bull-question">Did {{ playerNames || 'the players' }} win the Bull-Off?</div>
     <div class="won-bull-buttons">
       <button @click="$emit('result', true)">Yes</button>
       <button @click="$emit('result', false)">No</button>
@@ -10,6 +10,13 @@
 
 <script setup lang="ts">
   import ModalDialog from './ModalDialog.vue'
+
+  defineProps<{
+    /** Resolved player name(s) for the game this bull-off decides, e.g.
+     *  "Dave Chisnall" or "Dave Chisnall / Gary Anderson" - falls back to
+     *  generic phrasing if names can't be resolved. */
+    playerNames?: string
+  }>()
 
   defineEmits<{ result: [won: boolean] }>()
 </script>
