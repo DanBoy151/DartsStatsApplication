@@ -4,51 +4,75 @@
       Score Ledger
       <span class="marker" aria-hidden="true">▶</span>
     </summary>
+
+    <!-- Only worth showing once there's a choice - a single-leg game (most
+         Doubles/Trebles) never renders this row at all. -->
+    <div v-if="sortedLegs.length > 1" class="leg-tabs">
+      <button v-for="(leg, index) in sortedLegs"
+              :key="leg.legId"
+              type="button"
+              class="leg-tab"
+              :class="[legTabStatusClass(leg), { active: leg.legId === viewedLegId }]"
+              :data-testid="`leg-tab-${index}`"
+              @click="viewedLegId = leg.legId">
+        <span class="dot" aria-hidden="true"></span> Leg {{ index + 1 }}
+      </button>
+    </div>
+    <div v-if="sortedLegs.length > 1 && !isViewingActiveLeg" class="viewing-note" data-testid="viewing-history-note">
+      Viewing history — <span class="pill">read-only</span>
+    </div>
+
     <div class="panel-body" ref="ledgerPanel">
       <div v-if="rows.length === 0" class="ledger-empty">No throws yet</div>
-      <div v-else class="ledger-timeline">
-        <template v-for="(row, index) in rows" :key="index">
-          <div v-if="row.round !== rows[index - 1]?.round" class="ledger-round-divider">Round {{ row.round }}</div>
-          <div class="ledger-row"
-               :class="{ 'is-max': row.isMaximum, 'is-noscore': row.isNoScore, 'is-editing': editingIndex === index }">
-            <span class="ledger-dot" :style="{ background: playerColor(row.playerIndex) }"></span>
-            <span class="ledger-player">{{ getPlayerName(row.playerId) }}</span>
+      <template v-else>
+        <div class="ledger-timeline">
+          <template v-for="(row, index) in rows" :key="index">
+            <div v-if="row.round !== rows[index - 1]?.round" class="ledger-round-divider">Round {{ row.round }}</div>
+            <div class="ledger-row"
+                 :class="{ 'is-max': row.isMaximum, 'is-noscore': row.isNoScore, 'is-editing': editingIndex === index }">
+              <span class="ledger-dot" :style="{ background: playerColor(row.playerIndex) }"></span>
+              <span class="ledger-player">{{ getPlayerName(row.playerId) }}</span>
 
-            <template v-if="editingIndex === index">
-              <input class="ledger-score-input"
-                     ref="editInputEl"
-                     type="text"
-                     inputmode="numeric"
-                     v-model="editValue"
-                     :data-testid="`ledger-edit-input-${index}`"
-                     @keydown.enter="saveEdit(index)"
-                     @keydown.escape="cancelEdit" />
-              <span class="ledger-edit-actions">
-                <button type="button"
-                        class="ledger-edit-btn save"
-                        :data-testid="`ledger-edit-save-${index}`"
-                        aria-label="Save score"
-                        @click="saveEdit(index)">✓</button>
-                <button type="button"
-                        class="ledger-edit-btn cancel"
-                        :data-testid="`ledger-edit-cancel-${index}`"
-                        aria-label="Cancel edit"
-                        @click="cancelEdit">✕</button>
-              </span>
-            </template>
-            <template v-else>
-              <button v-if="editable"
-                      type="button"
-                      class="ledger-score ledger-score-editable"
-                      :data-testid="`ledger-score-${index}`"
-                      @click="startEdit(index, row.score)">{{ row.isNoScore ? 'No score' : row.score }}</button>
-              <span v-else class="ledger-score">{{ row.isNoScore ? 'No score' : row.score }}</span>
-              <span class="ledger-remaining">{{ row.isNoScore ? 'no change' : `→ ${row.remaining}` }}</span>
-            </template>
-          </div>
-          <div v-if="editingIndex === index && editError" class="ledger-edit-error">{{ editError }}</div>
-        </template>
-      </div>
+              <template v-if="editingIndex === index">
+                <input class="ledger-score-input"
+                       ref="editInputEl"
+                       type="text"
+                       inputmode="numeric"
+                       v-model="editValue"
+                       :data-testid="`ledger-edit-input-${index}`"
+                       @keydown.enter="saveEdit(index)"
+                       @keydown.escape="cancelEdit" />
+                <span class="ledger-edit-actions">
+                  <button type="button"
+                          class="ledger-edit-btn save"
+                          :data-testid="`ledger-edit-save-${index}`"
+                          aria-label="Save score"
+                          @click="saveEdit(index)">✓</button>
+                  <button type="button"
+                          class="ledger-edit-btn cancel"
+                          :data-testid="`ledger-edit-cancel-${index}`"
+                          aria-label="Cancel edit"
+                          @click="cancelEdit">✕</button>
+                </span>
+              </template>
+              <template v-else>
+                <button v-if="canEdit"
+                        type="button"
+                        class="ledger-score ledger-score-editable"
+                        :data-testid="`ledger-score-${index}`"
+                        @click="startEdit(index, row.score)">{{ row.isNoScore ? 'No score' : row.score }}</button>
+                <span v-else class="ledger-score">{{ row.isNoScore ? 'No score' : row.score }}</span>
+                <span class="ledger-remaining">{{ row.isNoScore ? 'no change' : `→ ${row.remaining}` }}</span>
+              </template>
+            </div>
+            <div v-if="editingIndex === index && editError" class="ledger-edit-error">{{ editError }}</div>
+          </template>
+        </div>
+
+        <div v-if="viewedLegFinalCaption" class="leg-final" :class="viewedLeg?.result === 'Win' ? 'win' : 'loss'" data-testid="leg-final-summary">
+          Leg {{ viewedLegNumber }} — {{ viewedLeg?.result === 'Win' ? 'Won' : 'Lost' }} · {{ viewedLegFinalCaption }}
+        </div>
+      </template>
     </div>
   </details>
 </template>
@@ -56,13 +80,16 @@
 <script setup lang="ts">
   import { computed, ref, watch, nextTick } from 'vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
+  import type { LegDataState } from "@/stores/matchDataStore"
   import { buildLedgerRows, startingScoreForGameType } from '@/models/gameProgress'
   import { isValidDartScore } from '@/models/dartScoring'
   import { playerColor } from '@/models/playerColors'
 
   const props = defineProps<{
     /** Allow correcting a previously-recorded throw - only while the game is
-     *  actually In Progress, not before it starts or once it's Complete. */
+     *  actually In Progress, not before it starts or once it's Complete.
+     *  Even then, only the ACTIVE leg is ever editable - a historical leg
+     *  viewed via the tabs below is always read-only (see canEdit). */
     editable?: boolean
   }>()
 
@@ -77,8 +104,56 @@
     return game.startingScore > 0 ? game.startingScore : startingScoreForGameType(game.type)
   }
 
+  const sortedLegs = computed(() =>
+    [...(matchDataStore.getSelectedGame()?.legs ?? [])].sort((a, b) => a.order - b.order)
+  )
+
+  const activeLegId = computed(() => matchDataStore.getSelectedLeg()?.legId ?? null)
+
+  // Which leg the ledger is currently DISPLAYING - independent of
+  // matchDataStore.selectedLeg, which drives live scoring elsewhere
+  // (ScoringConsole's hero score, etc.) and must never be disturbed just by
+  // looking at an earlier leg's history here.
+  const viewedLegId = ref<string | null>(null)
+
+  // Whenever the actually-active leg changes (a new leg starts, or a
+  // different game is selected), snap the view back to it - a captain
+  // mid-scoring should always land on "what I'm playing now" by default,
+  // and only see history if they deliberately pick an older tab.
+  watch(activeLegId, (id) => {
+    viewedLegId.value = id
+    cancelEdit()
+  }, { immediate: true })
+
+  watch(viewedLegId, () => cancelEdit())
+
+  const viewedLeg = computed(() => {
+    const leg = sortedLegs.value.find(l => l.legId === viewedLegId.value)
+    return leg ?? matchDataStore.getSelectedLeg()
+  })
+
+  const isViewingActiveLeg = computed(() => viewedLegId.value === activeLegId.value)
+  const canEdit = computed(() => !!props.editable && isViewingActiveLeg.value)
+
+  function legTabStatusClass(leg: LegDataState): string {
+    if (leg.status !== 'Completed') return 'live'
+    return leg.result === 'Win' ? 'win' : 'loss'
+  }
+
+  const viewedLegNumber = computed(() =>
+    sortedLegs.value.findIndex(l => l.legId === viewedLeg.value?.legId) + 1
+  )
+
+  const viewedLegFinalCaption = computed(() => {
+    const leg = viewedLeg.value
+    if (!leg || leg.status !== 'Completed') return null
+    if (leg.wonByBullOff) return 'Decided on the bull'
+    if (leg.result === 'Win') return `Checkout · ${leg.finishDarts} dart${leg.finishDarts === 1 ? '' : 's'}`
+    return 'Opponent checked out'
+  })
+
   const rows = computed(() => {
-    const leg = matchDataStore.getSelectedLeg()
+    const leg = viewedLeg.value
     const game = matchDataStore.getSelectedGame()
     if (!leg || !game) return []
 
@@ -95,7 +170,7 @@
   const editError = ref('')
 
   async function startEdit(index: number, currentScore: number) {
-    if (!props.editable || editingIndex.value !== null) return
+    if (!canEdit.value || editingIndex.value !== null) return
     editingIndex.value = index
     editValue.value = String(currentScore)
     editError.value = ''
@@ -137,7 +212,8 @@
     cancelEdit()
   }
 
-  // Auto-scroll to the last row when rows change
+  // Auto-scroll to the last row when rows change (including a tab switch,
+  // since rows is derived from viewedLeg).
   watch(rows, async () => {
     await nextTick()
     if (ledgerPanel.value) {
@@ -185,6 +261,103 @@
 
   .panel[open] > summary .marker {
     transform: rotate(90deg);
+  }
+
+  .leg-tabs {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0 0.9rem 0.75rem;
+    overflow-x: auto;
+  }
+
+  .leg-tab {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 2px solid transparent;
+    background: #f8f9fa;
+    color: #7f8c9a;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+
+    .leg-tab:hover {
+      background: #eaf1f8;
+    }
+
+    .leg-tab.active {
+      border-color: #3498db;
+      background: #eaf1f8;
+      color: #3498db;
+    }
+
+    .leg-tab .dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      flex: none;
+    }
+
+    .leg-tab.win .dot { background: #1f8a4c; }
+    .leg-tab.loss .dot { background: #e74c3c; }
+
+    .leg-tab.live .dot {
+      background: #3498db;
+      animation: leg-tab-pulse 1.4s ease-in-out infinite;
+    }
+
+    .leg-tab.win.active { border-color: #1f8a4c; background: #e6f6ec; color: #1f8a4c; }
+    .leg-tab.loss.active { border-color: #e74c3c; background: #fdecea; color: #e74c3c; }
+
+  @keyframes leg-tab-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .viewing-note {
+    padding: 0 1.25rem 0.6rem;
+    font-size: 0.78rem;
+    color: #7f8c9a;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+    .viewing-note .pill {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.16rem 0.55rem;
+      border-radius: 999px;
+      background: #f8f9fa;
+      color: #7f8c9a;
+    }
+
+  .leg-final {
+    margin: 0.5rem 0.4rem 0.2rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .leg-final.win {
+    background: #e6f6ec;
+    color: #1f8a4c;
+  }
+
+  .leg-final.loss {
+    background: #fdecea;
+    color: #e74c3c;
   }
 
   .panel-body {

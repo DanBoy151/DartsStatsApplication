@@ -327,6 +327,12 @@
     border-radius: 6px;
     background: #f8f9fa;
     font-size: 0.9rem;
+    /* .form-game is itself a flex child of .form-games below - without
+       this, its own implicit min-width:auto (computed from the opponent
+       name's full, untruncated intrinsic width) would still force the row
+       wider than the viewport on mobile, even with the grid-level fix on
+       .form-game-opponent below. */
+    min-width: 0;
   }
 
   .form-game.is-win {
@@ -345,6 +351,14 @@
   .form-game-opponent {
     color: #2c3e50;
     font-weight: 600;
+    /* A long opponent name (e.g. "Greensborough Blue Hogs") would otherwise
+       force its 1fr grid track past its allotted share (grid items default
+       to min-width:auto, sized to their content) and overflow the row -
+       truncate it instead of letting it break the layout. */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .form-game-result {

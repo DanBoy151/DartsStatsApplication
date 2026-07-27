@@ -121,6 +121,43 @@ test.describe.serial('Start next match', () => {
       await expect(gameSummaryPanel.root).toBeVisible()
     })
 
+    await test.step('a rejected roster save does not cascade into recording opposition headcount', async () => {
+      // Regression test: setAvailablePlayers() used to swallow any failure
+      // and return void regardless, so proceed() cascaded into calling
+      // recordOppositionHeadcount() anyway - masking the real rejection
+      // reason behind a second, more confusing "not InProgress" error from
+      // that call instead (the shared error toast only ever shows the latest).
+      await gameSummaryPanel.backButton.click()
+      await expect(availablePlayersScreen.root).toBeVisible()
+
+      let oppositionHeadcountCalled = false
+      await page.route('**/opposition-headcount', async (route) => {
+        oppositionHeadcountCalled = true
+        await route.continue()
+      })
+      await page.route('**/update-available-players', async (route) => {
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Forced failure for regression test' }),
+        })
+      })
+
+      await availablePlayersScreen.proceed()
+
+      // Stays on the roster screen rather than cascading forward.
+      await expect(availablePlayersScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).not.toBeVisible()
+      expect(oppositionHeadcountCalled).toBe(false)
+
+      await page.unroute('**/update-available-players')
+      await page.unroute('**/opposition-headcount')
+
+      // A retry (the failure above was forced, nothing really wrong with the roster) succeeds normally.
+      await availablePlayersScreen.proceed()
+      await expect(gameSummaryPanel.root).toBeVisible()
+    })
+
     await test.step('selecting a pending game opens player selection for it', async () => {
       await gameSummaryPanel.gameBoxByType('Doubles').click()
       await expect(selectPlayersGameScreen.root).toBeVisible()
@@ -325,6 +362,19 @@ test.describe.serial('Start next match', () => {
       // checked out, so its final remaining score was 0.
       await expect(matchCenterScreen.turnRemaining).toHaveText('0')
 
+      // Both played legs (2-0, decided) show as their own tabs, both Won -
+      // there's no "live" leg once the whole game is Complete, and nothing
+      // is ever editable here regardless of which tab is selected.
+      await expect(matchCenterScreen.legTabs).toHaveCount(2)
+      await expect(matchCenterScreen.legTab(0)).toHaveClass(/win/)
+      await expect(matchCenterScreen.legTab(1)).toHaveClass(/win/)
+      await expect(matchCenterScreen.legFinalSummary).toContainText('Leg 2 — Won')
+      await expect(matchCenterScreen.ledgerEditableScores).toHaveCount(0)
+
+      await matchCenterScreen.legTab(0).click()
+      await expect(matchCenterScreen.legFinalSummary).toContainText('Leg 1 — Won')
+      await expect(matchCenterScreen.ledgerEditableScores).toHaveCount(0)
+
       await matchCenterScreen.backButton.click()
       await expect(gameSummaryPanel.root).toBeVisible()
     })
@@ -361,6 +411,36 @@ test.describe.serial('Start next match', () => {
       await expect(matchCenterScreen.root).toBeVisible()
       expect(await matchCenterScreen.isReadonly()).toBe(false)
       await expect(matchCenterScreen.turnRemaining).toHaveText('401')
+
+      // Leg history tabs: leg 1 (Won) and leg 2 (the active, live one) both
+      // show up now that this game has more than one leg. The active tab is
+      // selected by default and nothing is flagged read-only yet.
+      await expect(matchCenterScreen.legTabs).toHaveCount(2)
+      await expect(matchCenterScreen.legTab(1)).toHaveClass(/active/)
+      await expect(matchCenterScreen.viewingHistoryNote).not.toBeVisible()
+      await expect(matchCenterScreen.ledgerEditableScores.first()).toBeVisible()
+
+      // Switching to leg 1's tab shows its own completed throws, read-only -
+      // and must NOT disturb leg 2's live remaining score shown above the ledger.
+      await matchCenterScreen.legTab(0).click()
+      await expect(matchCenterScreen.viewingHistoryNote).toBeVisible()
+      await expect(matchCenterScreen.legFinalSummary).toContainText('Leg 1 — Won')
+      await expect(matchCenterScreen.ledgerEditableScores).toHaveCount(0)
+      await expect(matchCenterScreen.turnRemaining).toHaveText('401')
+
+      // Switching back to the active leg's own tab returns to the live, editable view.
+      await matchCenterScreen.legTab(1).click()
+      await expect(matchCenterScreen.viewingHistoryNote).not.toBeVisible()
+      await expect(matchCenterScreen.ledgerEditableScores.first()).toBeVisible()
+
+      await matchCenterScreen.backButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+
+      // Reopening the game later resets the view back to the active leg,
+      // rather than staying on whichever tab was last clicked.
+      await gameSummaryPanel.gameBoxByType('Singles', 1).click()
+      await expect(matchCenterScreen.legTab(1)).toHaveClass(/active/)
+      await expect(matchCenterScreen.viewingHistoryNote).not.toBeVisible()
 
       await matchCenterScreen.backButton.click()
       await expect(gameSummaryPanel.root).toBeVisible()

@@ -32,6 +32,11 @@ export class MatchCenterScreen {
   readonly ledgerEditableScores: Locator
   readonly ledgerEditError: Locator
 
+  /** Only rendered once a game has more than one leg - see ScoreLedgerPanel.vue. */
+  readonly legTabs: Locator
+  readonly viewingHistoryNote: Locator
+  readonly legFinalSummary: Locator
+
   /** Collapsible secondary cards (see ScoreLedgerPanel.vue/StatsPanel.vue's own <details> wrapper), siblings of ScoringConsole below it - not tab-switched panels any more. */
   readonly scoreLedgerCard: Locator
   readonly statsCard: Locator
@@ -65,6 +70,10 @@ export class MatchCenterScreen {
     this.doublesFinishDialog = page.locator('.doubles-finish-dialog')
     this.ledgerEditableScores = this.root.locator('.ledger-score-editable')
     this.ledgerEditError = this.root.locator('.ledger-edit-error')
+
+    this.legTabs = this.root.locator('[data-testid^="leg-tab-"]')
+    this.viewingHistoryNote = this.root.locator('[data-testid="viewing-history-note"]')
+    this.legFinalSummary = this.root.locator('[data-testid="leg-final-summary"]')
 
     this.scoreLedgerCard = this.root.locator('.score-ledger-panel')
     this.statsCard = this.root.locator('.stats-panel')
@@ -137,6 +146,11 @@ export class MatchCenterScreen {
     await this.wonBullDialog.waitFor({ state: 'visible' })
     await (won ? this.wonBullYesButton : this.wonBullNoButton).click()
     await this.wonBullDialog.waitFor({ state: 'hidden' })
+  }
+
+  /** The leg tab at `index` (0-based) in the Score Ledger's leg history row. */
+  legTab(index: number): Locator {
+    return this.root.locator(`[data-testid="leg-tab-${index}"]`)
   }
 
   async openGamesDrawer() {
