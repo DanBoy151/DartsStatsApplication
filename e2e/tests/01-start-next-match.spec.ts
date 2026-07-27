@@ -362,6 +362,19 @@ test.describe.serial('Start next match', () => {
       // checked out, so its final remaining score was 0.
       await expect(matchCenterScreen.turnRemaining).toHaveText('0')
 
+      // Both played legs (2-0, decided) show as their own tabs, both Won -
+      // there's no "live" leg once the whole game is Complete, and nothing
+      // is ever editable here regardless of which tab is selected.
+      await expect(matchCenterScreen.legTabs).toHaveCount(2)
+      await expect(matchCenterScreen.legTab(0)).toHaveClass(/win/)
+      await expect(matchCenterScreen.legTab(1)).toHaveClass(/win/)
+      await expect(matchCenterScreen.legFinalSummary).toContainText('Leg 2 — Won')
+      await expect(matchCenterScreen.ledgerEditableScores).toHaveCount(0)
+
+      await matchCenterScreen.legTab(0).click()
+      await expect(matchCenterScreen.legFinalSummary).toContainText('Leg 1 — Won')
+      await expect(matchCenterScreen.ledgerEditableScores).toHaveCount(0)
+
       await matchCenterScreen.backButton.click()
       await expect(gameSummaryPanel.root).toBeVisible()
     })
@@ -398,6 +411,36 @@ test.describe.serial('Start next match', () => {
       await expect(matchCenterScreen.root).toBeVisible()
       expect(await matchCenterScreen.isReadonly()).toBe(false)
       await expect(matchCenterScreen.turnRemaining).toHaveText('401')
+
+      // Leg history tabs: leg 1 (Won) and leg 2 (the active, live one) both
+      // show up now that this game has more than one leg. The active tab is
+      // selected by default and nothing is flagged read-only yet.
+      await expect(matchCenterScreen.legTabs).toHaveCount(2)
+      await expect(matchCenterScreen.legTab(1)).toHaveClass(/active/)
+      await expect(matchCenterScreen.viewingHistoryNote).not.toBeVisible()
+      await expect(matchCenterScreen.ledgerEditableScores.first()).toBeVisible()
+
+      // Switching to leg 1's tab shows its own completed throws, read-only -
+      // and must NOT disturb leg 2's live remaining score shown above the ledger.
+      await matchCenterScreen.legTab(0).click()
+      await expect(matchCenterScreen.viewingHistoryNote).toBeVisible()
+      await expect(matchCenterScreen.legFinalSummary).toContainText('Leg 1 — Won')
+      await expect(matchCenterScreen.ledgerEditableScores).toHaveCount(0)
+      await expect(matchCenterScreen.turnRemaining).toHaveText('401')
+
+      // Switching back to the active leg's own tab returns to the live, editable view.
+      await matchCenterScreen.legTab(1).click()
+      await expect(matchCenterScreen.viewingHistoryNote).not.toBeVisible()
+      await expect(matchCenterScreen.ledgerEditableScores.first()).toBeVisible()
+
+      await matchCenterScreen.backButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+
+      // Reopening the game later resets the view back to the active leg,
+      // rather than staying on whichever tab was last clicked.
+      await gameSummaryPanel.gameBoxByType('Singles', 1).click()
+      await expect(matchCenterScreen.legTab(1)).toHaveClass(/active/)
+      await expect(matchCenterScreen.viewingHistoryNote).not.toBeVisible()
 
       await matchCenterScreen.backButton.click()
       await expect(gameSummaryPanel.root).toBeVisible()
