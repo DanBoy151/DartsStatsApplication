@@ -1,6 +1,6 @@
 <template>
   <div class="select-players-game-control">
-    <h2 class="player-list-heading">Select Players</h2>
+    <h2 class="player-list-heading">Select Players — {{ gameTypeLabel }}</h2>
     <div class="player-selectors">
       <div v-for="(dropdown, idx) in playerCount"
            :key="idx"
@@ -49,6 +49,8 @@
         return 1
     }
   })
+
+  const gameTypeLabel = computed(() => matchDataStore.getSelectedGame()?.type ?? '')
 
 
   const matchPlayers = ref<Player[]>([])

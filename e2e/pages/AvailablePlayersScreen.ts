@@ -8,6 +8,7 @@ export class AvailablePlayersScreen {
   readonly playerItems: Locator
   readonly proceedButton: Locator
   readonly backButton: Locator
+  readonly selectionCount: Locator
 
   constructor(private readonly page: Page) {
     this.root = page.locator('.available-players-control')
@@ -16,6 +17,7 @@ export class AvailablePlayersScreen {
     this.playerItems = this.root.locator('.player-item')
     this.proceedButton = this.root.getByRole('button', { name: 'Proceed' })
     this.backButton = this.root.getByRole('button', { name: 'Back' })
+    this.selectionCount = this.root.locator('[data-testid="available-players-count"]')
   }
 
   async waitUntilLoaded() {

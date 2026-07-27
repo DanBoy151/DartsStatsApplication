@@ -14,16 +14,20 @@
           </label>
         </li>
       </ul>
+      <p v-if="fetchError" class="error-message">{{ fetchError }}</p>
+      <p class="selection-count" data-testid="available-players-count" :class="{ 'is-short': !canProceed }">
+        {{ selectedCount }} selected<span v-if="!canProceed"> — need at least {{ minimumPlayers }}</span>
+      </p>
     </div>
     <div class="button-row">
-      <button class="control-btn" @click="proceed">Proceed</button>
+      <button class="control-btn" @click="proceed" :disabled="!canProceed">Proceed</button>
       <button class="control-btn back-btn" @click="back">Back</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
+  import { ref, computed, onMounted } from 'vue'
   import { getPlayers } from '@/actions/PlayerService'
   import { setAvailablePlayers } from '@/actions/MatchService'
   import { useMatchDataStore } from "@/stores/matchDataStore"
@@ -36,19 +40,35 @@
   }>()
 
   const loading = ref(true)
+  const fetchError = ref('')
+
+  // Mirrors MatchControllerValidator.ValidateAvailablePlayers' server-side
+  // "Not Enough Players Selected" rule, so the UI gives feedback before a
+  // round trip rather than after a rejected request.
+  const minimumPlayers = 5
+
+  const selectedCount = computed(() =>
+    matchDataStore.matchAvailablePlayers.filter(p => p.isAvailable).length
+  )
+  const canProceed = computed(() => selectedCount.value >= minimumPlayers)
 
   async function fetchPlayers() {
     loading.value = true
+    fetchError.value = ''
     try {
       await getPlayers()
     }
-    catch { }
+    catch {
+      fetchError.value = 'Unable to load players. Please try again.'
+    }
     finally {
       loading.value = false
     }
   }
 
   async function proceed() {
+    if (!canProceed.value) return
+
     // Must await: the holding screen renders immediately once we emit, so
     // navigating before the save resolves could show the next screen before
     // the roster was actually persisted.
@@ -147,7 +167,7 @@
     transition: background 0.2s;
   }
 
-    .control-btn:hover {
+    .control-btn:hover:enabled {
       background: #506E8BFF;
     }
 
@@ -164,6 +184,30 @@
     color: #e74c3c;
     font-size: 1rem;
     margin-top: 1rem;
+  }
+
+  .selection-count {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #7f8c9a;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    background: #f8f9fa;
+    margin: 0.5rem 0 0;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .selection-count.is-short {
+    background: #fdecea;
+    color: #e74c3c;
+  }
+
+  .control-btn:disabled {
+    background: #b0b8c1;
+    cursor: not-allowed;
   }
 
   .spinner {

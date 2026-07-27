@@ -1,17 +1,6 @@
 <template>
   <div class="match-control-layout">
-    <!-- GameSummaryPanel's job - picking a game to view - isn't useful
-         mid-scoring, and its fixed width has nothing to do with what
-         MatchCenter itself needs, so it's dropped from layout entirely
-         while a game is active - MatchCenter's own drawer (GameListDrawer)
-         gives on-demand access to the same list instead (see @select-game
-         below, which routes back through the same handler either way). -->
-    <div v-if="!showingMatchCenter" class="left-panel">
-      <GameSummaryPanel :selected-game-id="selectedGameId ?? ''"
-                        :disabled="!showHoldingScreen"
-                        @select-game="handleSelectGame" />
-    </div>
-    <div class="center-panel">
+    <div class="match-control-content">
       <SelectPlayersGameControl v-if="selectedGameId && selectedGame && (selectedGame?.status=='Pending' || editingPlayers)"
                                 @save="handleSave"
                                 @cancel="handleCancel" />
@@ -25,8 +14,11 @@
                    @select-game="handleSelectGame"
                    />
 
-      <HoldingScreenControl v-else-if="showHoldingScreen"
-                            @exit="handleExit" />
+      <GameSummaryPanel v-else-if="showHoldingScreen"
+                        class="game-overview"
+                        :selected-game-id="selectedGameId ?? ''"
+                        @select-game="handleSelectGame"
+                        @back-to-players="handleExit" />
 
       <AvailablePlayersControl v-else
                                @proceed="handleProceed"
@@ -40,7 +32,6 @@
   import { ref, computed } from 'vue'
   import GameSummaryPanel from './MatchControl/GameSummaryPanel.vue'
   import AvailablePlayersControl from './MatchControl/AvailablePlayersControl.vue'
-  import HoldingScreenControl from './MatchControl/HoldingScreenControl.vue'
   import SelectPlayersGameControl from './MatchControl/SelectPlayersGameControl.vue'
   import MatchCenter from './MatchControl/MatchCenter.vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
@@ -66,17 +57,13 @@
   const editingPlayers = ref(false)
 
   // Single source of truth for "MatchCenter is what's showing right now" -
-  // used both for :game (a non-null Game, so v-else-if="matchCenterGame"
-  // narrows the same way the old inline condition did) and for dropping the
-  // left rail (GameSummaryPanel) entirely while a game is active (see the
-  // template's v-if="!showingMatchCenter") - its job, picking a game to
-  // view, isn't useful mid-scoring, and MatchCenter's own drawer covers it.
+  // a non-null Game, so v-else-if="matchCenterGame" narrows the same way the
+  // old inline condition did.
   const matchCenterGame = computed<Game | null>(() => {
     if (!selectedGameId.value || !selectedGame.value) return null
     const status = selectedGame.value.status
     return status === 'Ready' || status === 'InProgress' || status === 'Complete' ? selectedGame.value : null
   })
-  const showingMatchCenter = computed(() => matchCenterGame.value !== null)
 
   //Need to update this and the Prop into the next screen
   function handleProceed() {
@@ -151,34 +138,14 @@
     box-sizing: border-box;
   }
 
-  .left-panel {
-    flex: 0 0 380px;
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-end;
-    padding: 2rem 0 1.5rem 2rem;
-    min-width: 320px;
-    max-width: 480px;
-    height: 100%;
-    box-sizing: border-box;
-  }
-
-    .left-panel :deep(.game-summary-panel) {
-      max-height: 100%;
-      height: auto;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-    }
-
-  .center-panel {
+  .match-control-content {
     flex: 1 1 0;
     display: flex;
     /* "safe" falls back to start-aligned (scrollable from the top) instead
        of clipping symmetrically top-and-bottom if content is ever taller
-       than the viewport - MatchCenter's new console+ledger+stats stack has
-       no fixed height (unlike the old grid), so this can genuinely happen
-       on a short window. */
+       than the viewport - MatchCenter's console+ledger+stats stack (and the
+       merged game-overview screen below) has no fixed height, so this can
+       genuinely happen on a short window. */
     align-items: safe center;
     justify-content: center; /* Center horizontally */
     min-width: 0;
@@ -188,55 +155,30 @@
     overflow-y: auto;
   }
 
-    /* MatchCenter (and only MatchCenter - other center-panel children size
-       to their own content) caps at a comfortable reading width instead of
-       stretching edge-to-edge on a wide monitor; its own children
-       (ScoringConsole, the ledger/stats cards) supply their own padding, so
-       no padding is added here. */
-    .center-panel > .match-center {
+    /* MatchCenter caps at a comfortable reading width instead of stretching
+       edge-to-edge on a wide monitor; its own children (ScoringConsole, the
+       ledger/stats cards) supply their own padding, so no padding is added
+       here. */
+    .match-control-content > .match-center {
       width: min(1100px, 94vw);
       box-sizing: border-box;
     }
 
-  /* Below tablet/laptop width, .left-panel's fixed 380px (min 320px) basis
-     doesn't fit beside anything - on a ~390px phone it alone leaves .center-
-     panel ~0 width, hiding whatever's in it (holding screen, roster
-     selection, AvailablePlayersControl). Stack vertically instead of
-     side-by-side so every one of those screens stays usable. (MatchCenter
-     itself never shares this row with .left-panel at all any more - see
-     the template's v-if - so it isn't a factor here.) */
-  @media (max-width: 1024px) {
-    .match-control-layout {
-      flex-direction: column;
-      overflow-y: auto;
-    }
-
-    .left-panel {
-      flex: 0 0 auto;
-      width: 100%;
-      min-width: 0;
-      max-width: none;
+    /* GameSummaryPanel's own height:100%/overflow:hidden is built for its
+       "drawer" use (filling GameListDrawer's fixed-height aside) - here, as
+       the merged game-overview screen, it should flow to its content height
+       instead and let this container's own overflow-y:auto scroll the page,
+       matching MatchCenter's own convention above. */
+    .match-control-content > .game-overview {
+      width: min(760px, 94vw);
       height: auto;
-      max-height: 45vh;
-      padding: 1rem;
-      justify-content: center;
+      max-height: none;
+      overflow: visible;
+      box-sizing: border-box;
     }
-
-    .center-panel {
-      flex: 1 1 auto;
-      width: 100%;
-      min-height: 0;
-      padding: 1.25rem;
-    }
-  }
 
   @media (max-width: 600px) {
-    .left-panel {
-      padding: 0.75rem;
-      max-height: 40vh;
-    }
-
-    .center-panel {
+    .match-control-content {
       padding: 0.75rem;
     }
   }

@@ -15,7 +15,6 @@ test('Match Center adapts to phone/tablet viewports', async ({
   page,
   launchScreen,
   availablePlayersScreen,
-  holdingScreen,
   gameSummaryPanel,
   selectPlayersGameScreen,
   matchCenterScreen,
@@ -36,13 +35,13 @@ test('Match Center adapts to phone/tablet viewports', async ({
     await availablePlayersScreen.setPlayerAvailable(player.name, true)
   }
   await availablePlayersScreen.proceed()
-  await expect(holdingScreen.root).toBeVisible()
+  await expect(gameSummaryPanel.root).toBeVisible()
 
   // Singles only needs one player - fastest game type to get into MatchCenter with.
   await gameSummaryPanel.gameBoxByType('Singles').click()
   await selectPlayersGameScreen.selectPlayer(0, players[0]!.name)
   await selectPlayersGameScreen.saveButton.click()
-  await expect(holdingScreen.root).toBeVisible()
+  await expect(gameSummaryPanel.root).toBeVisible()
 
   await gameSummaryPanel.gameBoxByType('Singles').click()
   await expect(matchCenterScreen.root).toBeVisible()

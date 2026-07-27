@@ -36,7 +36,6 @@ test.describe.serial('Start next match', () => {
     seededMatch,
     launchScreen,
     availablePlayersScreen,
-    holdingScreen,
     gameSummaryPanel,
     selectPlayersGameScreen,
     matchCenterScreen,
@@ -93,15 +92,15 @@ test.describe.serial('Start next match', () => {
       await availablePlayersScreen.proceed()
 
       // The PUT is still gated - we must still be on the roster screen.
-      await expect(holdingScreen.root).not.toBeVisible()
+      await expect(gameSummaryPanel.root).not.toBeVisible()
       await expect(availablePlayersScreen.root).toBeVisible()
 
       // Resolving the gate lets this (and any later) matching request
       // through immediately - no need to unroute.
       releaseResponse!()
 
-      await expect(holdingScreen.root).toBeVisible()
-      await expect(holdingScreen.heading).toHaveText('Please Select Game')
+      await expect(gameSummaryPanel.root).toBeVisible()
+      await expect(gameSummaryPanel.heading).toHaveText('Select Game')
 
       // Start: 2 Trebles, 3 Doubles, 6 Singles - see MatchService.CreatePendingGames.
       await expect(gameSummaryPanel.gameBoxes).toHaveCount(11)
@@ -110,7 +109,7 @@ test.describe.serial('Start next match', () => {
     })
 
     await test.step('"Back to Players" returns to the roster screen (BUGS.md #9)', async () => {
-      await holdingScreen.backButton.click()
+      await gameSummaryPanel.backButton.click()
       await expect(availablePlayersScreen.root).toBeVisible()
       await expect(availablePlayersScreen.heading).toHaveText('Select Available Players')
 
@@ -118,13 +117,13 @@ test.describe.serial('Start next match', () => {
       await expect(await availablePlayersScreen.selectedPlayerCount()).toBe(players.length)
 
       await availablePlayersScreen.proceed()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
     })
 
     await test.step('selecting a pending game opens player selection for it', async () => {
       await gameSummaryPanel.gameBoxByType('Doubles').click()
       await expect(selectPlayersGameScreen.root).toBeVisible()
-      await expect(selectPlayersGameScreen.heading).toHaveText('Select Players')
+      await expect(selectPlayersGameScreen.heading).toHaveText('Select Players — Doubles')
       await expect(selectPlayersGameScreen.playerDropdowns).toHaveCount(2)
     })
 
@@ -133,7 +132,7 @@ test.describe.serial('Start next match', () => {
       await selectPlayersGameScreen.selectPlayer(1, players[1]!.name)
       await selectPlayersGameScreen.saveButton.click()
 
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
     })
 
     await test.step('a Ready game (players already assigned) opens straight into MatchCenter, with Edit Players pre-filled and non-mutating', async () => {
@@ -148,12 +147,12 @@ test.describe.serial('Start next match', () => {
 
       await matchCenterScreen.editPlayersButton.click()
       await expect(selectPlayersGameScreen.root).toBeVisible()
-      await expect(selectPlayersGameScreen.heading).toHaveText('Select Players')
+      await expect(selectPlayersGameScreen.heading).toHaveText('Select Players — Doubles')
       expect(await selectPlayersGameScreen.selectedPlayerName(0)).toBe(players[0]!.name)
       expect(await selectPlayersGameScreen.selectedPlayerName(1)).toBe(players[1]!.name)
 
       await selectPlayersGameScreen.cancelButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
     })
 
     await test.step('playing a game through to completion keeps the summary panel populated (BUGS.md #11-13)', async () => {
@@ -195,7 +194,7 @@ test.describe.serial('Start next match', () => {
 
       // Doubles is single-leg, so finishing it finishes the game and returns
       // to the holding screen automatically.
-      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      await expect(gameSummaryPanel.root).toBeVisible({ timeout: 10_000 })
       await expect(page.locator('.error-toast')).not.toBeVisible()
 
       await expect(gameSummaryPanel.gameBoxes).toHaveCount(11)
@@ -214,7 +213,7 @@ test.describe.serial('Start next match', () => {
       await selectPlayersGameScreen.selectPlayer(1, players[1]!.name)
       await selectPlayersGameScreen.selectPlayer(2, players[2]!.name)
       await selectPlayersGameScreen.saveButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
 
       await gameSummaryPanel.gameBoxByType('Trebles').click()
       await matchCenterScreen.startGame()
@@ -226,7 +225,7 @@ test.describe.serial('Start next match', () => {
       await expect(matchCenterScreen.doublesFinishDialog).not.toBeVisible()
 
       // Trebles is single-leg, so a Loss here decides the game too.
-      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      await expect(gameSummaryPanel.root).toBeVisible({ timeout: 10_000 })
       const trebles = gameSummaryPanel.gameBoxByType('Trebles')
       await expect(trebles).toContainText('Complete')
     })
@@ -241,7 +240,7 @@ test.describe.serial('Start next match', () => {
       await selectPlayersGameScreen.selectPlayer(0, players[2]!.name)
       await selectPlayersGameScreen.selectPlayer(1, players[3]!.name)
       await selectPlayersGameScreen.saveButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
 
       await gameSummaryPanel.gameBoxByType('Doubles', 1).click()
       await matchCenterScreen.startGame()
@@ -267,7 +266,7 @@ test.describe.serial('Start next match', () => {
       // progress is client-only), so reaching Complete here - rather than a
       // validation error - is itself proof the corrected score round-tripped.
       await matchCenterScreen.clickFinish()
-      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      await expect(gameSummaryPanel.root).toBeVisible({ timeout: 10_000 })
       await expect(gameSummaryPanel.gameBoxByType('Doubles', 1)).toContainText('Complete')
     })
 
@@ -277,7 +276,7 @@ test.describe.serial('Start next match', () => {
       await gameSummaryPanel.gameBoxByType('Singles').click()
       await selectPlayersGameScreen.selectPlayer(0, players[0]!.name)
       await selectPlayersGameScreen.saveButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
 
       await gameSummaryPanel.gameBoxByType('Singles').click()
       await matchCenterScreen.startGame()
@@ -291,7 +290,7 @@ test.describe.serial('Start next match', () => {
       // 1-0: not decided yet (best of 3 needs 2) - still on this game, next
       // leg already under way at a fresh 501.
       await expect(matchCenterScreen.root).toBeVisible()
-      await expect(holdingScreen.root).not.toBeVisible()
+      await expect(gameSummaryPanel.root).not.toBeVisible()
       await expect(matchCenterScreen.turnRemaining).toHaveText('501')
 
       // Leg 2 (Win): 2-0 now decides it outright - leg 3 is never played.
@@ -300,7 +299,7 @@ test.describe.serial('Start next match', () => {
       }
       await matchCenterScreen.finishLeg(3)
 
-      await expect(holdingScreen.root).toBeVisible({ timeout: 10_000 })
+      await expect(gameSummaryPanel.root).toBeVisible({ timeout: 10_000 })
       const singles = gameSummaryPanel.gameBoxByType('Singles')
       await expect(singles).toContainText('Complete')
 
@@ -326,7 +325,7 @@ test.describe.serial('Start next match', () => {
       await expect(matchCenterScreen.turnRemaining).toHaveText('0')
 
       await matchCenterScreen.backButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
     })
 
     await test.step('viewing an In Progress game resumes on the current leg, not a fresh one', async () => {
@@ -334,7 +333,7 @@ test.describe.serial('Start next match', () => {
       await secondSingles.click()
       await selectPlayersGameScreen.selectPlayer(0, players[1]!.name)
       await selectPlayersGameScreen.saveButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
 
       await gameSummaryPanel.gameBoxByType('Singles', 1).click()
       await matchCenterScreen.startGame()
@@ -353,7 +352,7 @@ test.describe.serial('Start next match', () => {
       // Leave mid-leg via Back (available while started, not just in the
       // read-only view) - the leg stays Started server-side, unfinished.
       await matchCenterScreen.backButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
 
       // Reopening must resume on leg 2's actual progress (401), not reset to
       // a fresh leg (501) or leg 1's now-irrelevant final state (0).
@@ -363,7 +362,7 @@ test.describe.serial('Start next match', () => {
       await expect(matchCenterScreen.turnRemaining).toHaveText('401')
 
       await matchCenterScreen.backButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
     })
 
     await test.step('players can be changed while a game is Ready, but the roster locks once it is In Progress', async () => {
@@ -373,7 +372,7 @@ test.describe.serial('Start next match', () => {
       await gameSummaryPanel.gameBoxByType('Singles', 2).click()
       await selectPlayersGameScreen.selectPlayer(0, players[3]!.name)
       await selectPlayersGameScreen.saveButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
 
       // Reopening a Ready game goes straight to MatchCenter; Edit Players
       // reopens selection pre-filled with the roster just saved, and a
@@ -385,7 +384,7 @@ test.describe.serial('Start next match', () => {
 
       await selectPlayersGameScreen.selectPlayer(0, players[4]!.name)
       await selectPlayersGameScreen.saveButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
       await expect(gameSummaryPanel.gameBoxByType('Singles', 2)).toContainText(players[4]!.name)
 
       // Once started (In Progress), the roster is locked in - no Edit
@@ -409,7 +408,7 @@ test.describe.serial('Start next match', () => {
       expect(body.detail).toContain('already started')
 
       await matchCenterScreen.backButton.click()
-      await expect(holdingScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).toBeVisible()
     })
 
     await test.step('completing a game reaches validation instead of crashing (BUGS.md #10)', async () => {
