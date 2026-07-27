@@ -475,6 +475,43 @@ test.describe.serial('Start next match', () => {
       await expect(gameSummaryPanel.root).toBeVisible()
     })
 
+    await test.step('switching games via the in-match drawer updates both the highlight and the Ready/In-Progress screen', async () => {
+      // Singles(1) is still In Progress (left mid-leg earlier), Doubles(2)
+      // is still Ready (assigned in the previous step, never started) - a
+      // good pair to switch between via the drawer without playing either
+      // out further.
+      await gameSummaryPanel.gameBoxByType('Singles', 1).click()
+      await expect(matchCenterScreen.root).toBeVisible()
+      await expect(matchCenterScreen.turnRemaining).toHaveText('401')
+
+      await matchCenterScreen.openGamesDrawer()
+      await gameSummaryPanel.gameBoxByType('Doubles', 2).click()
+
+      // Regression: MatchCenter used to alias its `game` prop into a
+      // one-time local const, so switching games via the drawer never
+      // actually changed what the console displayed - it kept showing
+      // Singles(1)'s active scoring keypad instead of Doubles(2)'s
+      // "Ready to start" screen (looking blank/broken).
+      await expect(matchCenterScreen.gamesDrawer).not.toBeVisible()
+      await expect(matchCenterScreen.nextPlayerHeading).toHaveText('Ready to start')
+      await expect(matchCenterScreen.startButton).toBeVisible()
+      await expect(matchCenterScreen.submitScoreButton).not.toBeVisible()
+
+      // Regression: the drawer's own highlight was frozen on whichever game
+      // was selected when MatchCenter first mounted - reopening it should
+      // now show Doubles(2), not the original Singles(1), as selected.
+      await matchCenterScreen.openGamesDrawer()
+      await expect(gameSummaryPanel.gameBoxByType('Doubles', 2)).toHaveClass(/selected/)
+      await expect(gameSummaryPanel.gameBoxByType('Singles', 1)).not.toHaveClass(/selected/)
+      await matchCenterScreen.gamesDrawerClose.click()
+
+      // Doubles(2) is Ready but not started, so "Cancel" (not "Back") is
+      // what's visible here - leaves its roster untouched, still Ready for
+      // the rest of the test.
+      await matchCenterScreen.cancelButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+    })
+
     await test.step('completing a game reaches validation instead of crashing (BUGS.md #10)', async () => {
       // API-level regression test: GameService.CompleteGame ran the exact
       // same kind of synchronous Marten query (`.ToList()` directly on the

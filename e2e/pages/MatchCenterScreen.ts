@@ -10,6 +10,8 @@ export class MatchCenterScreen {
   readonly startButton: Locator
   readonly finishButton: Locator
   readonly backButton: Locator
+  /** Only visible while a game is Ready (not yet started) - Back only shows once started or read-only. */
+  readonly cancelButton: Locator
   readonly editPlayersButton: Locator
 
   readonly wonBullDialog: Locator
@@ -44,6 +46,7 @@ export class MatchCenterScreen {
     this.startButton = this.root.getByRole('button', { name: 'Start' })
     this.finishButton = this.root.getByRole('button', { name: 'Finish' })
     this.backButton = this.root.getByRole('button', { name: 'Back' })
+    this.cancelButton = this.root.getByRole('button', { name: 'Cancel' })
     this.editPlayersButton = this.root.getByRole('button', { name: 'Edit Players' })
 
     this.wonBullDialog = page.locator('.won-bull-dialog')

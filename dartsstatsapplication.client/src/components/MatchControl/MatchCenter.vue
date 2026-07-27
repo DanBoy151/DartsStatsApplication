@@ -8,7 +8,7 @@
                     @legComplete="onFinishLeg"
                     @open-games="showDrawer = true"
                     @update-won-bull="onUpdateWonBull"
-                    :game-type="selectedGame?.type"
+                    :game-type="props.game?.type"
                     :gamestarted="started"
                     :readonly="isComplete"
                     :games-complete="gamesComplete"
@@ -24,7 +24,7 @@
     </div>
 
     <GameListDrawer v-if="showDrawer"
-                    :selected-game-id="selectedGame?.id ?? ''"
+                    :selected-game-id="props.game?.id ?? ''"
                     @close="showDrawer = false"
                     @select-game="onDrawerSelectGame" />
 
@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, onMounted, watch } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { defineProps, defineEmits } from 'vue'
   import ScoreLedgerPanel from './MatchCenter/ScoreLedgerPanel.vue'
   import ScoringConsole from './MatchCenter/ScoringConsole.vue'
@@ -66,8 +66,6 @@
   const props = defineProps<{
     game: Game
   }>()
-
-  const selectedGame = props.game
 
   const started = ref(false)
   const wonBull = ref<boolean | null>(null)
@@ -204,16 +202,24 @@
   }
 
 
-  onMounted(() => {
-    if (hasGameStarted()) {
-      started.value = true
-    }
-  });
-
   function hasGameStarted() {
     const game = matchDataStore.getSelectedGame()
     return game?.status === 'InProgress'
   }
+
+  // Re-derives `started` every time a DIFFERENT game is selected (not just
+  // on mount) - the games drawer lets the captain switch games in place,
+  // without unmounting/remounting MatchCenter, so relying on onMounted alone
+  // left `started` frozen at whatever the first-selected game's status was.
+  // Switching from an InProgress game to a Ready one then still showed the
+  // active scoring keypad instead of the Ready screen, looking broken/blank.
+  watch(
+    () => props.game.id,
+    () => {
+      started.value = hasGameStarted()
+    },
+    { immediate: true }
+  )
 
   // currentPlayer is otherwise only ever set explicitly, from
   // onStartMatch()/startNextLeg() - which never run when RESUMING a game
