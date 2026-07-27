@@ -233,19 +233,22 @@
     box-shadow: 0 4px 24px rgba(44, 62, 80, 0.10);
     display: flex;
     flex-direction: column;
-    height: 100%;
-    max-height: 100%;
     box-sizing: border-box;
     overflow: hidden;
   }
 
   /* GameListDrawer.vue's own panel already provides the card shadow/edge -
-     this just needs to fill it, not nest a second card inside. */
+     this just needs to fill it, not nest a second card inside. Unlike the
+     full-screen overview (which sizes to its content and lets the page
+     scroll), the drawer's aside has a fixed height, so this variant alone
+     needs to fill it and scroll its own games-list internally. */
   .game-summary-panel.variant-drawer {
     max-width: none;
     margin: 0;
     border-radius: 0;
     box-shadow: none;
+    height: 100%;
+    max-height: 100%;
   }
 
   /* Room for GameListDrawer.vue's floating close button in the header's
@@ -357,14 +360,20 @@
   }
 
   .games-list {
-    flex: 1 1 0;
-    min-height: 0;
     padding: 1.5rem 2rem;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     background: #f8f9fa;
+  }
+
+  /* Only the drawer variant (fixed-height aside) needs its own internal
+     scroll - the full-screen overview flows to content height instead and
+     lets its page-level container scroll (see MatchControl.vue). */
+  .variant-drawer .games-list {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .game-section-heading {

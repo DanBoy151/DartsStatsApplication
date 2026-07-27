@@ -164,16 +164,12 @@
       box-sizing: border-box;
     }
 
-    /* GameSummaryPanel's own height:100%/overflow:hidden is built for its
-       "drawer" use (filling GameListDrawer's fixed-height aside) - here, as
-       the merged game-overview screen, it should flow to its content height
-       instead and let this container's own overflow-y:auto scroll the page,
-       matching MatchCenter's own convention above. */
+    /* The merged game-overview screen (GameSummaryPanel's "full" variant)
+       already flows to its own content height and scrolls via this
+       container's overflow-y:auto, matching MatchCenter's own convention
+       above - only the width cap is needed here. */
     .match-control-content > .game-overview {
       width: min(760px, 94vw);
-      height: auto;
-      max-height: none;
-      overflow: visible;
       box-sizing: border-box;
     }
 
