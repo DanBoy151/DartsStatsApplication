@@ -412,11 +412,15 @@ test.describe.serial('Start next match', () => {
     })
 
     await test.step('the bull-off prompt names the real players, and the recorded result can be corrected via the header chip', async () => {
-      // Trebles(1) - untouched by any earlier step.
+      // Trebles(1) - untouched by any earlier step. Uses players[3..5]:
+      // players[0..2] are already assigned to Trebles(0) (see "Finish
+      // completes a leg as a Loss" above), and with all 6 players available
+      // (no headcount shortage), a player can't be selected for more than
+      // one game of the same type.
       await gameSummaryPanel.gameBoxByType('Trebles', 1).click()
-      await selectPlayersGameScreen.selectPlayer(0, players[0]!.name)
-      await selectPlayersGameScreen.selectPlayer(1, players[1]!.name)
-      await selectPlayersGameScreen.selectPlayer(2, players[2]!.name)
+      await selectPlayersGameScreen.selectPlayer(0, players[3]!.name)
+      await selectPlayersGameScreen.selectPlayer(1, players[4]!.name)
+      await selectPlayersGameScreen.selectPlayer(2, players[5]!.name)
       await selectPlayersGameScreen.saveButton.click()
       await expect(gameSummaryPanel.root).toBeVisible()
 
@@ -426,9 +430,9 @@ test.describe.serial('Start next match', () => {
 
       // Regression test: the dialog used to hardcode the literal word
       // "Player" instead of naming any of this game's actual players.
-      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[0]!.name)
-      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[1]!.name)
-      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[2]!.name)
+      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[3]!.name)
+      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[4]!.name)
+      await expect(matchCenterScreen.wonBullQuestion).toContainText(players[5]!.name)
 
       await matchCenterScreen.wonBullYesButton.click()
       await expect(matchCenterScreen.wonBullDialog).not.toBeVisible()
@@ -446,6 +450,28 @@ test.describe.serial('Start next match', () => {
       await expect(matchCenterScreen.bullResultChip).toHaveText(/Bull: Lost/)
 
       await matchCenterScreen.backButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+    })
+
+    await test.step('a player already assigned to another game of the same type cannot be selected again (6 players available)', async () => {
+      // Doubles(2) - untouched by any earlier step. Doubles(0) already used
+      // players[0]/[1] and Doubles(1) already used players[2]/[3] - with all
+      // 6 players available (no headcount shortage), none of those four can
+      // be picked again here.
+      await gameSummaryPanel.gameBoxByType('Doubles', 2).click()
+      await expect(selectPlayersGameScreen.root).toBeVisible()
+
+      const firstDropdown = selectPlayersGameScreen.playerDropdowns.nth(0)
+      for (const usedPlayer of [players[0]!, players[1]!, players[2]!, players[3]!]) {
+        const option = firstDropdown.locator('option', { hasText: usedPlayer.name })
+        await expect(option).toBeDisabled()
+        await expect(option).toHaveText(`${usedPlayer.name} (already playing)`)
+      }
+
+      // The two players not yet used in any Doubles game remain selectable.
+      await selectPlayersGameScreen.selectPlayer(0, players[4]!.name)
+      await selectPlayersGameScreen.selectPlayer(1, players[5]!.name)
+      await selectPlayersGameScreen.saveButton.click()
       await expect(gameSummaryPanel.root).toBeVisible()
     })
 

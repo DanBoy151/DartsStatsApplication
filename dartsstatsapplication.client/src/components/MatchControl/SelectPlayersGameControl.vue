@@ -11,8 +11,8 @@
           <option v-for="player in matchPlayers"
                   :key="player.playerId"
                   :value="player.playerId"
-                  :disabled="selectedPlayerIds.includes(player.playerId) && selectedPlayerIds[idx] !== player.playerId">
-            {{ player.name }}
+                  :disabled="(selectedPlayerIds.includes(player.playerId) && selectedPlayerIds[idx] !== player.playerId) || usedElsewhereIds.has(player.playerId)">
+            {{ player.name }}{{ usedElsewhereIds.has(player.playerId) ? ' (already playing)' : '' }}
           </option>
         </select>
       </div>
@@ -52,6 +52,42 @@
 
   const gameTypeLabel = computed(() => matchDataStore.getSelectedGame()?.type ?? '')
 
+  // Every game (including this one) of the same type in this match - used to
+  // find both "who's already playing this type elsewhere" and "is this the
+  // LAST game of its type" below.
+  const gamesOfSameType = computed(() => {
+    const type = matchDataStore.getSelectedGame()?.type ?? ''
+    return (matchDataStore.match?.games ?? []).filter((g) => g.type === type)
+  })
+
+  const isLastGameOfType = computed(() => {
+    const game = matchDataStore.getSelectedGame()
+    if (!game || gamesOfSameType.value.length === 0) return false
+    const maxOrder = Math.max(...gamesOfSameType.value.map((g) => g.order))
+    return game.order === maxOrder
+  })
+
+  const ourAvailableCount = computed(() =>
+    matchDataStore.matchAvailablePlayers.filter((p) => p.isAvailable).length
+  )
+
+  // Mirrors GameControllerValidator.ValidateSelectedPlayers: normally a
+  // player can't be picked for more than one game of the same type: with
+  // only 5 available that's unavoidable for exactly one game per type, so
+  // the exception is scoped to just the last game of that type.
+  const reuseExceptionApplies = computed(() => ourAvailableCount.value === 5 && isLastGameOfType.value)
+
+  const usedElsewhereIds = computed(() => {
+    if (reuseExceptionApplies.value) return new Set<string>()
+
+    const currentGameId = matchDataStore.getSelectedGame()?.gameId
+    const ids = new Set<string>()
+    for (const game of gamesOfSameType.value) {
+      if (game.gameId === currentGameId) continue
+      for (const playerId of game.players) ids.add(playerId)
+    }
+    return ids
+  })
 
   const matchPlayers = ref<Player[]>([])
   const selectedPlayers = ref<Player[]>([])
@@ -92,11 +128,15 @@
     }
   })
 
-  // Only enable save if all dropdowns have a selection and no duplicates
+  // Only enable save if all dropdowns have a selection and no duplicates -
+  // the usedElsewhereIds check here is defense-in-depth alongside the
+  // per-option :disabled above (which already prevents selecting one in the
+  // first place), same as the existing same-game-duplicate check.
   const canSave = computed(() =>
     selectedPlayerIds.value.length === playerCount.value &&
     selectedPlayerIds.value.every(id => !!id) &&
-    new Set(selectedPlayerIds.value).size === selectedPlayerIds.value.length
+    new Set(selectedPlayerIds.value).size === selectedPlayerIds.value.length &&
+    selectedPlayerIds.value.every(id => !usedElsewhereIds.value.has(id))
   )
 
   onMounted(fetchMatchPlayers)

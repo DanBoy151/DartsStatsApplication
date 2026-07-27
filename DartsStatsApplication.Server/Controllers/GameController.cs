@@ -186,7 +186,7 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 GameService service = new GameService(session, game);
-                service.UpdateAvailablePlayers(data.selectedPlayers);
+                await service.UpdateAvailablePlayers(data.selectedPlayers);
 
                 await session.SaveChangesAsync();
 

@@ -18,11 +18,16 @@ namespace DartsStatsApplication.Server.Services
             _validator = new GameControllerValidator(_game, _documentSession);
         }
 
-        public void UpdateAvailablePlayers(List<Guid> selectedPlayers)
+        public async Task UpdateAvailablePlayers(List<Guid> selectedPlayers)
         {
             _game.data.playerIds = selectedPlayers;
 
-            _validator.ValidateSelectedPlayers();
+            var match = await _documentSession.LoadAsync<Match>(_game.data.matchId);
+            var gamesOfSameType = (await _documentSession.Query<Game>()
+                .Where(g => g.data.matchId == _game.data.matchId && g.data.type == _game.data.type)
+                .ToListAsync()).ToList();
+
+            _validator.ValidateSelectedPlayers(gamesOfSameType, match?.data.availablePlayers?.Count);
             _game.data.status = GameStatus.Ready;
             _documentSession.Store(_game);
         }
