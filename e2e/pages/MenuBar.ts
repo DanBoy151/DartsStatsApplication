@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 
 /** POM for MenuBar.vue's "Manage" and "Statistics" dropdowns. */
 export class MenuBar {
+  readonly homeLink: Locator
   readonly manageMenuItem: Locator
   readonly newPlayerOption: Locator
   readonly newMatchOption: Locator
@@ -13,6 +14,7 @@ export class MenuBar {
   readonly playerStatisticsOption: Locator
 
   constructor(private readonly page: Page) {
+    this.homeLink = page.locator('[data-testid="menu-main"]')
     this.manageMenuItem = page.locator('.menu-item', { hasText: 'Manage' })
     this.newPlayerOption = page.locator('[data-testid="menu-new-player"]')
     this.newMatchOption = page.locator('[data-testid="menu-new-match"]')

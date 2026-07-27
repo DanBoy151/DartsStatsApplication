@@ -1,37 +1,43 @@
 <template>
-  <div class="stats-panel">
-    <div class="stat-block">
-      <div class="stat-eyebrow">Average</div>
-      <div class="stat-hero">{{ formatAverage(visitStats.average) }}</div>
-      <div class="stat-secondary">
-        <span>Highest <b>{{ visitStats.highest }}</b></span>
-        <span>Visits <b>{{ visitStats.visits }}</b></span>
-      </div>
-      <div class="stat-tiers">
-        <span>100+ <b>{{ visitStats.tier100 }}</b></span>
-        <span>140+ <b>{{ visitStats.tier140 }}</b></span>
-        <span>180s <b>{{ visitStats.tier180 }}</b></span>
-      </div>
-
-      <div v-if="showPlayerBreakdown" class="player-averages">
-        <div class="stat-eyebrow">Player averages</div>
-        <div v-for="p in playerAverages" :key="p.playerId" class="player-avg-row">
-          <span class="dot" :style="{ background: playerColor(p.playerIndex) }"></span>
-          <span class="name">{{ getPlayerName(p.playerId) }}</span>
-          <span class="avg">{{ formatAverage(p.average) }}</span>
+  <details class="stats-panel panel" open>
+    <summary>
+      Stats
+      <span class="marker" aria-hidden="true">▶</span>
+    </summary>
+    <div class="panel-body">
+      <div class="stat-block">
+        <div class="stat-eyebrow">Average</div>
+        <div class="stat-hero">{{ formatAverage(visitStats.average) }}</div>
+        <div class="stat-secondary">
+          <span>Highest <b>{{ visitStats.highest }}</b></span>
+          <span>Visits <b>{{ visitStats.visits }}</b></span>
         </div>
-      </div>
+        <div class="stat-tiers">
+          <span>100+ <b>{{ visitStats.tier100 }}</b></span>
+          <span>140+ <b>{{ visitStats.tier140 }}</b></span>
+          <span>180s <b>{{ visitStats.tier180 }}</b></span>
+        </div>
 
-      <div v-else class="leg-averages">
-        <div class="stat-eyebrow">Leg averages</div>
-        <div v-for="leg in legAverages" :key="leg.order" class="leg-avg-row">
-          <span class="leg-no">Leg {{ leg.order + 1 }}</span>
-          <span class="leg-avg" :class="{ dim: leg.average === null }">{{ formatAverage(leg.average) }}</span>
-          <span class="leg-result" :class="leg.result">{{ resultBadge(leg.result) }}</span>
+        <div v-if="showPlayerBreakdown" class="player-averages">
+          <div class="stat-eyebrow">Player averages</div>
+          <div v-for="p in playerAverages" :key="p.playerId" class="player-avg-row">
+            <span class="dot" :style="{ background: playerColor(p.playerIndex) }"></span>
+            <span class="name">{{ getPlayerName(p.playerId) }}</span>
+            <span class="avg">{{ formatAverage(p.average) }}</span>
+          </div>
+        </div>
+
+        <div v-else class="leg-averages">
+          <div class="stat-eyebrow">Leg averages</div>
+          <div v-for="leg in legAverages" :key="leg.order" class="leg-avg-row">
+            <span class="leg-no">Leg {{ leg.order + 1 }}</span>
+            <span class="leg-avg" :class="{ dim: leg.average === null }">{{ formatAverage(leg.average) }}</span>
+            <span class="leg-result" :class="leg.result">{{ resultBadge(leg.result) }}</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </details>
 </template>
 
 <script setup lang="ts">
@@ -45,16 +51,9 @@
     totalLegsForGameType,
     type LegAverage,
   } from '@/models/gameProgress'
+  import { playerColor } from '@/models/playerColors'
 
   const matchDataStore = useMatchDataStore()
-
-  // Same stable per-player identity colour as ScoreLedgerPanel, so a
-  // player reads as the same "person" across both panels.
-  const PLAYER_COLORS = ['#3498db', '#8e44ad', '#16a085']
-
-  function playerColor(playerIndex: number): string {
-    return PLAYER_COLORS[playerIndex] ?? '#95a5a6'
-  }
 
   // Doubles/Trebles are always exactly one leg (a shared, alternating-turns
   // total) - the player split is what a single combined average can't show.
@@ -102,13 +101,51 @@
 </script>
 
 <style scoped>
-  .stats-panel {
-    width: 100%;
-    height: 100%;
+  /* Now a sibling of ScoreLedgerPanel.vue in MatchCenter.vue's flex-wrap
+     secondary row rather than a fixed grid quarter - top-level card
+     language (matches ScoringConsole's own radius/shadow), and cqw sizing
+     keyed off this card's own width (container-type below) rather than the
+     viewport, since it can land at very different widths once flex-wrap
+     reflows the row. */
+  .panel {
+    container-type: inline-size;
+    flex: 1 1 380px;
     background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
-    padding: 0.9rem 1rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(44, 62, 80, 0.10);
+    overflow: hidden;
+  }
+
+  .panel > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #2c3e50;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .panel > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .panel > summary .marker {
+    color: #7f8c9a;
+    font-size: 0.75rem;
+    transition: transform 0.15s;
+  }
+
+  .panel[open] > summary .marker {
+    transform: rotate(90deg);
+  }
+
+  .panel-body {
+    padding: 0 1.25rem 1.25rem;
+    max-height: 22rem;
     overflow-y: auto;
   }
 
@@ -126,7 +163,7 @@
   }
 
   .stat-hero {
-    font-size: 2.4rem;
+    font-size: clamp(1.6rem, 9cqw, 2.4rem);
     font-weight: bold;
     color: #2c3e50;
     line-height: 1;

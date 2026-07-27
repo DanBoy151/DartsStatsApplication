@@ -105,7 +105,7 @@ export interface LedgerRow {
    *  used to assign a stable per-player colour, not a ranking. */
   playerIndex: number
   isMaximum: boolean
-  /** A recorded 0 - almost always a bust (EnterScorePanel's "No Score" path
+  /** A recorded 0 - almost always a bust (ScoringConsole's "No Score" path
    *  records exactly this), occasionally a genuine scoreless visit. The
    *  data doesn't distinguish the two, so both render the same way. */
   isNoScore: boolean

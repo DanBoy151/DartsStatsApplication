@@ -292,6 +292,35 @@ namespace DartsStatsApplication.Server.Controllers
         }
 
         /// <summary>
+        /// Record whether the opposition also arrived with only 5 available players -
+        /// resolves the match's last Singles game (walkover win/loss, or not played at all
+        /// if both sides are short) against our own already-recorded headcount. See
+        /// MatchService.RecordOppositionHeadcount for the full resolution rules.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpPut("{id}/opposition-headcount")]
+        public async Task<ActionResult<Match>> RecordOppositionHeadcount(Guid id, [FromBody] OppositionHeadcountData data)
+        {
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var match = await session.LoadAsync<Match>(id);
+                if (match == null)
+                {
+                    return NotFound();
+                }
+
+                MatchService service = new MatchService(session, match);
+                await service.RecordOppositionHeadcount(data.oppositionShortHanded);
+
+                await session.SaveChangesAsync();
+
+                return Ok(match);
+            }
+        }
+
+        /// <summary>
         /// Add Available Players
         /// </summary>
         /// <param name="id"></param>

@@ -173,7 +173,7 @@ describe('matchDataStore.setLegData resyncing selectedLeg', () => {
     // object. Without resyncing selectedLeg the same way selectedGame
     // already is, selectedLeg is left pointing at the orphaned pre-start
     // copy: further mutations (e.g. updateSelectedLegScore(), as
-    // EnterScorePanel calls on every throw) land on that orphan and never
+    // ScoringConsole calls on every throw) land on that orphan and never
     // reach match.games[].legs[], so progress silently vanishes the moment
     // a leg is left mid-play (Back) rather than completed.
     const store = useMatchDataStore()
@@ -205,7 +205,7 @@ describe('matchDataStore.clearSelectedLeg', () => {
     // selectedLeg when the newly-selected game already had legs of its own
     // (i.e. had been started before) - a fresh/Ready game with no legs left
     // the PREVIOUS game's selectedLeg/currentPlayer in place, which
-    // ScoreLedgerPanel/EnterScorePanel (reading them directly) then
+    // ScoreLedgerPanel/ScoringConsole (reading them directly) then
     // displayed for the new game.
     const store = useMatchDataStore()
     store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
@@ -246,6 +246,36 @@ describe('matchDataStore.completeSelectedLegByBullOff', () => {
     const store = useMatchDataStore()
     expect(() => store.completeSelectedLegByBullOff('Win')).not.toThrow()
     expect(store.selectedLeg).toBeNull()
+  })
+})
+
+describe('matchDataStore.updateWonBull', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('patches wonBull on both match.games and selectedGame, preserving legs', () => {
+    // Regression test: going through setGameData() here (as every other Game
+    // endpoint response does) would rebuild the game object with legs:[],
+    // silently discarding whatever legs this game already has - updateWonBull()
+    // patches the field in place instead, precisely to avoid that.
+    const store = useMatchDataStore()
+    store.setMatchData('match-1', 'Opponent', new Date(), 'Home', [], 'InProgress', 0, 0)
+    store.setGameData('game-1', ['player-1'], 'Singles', 'Complete', 'Win', false, 0, 3, 501, null)
+    store.setLegData('game-1', 'leg-1', 'Completed', [], 'Win', 3, 0, 0, false)
+    store.setSelectedGame('game-1')
+
+    store.updateWonBull('game-1', true)
+
+    const game = store.match?.games.find(g => g.gameId === 'game-1')
+    expect(game?.wonBull).toBe(true)
+    expect(game?.legs).toHaveLength(1)
+    expect(store.selectedGame?.wonBull).toBe(true)
+  })
+
+  it('does nothing when there is no match', () => {
+    const store = useMatchDataStore()
+    expect(() => store.updateWonBull('game-1', true)).not.toThrow()
   })
 })
 

@@ -130,6 +130,20 @@ namespace DartsStatsApplication.Server.Services.Validators
         }
 
         /// <summary>
+        /// Validate that in-progress throw history can be saved for this leg -
+        /// only while it's actually being played. Saving progress for a
+        /// Pending leg (never started) or a Completed one (already has its
+        /// final, authoritative history) would make no sense.
+        /// </summary>
+        public void IsValidToSaveProgress()
+        {
+            if (_leg.data.status != LegStatus.Started)
+            {
+                throw new ValidationException("Unable to save progress for a Leg that is not Started");
+            }
+        }
+
+        /// <summary>
         /// Validate that a leg can be completed via bull-off: it must actually have
         /// reached the game's configured max rounds - the max round itself is the
         /// last one played normally, so this doesn't require an extra round beyond

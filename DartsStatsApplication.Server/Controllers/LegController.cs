@@ -147,6 +147,36 @@ namespace DartsStatsApplication.Server.Controllers
         }
 
         /// <summary>
+        /// Save the in-progress throw history for a Started leg, without
+        /// completing it - called when the user navigates away mid-leg
+        /// (Home/top menu), so the leg can be correctly resumed later even if
+        /// the client's local state has been lost (a different device, a
+        /// cleared browser, or the store's own 6-hour expiry).
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [HttpPut("{id}/progress")]
+        public async Task<ActionResult<Leg>> SaveLegProgress(Guid id, [FromBody] SaveLegProgressData data)
+        {
+
+            using (var session = _documentStore.LightweightSession())
+            {
+                var existLeg = await session.LoadAsync<Leg>(id);
+                if (existLeg == null)
+                {
+                    return NotFound();
+                }
+
+                LegService service = new LegService(session, existLeg);
+                service.SaveProgress(data);
+
+                await session.SaveChangesAsync();
+
+                return Ok(existLeg);
+            }
+        }
+
+        /// <summary>
         /// Start a Leg
         /// </summary>
         /// <param name="data"></param>

@@ -33,6 +33,8 @@ export interface GameDataState {
   startingScore: number
   /** null = no League limit configured - a leg never gets decided by bull-off. */
   maxRounds: number | null
+  /** True for a game awarded as a walkover because one side only had 5 available players - see matchDataStore.resetGamesCache. */
+  forfeited: boolean
 }
 
 export interface LegDataState {
@@ -139,7 +141,7 @@ export const useMatchDataStore = defineStore('leg', {
         .filter(p => p.isAvailable)
         .map(p => p.playerId);
     },
-    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number, legsToPlay: number, startingScore: number, maxRounds: number | null) {
+    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number, legsToPlay: number, startingScore: number, maxRounds: number | null, forfeited: boolean = false) {
       if (!this.match) return;
 
       const existingIndex = this.match.games.findIndex(g => g.gameId === gameID);
@@ -156,6 +158,7 @@ export const useMatchDataStore = defineStore('leg', {
         legsToPlay,
         startingScore,
         maxRounds,
+        forfeited,
       };
 
       if (existingIndex !== -1) {
@@ -164,6 +167,34 @@ export const useMatchDataStore = defineStore('leg', {
       } else {
         // Add new game
         this.match.games.push(newGame);
+      }
+    },
+    /**
+     * Clears the cached games list so the next getMatchGames() call falls
+     * through to its server-fetch branch instead of returning stale cached
+     * data - needed after recordOppositionHeadcount() may have forfeited or
+     * deleted the match's last Singles game server-side, which this cache
+     * has no way to patch in place for the delete case.
+     */
+    resetGamesCache() {
+      if (!this.match) return;
+      this.match.games = [];
+    },
+    /**
+     * Patches wonBull in place on both the match.games entry and (if it's
+     * the same game) selectedGame, rather than going through setGameData() -
+     * that helper always rebuilds the game object with legs:[], which would
+     * silently wipe out a game's already-recorded legs (see the comment on
+     * doneWithSelectedGame() below describing the same footgun elsewhere).
+     */
+    updateWonBull(gameId: string, wonBull: boolean) {
+      if (!this.match) return;
+
+      const game = this.match.games.find(g => g.gameId === gameId);
+      if (game) game.wonBull = wonBull;
+
+      if (this.selectedGame && this.selectedGame.gameId === gameId) {
+        this.selectedGame.wonBull = wonBull;
       }
     },
     setSelectedGame(gameID: string) {
@@ -259,9 +290,9 @@ export const useMatchDataStore = defineStore('leg', {
       // A freshly-selected game that hasn't been started yet has no leg of
       // its own (legs only exist once StartGame creates them server-side),
       // so nothing here calls setSelectedLeg() to replace the old one -
-      // without this, ScoreLedgerPanel/EnterScorePanel (which read
-      // selectedLeg/currentPlayer directly, unlike RemainingScorePanel)
-      // keep showing whatever game was selected previously.
+      // without this, ScoreLedgerPanel/ScoringConsole (which read
+      // selectedLeg/currentPlayer directly) keep showing whatever game was
+      // selected previously.
       this.selectedLeg = null;
       this.currentPlayer = null;
     },

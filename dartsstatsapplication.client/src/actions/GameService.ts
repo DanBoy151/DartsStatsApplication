@@ -63,11 +63,47 @@ export async function startGame(wonBull: boolean) {
 
 }
 
+/** Corrects the recorded bull-off result after the fact - see matchDataStore.updateWonBull for why this doesn't go through setGameData(). */
+export async function updateWonBull(wonBull: boolean) {
+  const matchDataStore = useMatchDataStore()
+  const gameId = matchDataStore.selectedGame?.gameId
+  if (!gameId) return
+
+  try {
+    await apiRequest<RawGameData>(`/api/Game/${gameId}/won-bull?wonBull=${wonBull}`, { method: 'PUT' })
+    matchDataStore.updateWonBull(gameId, wonBull)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error updating bull result')
+  }
+}
+
+/**
+ * The server deliberately leaves a Started leg's own remainingScore at the
+ * leg's STARTING score (see LegControllerValidator.IsValidToCompleteLeg's own
+ * doc comment - it's the completion-time reconciliation target) - only
+ * `score` itself is authoritative mid-leg, kept current via
+ * LegService.SaveProgress. Recomputing here is what lets a leg reloaded
+ * fresh from the server (e.g. after the store's own 6-hour expiry, or on a
+ * different device) show the real current remaining instead of looking like
+ * no throws were ever recorded.
+ */
+function resolveRemainingScore(
+  status: string,
+  score: { playerId: string; score: number }[],
+  startingScore: number,
+  serverRemainingScore: number
+): number {
+  if (status !== 'Started') return serverRemainingScore
+  const totalScored = score.reduce((sum, entry) => sum + entry.score, 0)
+  return startingScore - totalScored
+}
+
 export async function fetchLegs() {
   const matchDataStore = useMatchDataStore()
   const selectedGame = matchDataStore.getSelectedGame()
 
   const gameId = selectedGame?.gameId
+  const startingScore = selectedGame?.startingScore ?? 0
 
   //attempt to fetch legs
   if ((selectedGame?.legs?.length ?? 0) > 0) return;
@@ -76,17 +112,21 @@ export async function fetchLegs() {
   try {
     const data = await apiGet<RawLeg[]>(`/api/Game/${gameId}/legs`)
 
-    const legs: Leg[] = data.map((g) => ({
-      legId: g.id,
-      gameId: g.data?.gameID || '',
-      status: g.data?.status || 'Unknown',
-      score: g.data?.score ?? [],
-      result: g.data?.result || 'N/A',
-      finishDarts: g.data?.finishDarts || 0,
-      order: g.data?.order || 0,
-      remainingScore: g.data?.remainingScore || 0,
-      wonByBullOff: g.data?.wonByBullOff ?? false,
-    })) || []
+    const legs: Leg[] = data.map((g) => {
+      const status = g.data?.status || 'Unknown'
+      const score = g.data?.score ?? []
+      return {
+        legId: g.id,
+        gameId: g.data?.gameID || '',
+        status,
+        score,
+        result: g.data?.result || 'N/A',
+        finishDarts: g.data?.finishDarts || 0,
+        order: g.data?.order || 0,
+        remainingScore: resolveRemainingScore(status, score, startingScore, g.data?.remainingScore || 0),
+        wonByBullOff: g.data?.wonByBullOff ?? false,
+      }
+    }) || []
 
     legs.forEach(leg => {
       matchDataStore.setLegData(

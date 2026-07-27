@@ -1,22 +1,27 @@
 import type { Locator, Page } from '@playwright/test'
 
 /**
- * POM for MatchControl/MatchCenter.vue and its children (RemainingScorePanel,
- * EnterScorePanel, WonBullControl, DoublesFinishControl) - the live-scoring
- * screen for a single game.
+ * POM for MatchControl/MatchCenter.vue and its children (ScoringConsole,
+ * ScoreLedgerPanel, StatsPanel, GameListDrawer, WonBullControl,
+ * DoublesFinishControl) - the live-scoring screen for a single game.
  */
 export class MatchCenterScreen {
   readonly root: Locator
   readonly startButton: Locator
   readonly finishButton: Locator
   readonly backButton: Locator
+  /** Only visible while a game is Ready (not yet started) - Back only shows once started or read-only. */
+  readonly cancelButton: Locator
   readonly editPlayersButton: Locator
 
   readonly wonBullDialog: Locator
+  readonly wonBullQuestion: Locator
   readonly wonBullYesButton: Locator
   readonly wonBullNoButton: Locator
+  readonly bullResultChip: Locator
 
   readonly nextPlayerHeading: Locator
+  /** The hero remaining-score number itself - there's no separate "N remaining" chip any more (see ScoringConsole.vue), so assertions compare against the bare number, not "N remaining" text. */
   readonly turnRemaining: Locator
   readonly keypad: Locator
   readonly submitScoreButton: Locator
@@ -27,27 +32,46 @@ export class MatchCenterScreen {
   readonly ledgerEditableScores: Locator
   readonly ledgerEditError: Locator
 
+  /** Collapsible secondary cards (see ScoreLedgerPanel.vue/StatsPanel.vue's own <details> wrapper), siblings of ScoringConsole below it - not tab-switched panels any more. */
+  readonly scoreLedgerCard: Locator
+  readonly statsCard: Locator
+
+  /** On-demand game switcher, replacing the old permanent left rail while a game is active (see ScoringConsole.vue/GameListDrawer.vue). */
+  readonly gamesDrawerTrigger: Locator
+  readonly gamesDrawer: Locator
+  readonly gamesDrawerClose: Locator
+
   constructor(private readonly page: Page) {
     this.root = page.locator('.match-center')
     this.startButton = this.root.getByRole('button', { name: 'Start' })
     this.finishButton = this.root.getByRole('button', { name: 'Finish' })
     this.backButton = this.root.getByRole('button', { name: 'Back' })
+    this.cancelButton = this.root.getByRole('button', { name: 'Cancel' })
     this.editPlayersButton = this.root.getByRole('button', { name: 'Edit Players' })
 
     this.wonBullDialog = page.locator('.won-bull-dialog')
+    this.wonBullQuestion = this.wonBullDialog.locator('.won-bull-question')
     this.wonBullYesButton = this.wonBullDialog.getByRole('button', { name: 'Yes' })
     this.wonBullNoButton = this.wonBullDialog.getByRole('button', { name: 'No' })
+    this.bullResultChip = this.root.locator('[data-testid="bull-result-chip"]')
 
-    this.nextPlayerHeading = this.root.locator('.enter-score-panel h2')
-    this.turnRemaining = this.root.locator('.enter-score-panel .turn-remaining')
+    this.nextPlayerHeading = this.root.locator('.turn-heading')
+    this.turnRemaining = this.root.locator('.hero-score')
     this.keypad = this.root.locator('.keypad-grid')
     this.submitScoreButton = this.root.getByRole('button', { name: 'Submit' })
     this.noScoreButton = this.root.getByRole('button', { name: 'No Score' })
-    this.scoreErrorMessage = this.root.locator('.enter-score-panel .error-message')
+    this.scoreErrorMessage = this.root.locator('.error-message')
 
     this.doublesFinishDialog = page.locator('.doubles-finish-dialog')
     this.ledgerEditableScores = this.root.locator('.ledger-score-editable')
     this.ledgerEditError = this.root.locator('.ledger-edit-error')
+
+    this.scoreLedgerCard = this.root.locator('.score-ledger-panel')
+    this.statsCard = this.root.locator('.stats-panel')
+
+    this.gamesDrawerTrigger = this.root.locator('[data-testid="open-games-drawer"]')
+    this.gamesDrawer = page.locator('[aria-label="Games in this match"]')
+    this.gamesDrawerClose = page.locator('[data-testid="close-games-drawer"]')
   }
 
   async startGame() {
@@ -105,5 +129,18 @@ export class MatchCenterScreen {
     await this.root.locator(`[data-testid="ledger-score-${index}"]`).click()
     await this.root.locator(`[data-testid="ledger-edit-input-${index}"]`).fill(String(newValue))
     await this.root.locator(`[data-testid="ledger-edit-save-${index}"]`).click()
+  }
+
+  /** Corrects an already-recorded bull result via the header chip, reusing the same Yes/No dialog Start uses. */
+  async editBullResult(won: boolean) {
+    await this.bullResultChip.click()
+    await this.wonBullDialog.waitFor({ state: 'visible' })
+    await (won ? this.wonBullYesButton : this.wonBullNoButton).click()
+    await this.wonBullDialog.waitFor({ state: 'hidden' })
+  }
+
+  async openGamesDrawer() {
+    await this.gamesDrawerTrigger.click()
+    await this.gamesDrawer.waitFor({ state: 'visible' })
   }
 }

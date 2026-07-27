@@ -54,6 +54,7 @@
               <div class="result-chip" :class="game.result === 'Win' ? 'win' : 'loss'">
                 {{ game.result === 'Win' ? 'WIN' : 'LOSS' }}
               </div>
+              <div v-if="game.forfeited" class="forfeit-chip">FORFEIT</div>
             </div>
             <div class="legs">
               <div class="leg" v-for="(leg, li) in game.legs" :key="leg.legId">
@@ -149,6 +150,8 @@
     playerNames: string[]
     wonBull: boolean
     result: string
+    /** True if this game was awarded as a walkover because one side only had 5 available players. */
+    forfeited: boolean
     legs: ReportLeg[]
   }
 
@@ -245,6 +248,7 @@
           playerNames: game.players.map(playerName),
           wonBull: game.wonBull,
           result: game.result,
+          forfeited: game.forfeited,
           legs: legs.map((leg) => buildLegView(leg, game, playerName)),
         }
       })
@@ -503,6 +507,17 @@
   }
   .result-chip.win { background: var(--win-bg); color: var(--win); }
   .result-chip.loss { background: var(--loss-bg); color: var(--loss); }
+
+  .forfeit-chip {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 7.4px;
+    letter-spacing: 0.06em;
+    padding: 0.7mm 2.2mm;
+    border-radius: 0.8mm;
+    background: #fbeed5;
+    color: var(--accent);
+  }
 
   .legs {
     display: flex;

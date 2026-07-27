@@ -1,50 +1,56 @@
 <template>
-  <div class="score-ledger-panel" ref="ledgerPanel">
-    <div v-if="rows.length === 0" class="ledger-empty">No throws yet</div>
-    <div v-else class="ledger-timeline">
-      <template v-for="(row, index) in rows" :key="index">
-        <div v-if="row.round !== rows[index - 1]?.round" class="ledger-round-divider">Round {{ row.round }}</div>
-        <div class="ledger-row"
-             :class="{ 'is-max': row.isMaximum, 'is-noscore': row.isNoScore, 'is-editing': editingIndex === index }">
-          <span class="ledger-dot" :style="{ background: playerColor(row.playerIndex) }"></span>
-          <span class="ledger-player">{{ getPlayerName(row.playerId) }}</span>
+  <details class="score-ledger-panel panel" open>
+    <summary>
+      Score Ledger
+      <span class="marker" aria-hidden="true">▶</span>
+    </summary>
+    <div class="panel-body" ref="ledgerPanel">
+      <div v-if="rows.length === 0" class="ledger-empty">No throws yet</div>
+      <div v-else class="ledger-timeline">
+        <template v-for="(row, index) in rows" :key="index">
+          <div v-if="row.round !== rows[index - 1]?.round" class="ledger-round-divider">Round {{ row.round }}</div>
+          <div class="ledger-row"
+               :class="{ 'is-max': row.isMaximum, 'is-noscore': row.isNoScore, 'is-editing': editingIndex === index }">
+            <span class="ledger-dot" :style="{ background: playerColor(row.playerIndex) }"></span>
+            <span class="ledger-player">{{ getPlayerName(row.playerId) }}</span>
 
-          <template v-if="editingIndex === index">
-            <input class="ledger-score-input"
-                   ref="editInputEl"
-                   type="text"
-                   inputmode="numeric"
-                   v-model="editValue"
-                   :data-testid="`ledger-edit-input-${index}`"
-                   @keydown.enter="saveEdit(index)"
-                   @keydown.escape="cancelEdit" />
-            <span class="ledger-edit-actions">
-              <button type="button"
-                      class="ledger-edit-btn save"
-                      :data-testid="`ledger-edit-save-${index}`"
-                      aria-label="Save score"
-                      @click="saveEdit(index)">✓</button>
-              <button type="button"
-                      class="ledger-edit-btn cancel"
-                      :data-testid="`ledger-edit-cancel-${index}`"
-                      aria-label="Cancel edit"
-                      @click="cancelEdit">✕</button>
-            </span>
-          </template>
-          <template v-else>
-            <button v-if="editable"
-                    type="button"
-                    class="ledger-score ledger-score-editable"
-                    :data-testid="`ledger-score-${index}`"
-                    @click="startEdit(index, row.score)">{{ row.isNoScore ? 'No score' : row.score }}</button>
-            <span v-else class="ledger-score">{{ row.isNoScore ? 'No score' : row.score }}</span>
-            <span class="ledger-remaining">{{ row.isNoScore ? 'no change' : `→ ${row.remaining}` }}</span>
-          </template>
-        </div>
-        <div v-if="editingIndex === index && editError" class="ledger-edit-error">{{ editError }}</div>
-      </template>
+            <template v-if="editingIndex === index">
+              <input class="ledger-score-input"
+                     ref="editInputEl"
+                     type="text"
+                     inputmode="numeric"
+                     v-model="editValue"
+                     :data-testid="`ledger-edit-input-${index}`"
+                     @keydown.enter="saveEdit(index)"
+                     @keydown.escape="cancelEdit" />
+              <span class="ledger-edit-actions">
+                <button type="button"
+                        class="ledger-edit-btn save"
+                        :data-testid="`ledger-edit-save-${index}`"
+                        aria-label="Save score"
+                        @click="saveEdit(index)">✓</button>
+                <button type="button"
+                        class="ledger-edit-btn cancel"
+                        :data-testid="`ledger-edit-cancel-${index}`"
+                        aria-label="Cancel edit"
+                        @click="cancelEdit">✕</button>
+              </span>
+            </template>
+            <template v-else>
+              <button v-if="editable"
+                      type="button"
+                      class="ledger-score ledger-score-editable"
+                      :data-testid="`ledger-score-${index}`"
+                      @click="startEdit(index, row.score)">{{ row.isNoScore ? 'No score' : row.score }}</button>
+              <span v-else class="ledger-score">{{ row.isNoScore ? 'No score' : row.score }}</span>
+              <span class="ledger-remaining">{{ row.isNoScore ? 'no change' : `→ ${row.remaining}` }}</span>
+            </template>
+          </div>
+          <div v-if="editingIndex === index && editError" class="ledger-edit-error">{{ editError }}</div>
+        </template>
+      </div>
     </div>
-  </div>
+  </details>
 </template>
 
 <script setup lang="ts">
@@ -52,6 +58,7 @@
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { buildLedgerRows, startingScoreForGameType } from '@/models/gameProgress'
   import { isValidDartScore } from '@/models/dartScoring'
+  import { playerColor } from '@/models/playerColors'
 
   const props = defineProps<{
     /** Allow correcting a previously-recorded throw - only while the game is
@@ -62,15 +69,6 @@
   const matchDataStore = useMatchDataStore()
   const ledgerPanel = ref<HTMLDivElement | null>(null)
   const editInputEl = ref<HTMLInputElement[]>([])
-
-  // Stable per-player identity colour, keyed by the player's position in the
-  // game's player order (not a ranking) - reuses the app's existing accent
-  // blue for the first player rather than inventing an unrelated hue.
-  const PLAYER_COLORS = ['#3498db', '#8e44ad', '#16a085']
-
-  function playerColor(playerIndex: number): string {
-    return PLAYER_COLORS[playerIndex] ?? '#95a5a6'
-  }
 
   // Prefer the game's actual configured starting score (from its League) -
   // the gameType lookup table only covers today's fixed defaults, and is a
@@ -149,15 +147,49 @@
 </script>
 
 <style scoped>
-  .score-ledger-panel {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
+  /* Now a sibling of StatsPanel.vue in MatchCenter.vue's flex-wrap secondary
+     row rather than a fixed grid quarter - top-level card language
+     (matches ScoringConsole's own radius/shadow) since it stands on its
+     own now instead of nesting inside a shared grid cell. */
+  .panel {
+    container-type: inline-size;
+    flex: 1 1 380px;
     background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
-    padding: 0.6rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(44, 62, 80, 0.10);
+    overflow: hidden;
+  }
+
+  .panel > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #2c3e50;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .panel > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .panel > summary .marker {
+    color: #7f8c9a;
+    font-size: 0.75rem;
+    transition: transform 0.15s;
+  }
+
+  .panel[open] > summary .marker {
+    transform: rotate(90deg);
+  }
+
+  .panel-body {
+    padding: 0 0.6rem 0.6rem;
+    max-height: 22rem;
     overflow-y: auto;
   }
 
@@ -288,8 +320,10 @@
   }
 
   .ledger-edit-btn {
-    width: 1.7rem;
-    height: 1.7rem;
+    /* 44px - a 1.7rem (27px) round tap target was a genuine mis-tap risk on
+       any touchscreen, not just small ones. */
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: 50%;
     border: none;
     font-size: 0.9rem;
@@ -298,6 +332,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: none;
   }
 
   .ledger-edit-btn.save {

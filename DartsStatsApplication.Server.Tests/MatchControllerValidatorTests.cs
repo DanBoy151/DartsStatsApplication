@@ -260,5 +260,36 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var ex = Assert.Throws<ValidationException>(() => MatchControllerValidator.ValidateCanDeleteMatch(match));
             Assert.Equal("Unable to delete a Match that is not Scheduled", ex.Message);
         }
+
+        private static Match InProgressMatch()
+        {
+            var match = ScheduledMatch();
+            match.data.status = MatchStatus.InProgress;
+            return match;
+        }
+
+        [Fact]
+        public void ValidateOppositionHeadcountEligible_MatchInProgress_DoesNotThrow()
+        {
+            var validator = new MatchControllerValidator(InProgressMatch(), null!);
+
+            var ex = Record.Exception(() => validator.ValidateOppositionHeadcountEligible());
+
+            Assert.Null(ex);
+        }
+
+        [Theory]
+        [InlineData(MatchStatus.Scheduled)]
+        [InlineData(MatchStatus.Ready)]
+        [InlineData(MatchStatus.Completed)]
+        public void ValidateOppositionHeadcountEligible_MatchNotInProgress_Throws(MatchStatus status)
+        {
+            var match = InProgressMatch();
+            match.data.status = status;
+            var validator = new MatchControllerValidator(match, null!);
+
+            var ex = Assert.Throws<ValidationException>(() => validator.ValidateOppositionHeadcountEligible());
+            Assert.Equal("Unable to record opposition headcount for a match that is not InProgress", ex.Message);
+        }
     }
 }

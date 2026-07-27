@@ -1,25 +1,24 @@
 <template>
   <div class="match-control-layout">
-    <div class="left-panel">
-      <GameSummaryPanel :selected-game-id="selectedGameId ?? ''"
-                        :disabled="!showHoldingScreen"
-                        @select-game="handleSelectGame" />
-    </div>
-    <div class="center-panel">
+    <div class="match-control-content">
       <SelectPlayersGameControl v-if="selectedGameId && selectedGame && (selectedGame?.status=='Pending' || editingPlayers)"
                                 @save="handleSave"
                                 @cancel="handleCancel" />
 
-      <MatchCenter v-else-if="selectedGameId && selectedGame && (selectedGame?.status=='Ready' || selectedGame?.status=='InProgress' || selectedGame?.status=='Complete') "
+      <MatchCenter v-else-if="matchCenterGame"
                    class="match-center"
-                   :game="selectedGame"
+                   :game="matchCenterGame"
                    @back="handleMatchCenterBack"
                    @edit-players="handleEditPlayers"
                    @game-complete="emit('game-complete')"
+                   @select-game="handleSelectGame"
                    />
 
-      <HoldingScreenControl v-else-if="showHoldingScreen"
-                            @exit="handleExit" />
+      <GameSummaryPanel v-else-if="showHoldingScreen"
+                        class="game-overview"
+                        :selected-game-id="selectedGameId ?? ''"
+                        @select-game="handleSelectGame"
+                        @back-to-players="handleExit" />
 
       <AvailablePlayersControl v-else
                                @proceed="handleProceed"
@@ -30,10 +29,9 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, computed } from 'vue'
   import GameSummaryPanel from './MatchControl/GameSummaryPanel.vue'
   import AvailablePlayersControl from './MatchControl/AvailablePlayersControl.vue'
-  import HoldingScreenControl from './MatchControl/HoldingScreenControl.vue'
   import SelectPlayersGameControl from './MatchControl/SelectPlayersGameControl.vue'
   import MatchCenter from './MatchControl/MatchCenter.vue'
   import { useMatchDataStore } from "@/stores/matchDataStore"
@@ -53,11 +51,19 @@
   const showHoldingScreen = ref(false)
   const selectedGameId = ref<string | null>(null)
   const selectedGame = ref<Game | null > (null)
-  // True while editing an already-Ready game's roster (RemainingScorePanel's
+  // True while editing an already-Ready game's roster (ScoringConsole's
   // "Edit Players" button) - distinct from selectedGame.status === 'Pending',
   // which is a fresh game that's never had players assigned at all.
   const editingPlayers = ref(false)
 
+  // Single source of truth for "MatchCenter is what's showing right now" -
+  // a non-null Game, so v-else-if="matchCenterGame" narrows the same way the
+  // old inline condition did.
+  const matchCenterGame = computed<Game | null>(() => {
+    if (!selectedGameId.value || !selectedGame.value) return null
+    const status = selectedGame.value.status
+    return status === 'Ready' || status === 'InProgress' || status === 'Complete' ? selectedGame.value : null
+  })
 
   //Need to update this and the Prop into the next screen
   function handleProceed() {
@@ -74,7 +80,7 @@
     // Whatever leg/current-player was selected belongs to the PREVIOUS
     // game - clear it before possibly reselecting below, so a fresh/
     // not-yet-started game (no legs of its own yet) doesn't leak the old
-    // game's scores/next-player into ScoreLedgerPanel/EnterScorePanel.
+    // game's scores/next-player into ScoreLedgerPanel/ScoringConsole.
     matchDataStore.clearSelectedLeg()
 
     // A game that's already been played (Ready/InProgress/Complete) has legs
@@ -115,7 +121,7 @@
     editingPlayers.value = false
   }
 
-  /** RemainingScorePanel's "Edit Players" button, only available while a game is Ready (not yet started). */
+  /** ScoringConsole's "Edit Players" button, only available while a game is Ready (not yet started). */
   function handleEditPlayers() {
     editingPlayers.value = true
   }
@@ -132,43 +138,44 @@
     box-sizing: border-box;
   }
 
-  .left-panel {
-    flex: 0 0 380px;
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-end;
-    padding: 2rem 0 1.5rem 2rem;
-    min-width: 320px;
-    max-width: 480px;
-    height: 100%;
-    box-sizing: border-box;
-  }
-
-    .left-panel :deep(.game-summary-panel) {
-      max-height: 100%;
-      height: auto;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-    }
-
-  .center-panel {
+  .match-control-content {
     flex: 1 1 0;
     display: flex;
-    align-items: center; /* Center vertically */
+    /* "safe" falls back to start-aligned (scrollable from the top) instead
+       of clipping symmetrically top-and-bottom if content is ever taller
+       than the viewport - MatchCenter's console+ledger+stats stack (and the
+       merged game-overview screen below) has no fixed height, so this can
+       genuinely happen on a short window. */
+    align-items: safe center;
     justify-content: center; /* Center horizontally */
     min-width: 0;
+    min-height: 0;
     padding: 2rem;
     box-sizing: border-box;
+    overflow-y: auto;
   }
 
-    /* Only MatchCenter fills the panel */
-    .center-panel > .match-center {
-      padding: 2rem;
+    /* MatchCenter caps at a comfortable reading width instead of stretching
+       edge-to-edge on a wide monitor; its own children (ScoringConsole, the
+       ledger/stats cards) supply their own padding, so no padding is added
+       here. */
+    .match-control-content > .match-center {
+      width: min(1100px, 94vw);
       box-sizing: border-box;
-      width: 100%;
-      height: 100%;
-      min-height: 0;
-      min-width: 0;
     }
+
+    /* The merged game-overview screen (GameSummaryPanel's "full" variant)
+       already flows to its own content height and scrolls via this
+       container's overflow-y:auto, matching MatchCenter's own convention
+       above - only the width cap is needed here. */
+    .match-control-content > .game-overview {
+      width: min(760px, 94vw);
+      box-sizing: border-box;
+    }
+
+  @media (max-width: 600px) {
+    .match-control-content {
+      padding: 0.75rem;
+    }
+  }
 </style>

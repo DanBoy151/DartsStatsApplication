@@ -16,6 +16,14 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
         public GameResult? result { get; set; }
 
+        /// <summary>
+        /// True for a game awarded as a walkover because one side only had 5
+        /// available players (see MatchService.RecordOppositionHeadcount) -
+        /// it still reaches Complete with a normal Win/Loss result and counts
+        /// toward the match score, just with zero Legs ever played.
+        /// </summary>
+        public Boolean forfeited { get; set; }
+
         public int order { get; set; }
 
         /// <summary>

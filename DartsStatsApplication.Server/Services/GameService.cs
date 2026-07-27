@@ -18,11 +18,16 @@ namespace DartsStatsApplication.Server.Services
             _validator = new GameControllerValidator(_game, _documentSession);
         }
 
-        public void UpdateAvailablePlayers(List<Guid> selectedPlayers)
+        public async Task UpdateAvailablePlayers(List<Guid> selectedPlayers)
         {
             _game.data.playerIds = selectedPlayers;
 
-            _validator.ValidateSelectedPlayers();
+            var match = await _documentSession.LoadAsync<Match>(_game.data.matchId);
+            var gamesOfSameType = (await _documentSession.Query<Game>()
+                .Where(g => g.data.matchId == _game.data.matchId && g.data.type == _game.data.type)
+                .ToListAsync()).ToList();
+
+            _validator.ValidateSelectedPlayers(gamesOfSameType, match?.data.availablePlayers?.Count);
             _game.data.status = GameStatus.Ready;
             _documentSession.Store(_game);
         }
@@ -41,6 +46,34 @@ namespace DartsStatsApplication.Server.Services
             // were never played.
             var firstLeg = BuildLeg(order: 0, startingScore: _game.data.startingScore);
             _documentSession.Store(firstLeg);
+            _documentSession.Store(_game);
+        }
+
+        /// <summary>
+        /// Awards this game as a walkover, bypassing the normal completion
+        /// path entirely - IsValidToCompleteGame requires InProgress status
+        /// and at least one Leg, neither of which applies to a game nobody
+        /// ever played (see MatchService.RecordOppositionHeadcount, the only
+        /// caller). Sets forfeited so the UI can label it distinctly from a
+        /// normally-played result.
+        /// </summary>
+        public void ForfeitGame(GameResult result)
+        {
+            _game.data.status = GameStatus.Complete;
+            _game.data.result = result;
+            _game.data.forfeited = true;
+            _documentSession.Store(_game);
+        }
+
+        /// <summary>
+        /// Corrects the recorded bull-off result after the fact - a factual
+        /// correction rather than a game-state transition, so (unlike
+        /// StartGame) this has no status precondition; it can be changed at
+        /// any time, including after the game is Complete.
+        /// </summary>
+        public void UpdateWonBull(Boolean wonBull)
+        {
+            _game.data.wonBull = wonBull;
             _documentSession.Store(_game);
         }
 

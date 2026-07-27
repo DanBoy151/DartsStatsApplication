@@ -7,10 +7,12 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "test": "playwright test",
+    "test": "playwright test --project=chromium",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
+    "test:mobile": "playwright test --project=mobile",
+    "test:tablet": "playwright test --project=tablet",
     "report": "playwright show-report",
     "stack:up": "docker compose -f ../docker-compose.e2e.yml up -d --build --wait",
     "stack:down": "docker compose -f ../docker-compose.e2e.yml down -v",

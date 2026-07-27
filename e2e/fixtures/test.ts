@@ -3,7 +3,6 @@ import { API_BASE_URL } from '../support/env'
 import { createPlayers, createScheduledMatch, type SeededMatch, type SeededPlayer } from './api-client'
 import { LaunchScreen } from '../pages/LaunchScreen'
 import { AvailablePlayersScreen } from '../pages/AvailablePlayersScreen'
-import { HoldingScreen } from '../pages/HoldingScreen'
 import { GameSummaryPanel } from '../pages/GameSummaryPanel'
 import { SelectPlayersGameScreen } from '../pages/SelectPlayersGameScreen'
 import { ErrorToast } from '../pages/ErrorToast'
@@ -34,7 +33,6 @@ interface Fixtures {
   seededMatch: SeededMatchData
   launchScreen: LaunchScreen
   availablePlayersScreen: AvailablePlayersScreen
-  holdingScreen: HoldingScreen
   gameSummaryPanel: GameSummaryPanel
   selectPlayersGameScreen: SelectPlayersGameScreen
   errorToast: ErrorToast
@@ -68,9 +66,6 @@ export const test = base.extend<Fixtures>({
   },
   availablePlayersScreen: async ({ page }, use) => {
     await use(new AvailablePlayersScreen(page))
-  },
-  holdingScreen: async ({ page }, use) => {
-    await use(new HoldingScreen(page))
   },
   gameSummaryPanel: async ({ page }, use) => {
     await use(new GameSummaryPanel(page))

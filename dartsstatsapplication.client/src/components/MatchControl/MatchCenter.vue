@@ -1,29 +1,33 @@
 <template>
-  <div class="match-center-grid">
-    <div class="quarter score-ledger">
+  <div class="match-center">
+    <ScoringConsole @start-match="onStartMatch"
+                    @back-match="$emit('back')"
+                    @cancel-match="$emit('back')"
+                    @finish-leg="onFinishLeg"
+                    @edit-players="$emit('edit-players')"
+                    @legComplete="onFinishLeg"
+                    @open-games="showDrawer = true"
+                    @update-won-bull="onUpdateWonBull"
+                    :game-type="props.game?.type"
+                    :gamestarted="started"
+                    :readonly="isComplete"
+                    :games-complete="gamesComplete"
+                    :games-total="gamesTotal" />
+
+    <div class="secondary-row">
       <!-- No disabled/pointer-events-blocking class here: the ledger is
            read-only display with nothing to protect from accidental
-           interaction (unlike enter-score/stats), and pointer-events:none
-           was blocking mouse-wheel/trackpad scrolling on a Complete game's
-           full leg history, not just clicks. -->
+           interaction (unlike stats, which has nothing to protect either -
+           both are always plain reference info now, not gated on started). -->
       <ScoreLedgerPanel :editable="started && !isComplete" />
+      <StatsPanel />
     </div>
-    <div class="quarter remaining-score">
-      <RemainingScorePanel @start-match="onStartMatch"
-                           @back-match="$emit('back')"
-                           @cancel-match="$emit('back')"
-                           @finish-leg="onFinishLeg"
-                           @edit-players="$emit('edit-players')"
-                           :game-type="selectedGame?.type"
-                           :gamestarted="started"
-                           :readonly="isComplete" />
-    </div>
-    <div class="quarter enter-score" :class="{ disabled: !started || isComplete }">
-      <EnterScorePanel @legComplete="onFinishLeg" :disabled="!started || isComplete" />
-    </div>
-    <div class="quarter stats" :class="{ disabled: !started || isComplete }">
-      <StatsPanel :disabled="!started || isComplete" />
-    </div>
+
+    <GameListDrawer v-if="showDrawer"
+                    :selected-game-id="props.game?.id ?? ''"
+                    @close="showDrawer = false"
+                    @select-game="onDrawerSelectGame" />
+
     <CompleteMatchControl v-if="showCompleteMatchPopup"
                           @result="onCompleteMatchResult" />
     <PlayerOfMatchControl v-if="showPlayerOfMatchPopup"
@@ -33,15 +37,15 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, onMounted, watch } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { defineProps, defineEmits } from 'vue'
   import ScoreLedgerPanel from './MatchCenter/ScoreLedgerPanel.vue'
-  import RemainingScorePanel from './MatchCenter/RemainingScorePanel.vue'
+  import ScoringConsole from './MatchCenter/ScoringConsole.vue'
   import StatsPanel from './MatchCenter/StatsPanel.vue'
-  import EnterScorePanel from './MatchCenter/EnterScorePanel.vue'
+  import GameListDrawer from './MatchCenter/GameListDrawer.vue'
   import CompleteMatchControl from './MatchCenter/CompleteMatchControl.vue'
   import PlayerOfMatchControl from './MatchCenter/PlayerOfMatchControl.vue'
-  import { startGame, fetchLegs, completeGame, createNextLeg } from '@/actions/GameService'
+  import { startGame, fetchLegs, completeGame, createNextLeg, updateWonBull } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg, completeLegByBullOff } from '@/actions/LegService'
@@ -54,19 +58,29 @@
   // screen to pick another game. 'game-complete' is specifically a game (or
   // the whole match) finishing - MatchControl/MainContent route that all the
   // way back to the main screen and force-refresh the store instead.
-  const emit = defineEmits(['back', 'edit-players', 'game-complete'])
+  // 'select-game' forwards the games drawer's own selection up to
+  // MatchControl.vue, which already knows how to handle it (the same path
+  // its own GameSummaryPanel instance uses).
+  const emit = defineEmits(['back', 'edit-players', 'game-complete', 'select-game'])
 
   const props = defineProps<{
     game: Game
   }>()
-
-  const selectedGame = props.game
 
   const started = ref(false)
   const wonBull = ref<boolean | null>(null)
   const isComplete = computed(() => matchDataStore.getSelectedGame()?.status === 'Complete')
   const showCompleteMatchPopup = ref(false)
   const showPlayerOfMatchPopup = ref(false)
+  const showDrawer = ref(false)
+
+  const gamesTotal = computed(() => matchDataStore.match?.games?.length ?? 0)
+  const gamesComplete = computed(() => matchDataStore.match?.games?.filter((g) => g.status === 'Complete').length ?? 0)
+
+  function onDrawerSelectGame() {
+    showDrawer.value = false
+    emit('select-game')
+  }
 
   // Candidates for Player of the Match: everyone who actually appeared in at
   // least one of the match's games (not just everyone marked available) -
@@ -89,10 +103,10 @@
     // server rejects completing a game while any of its legs aren't yet
     // marked Completed - racing ahead of this PUT resolving meant that
     // check always failed.
-    // A leg decided by bull-off was completed locally by
-    // EnterScorePanel/RemainingScorePanel calling completeSelectedLegByBullOff()
-    // - calling the normal completeLeg() here would hit the normal endpoint,
-    // which the server now rejects once a leg is past its max rounds.
+    // A leg decided by bull-off was completed locally by ScoringConsole
+    // calling completeSelectedLegByBullOff() - calling the normal
+    // completeLeg() here would hit the normal endpoint, which the server
+    // now rejects once a leg is past its max rounds.
     if (matchDataStore.selectedLeg?.wonByBullOff) {
       await completeLegByBullOff()
     } else {
@@ -188,21 +202,29 @@
   }
 
 
-  onMounted(() => {
-    if (hasGameStarted()) {
-      started.value = true
-    }
-  });
-
   function hasGameStarted() {
     const game = matchDataStore.getSelectedGame()
     return game?.status === 'InProgress'
   }
 
+  // Re-derives `started` every time a DIFFERENT game is selected (not just
+  // on mount) - the games drawer lets the captain switch games in place,
+  // without unmounting/remounting MatchCenter, so relying on onMounted alone
+  // left `started` frozen at whatever the first-selected game's status was.
+  // Switching from an InProgress game to a Ready one then still showed the
+  // active scoring keypad instead of the Ready screen, looking broken/blank.
+  watch(
+    () => props.game.id,
+    () => {
+      started.value = hasGameStarted()
+    },
+    { immediate: true }
+  )
+
   // currentPlayer is otherwise only ever set explicitly, from
   // onStartMatch()/startNextLeg() - which never run when RESUMING a game
   // that's already In Progress (as opposed to freshly starting one), so it
-  // stayed null and EnterScorePanel's submit()/noScore() silently no-op.
+  // stayed null and ScoringConsole's submit()/noScore() silently no-op.
   // Deriving it here from how many throws the current leg already has
   // restores it correctly on resume, and is a harmless no-op the rest of
   // the time (it agrees with whatever onStartMatch()/startNextLeg()/normal
@@ -222,6 +244,10 @@
     },
     { immediate: true }
   )
+
+  async function onUpdateWonBull(newWonBull: boolean) {
+    await updateWonBull(newWonBull)
+  }
 
   async function onStartMatch(payload: { wonBull: boolean }) {
     started.value = true
@@ -243,67 +269,17 @@
 </script>
 
 <style scoped>
-  .match-center-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr; /* Left wide, right narrow */
-    grid-template-rows: 1fr 1fr 1fr; /* Three equal rows */
+  .match-center {
     width: 100%;
-    height: 100%;
-    gap: 1rem;
-  }
-  .quarter {
-    border: 1px solid #ccc;
-    box-sizing: border-box;
-    padding: 1rem;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    justify-content: stretch;
-    background: #fff;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    min-width: 0;
-    border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(44, 62, 80, 0.10);
+    gap: 1.25rem;
   }
 
-    .quarter > * {
-      flex: 1 1 0;
-      min-height: 0;
-      min-width: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Disabled state for panels */
-    .quarter.disabled {
-      pointer-events: none;
-      opacity: 0.5;
-    }
-
-  /* Grid placement for each panel */
-  /* Left column */
-  .score-ledger {
-    grid-column: 1 / 2;
-    grid-row: 1 / 3; /* Spans rows 1 and 2 */
-  }
-
-  .enter-score {
-    grid-column: 1 / 2;
-    grid-row: 3 / 4; /* Row 3 */
-  }
-
-  /* Right column */
-  .remaining-score {
-    grid-column: 2 / 3;
-    grid-row: 1 / 2; /* Row 1 */
-  }
-
-  .stats {
-    grid-column: 2 / 3;
-    grid-row: 2 / 4; /* Spans rows 2 and 3 */
+  .secondary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: flex-start;
   }
 </style>

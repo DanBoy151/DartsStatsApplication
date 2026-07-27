@@ -20,19 +20,19 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
     // implementations rather than against stubs.
     public class GameControllerValidatorTests
     {
-        private static Game CreateGame(GameType type, GameStatus status, List<Guid> playerIds)
+        private static Game CreateGame(GameType type, GameStatus status, List<Guid> playerIds, int order = 0, Guid? matchId = null)
         {
             return new Game
             {
                 Id = Guid.NewGuid(),
                 data = new GameData
                 {
-                    matchId = Guid.NewGuid(),
+                    matchId = matchId ?? Guid.NewGuid(),
                     type = type,
                     status = status,
                     playerIds = playerIds,
                     wonBull = false,
-                    order = 0
+                    order = order
                 }
             };
         }
@@ -137,6 +137,93 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             var validator = new GameControllerValidator(game, null!);
 
             Assert.Throws<ValidationException>(() => validator.ValidateSelectedPlayers());
+        }
+
+        [Fact]
+        public void ValidateSelectedPlayers_PlayerAlreadyUsedInAnotherGameOfSameType_Throws()
+        {
+            var matchId = Guid.NewGuid();
+            var reusedPlayer = Guid.NewGuid();
+            var otherSingles = CreateGame(GameType.Singles, GameStatus.Ready, new List<Guid> { reusedPlayer }, order: 5, matchId: matchId);
+            var thisSingles = CreateGame(GameType.Singles, GameStatus.Pending, new List<Guid> { reusedPlayer }, order: 6, matchId: matchId);
+            var validator = new GameControllerValidator(thisSingles, null!);
+
+            var ex = Assert.Throws<ValidationException>(
+                () => validator.ValidateSelectedPlayers(new List<Game> { otherSingles, thisSingles }, matchAvailablePlayerCount: 6));
+
+            Assert.Contains("already assigned to another", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateSelectedPlayers_PlayerUsedInDifferentTypeGame_DoesNotThrow()
+        {
+            // gamesOfSameType is scoped by the caller to games sharing this
+            // game's type - a player already used in e.g. a Doubles game
+            // should never block a Singles selection.
+            var matchId = Guid.NewGuid();
+            var player = Guid.NewGuid();
+            var doublesGame = CreateGame(GameType.Doubles, GameStatus.Ready, new List<Guid> { player, Guid.NewGuid() }, order: 2, matchId: matchId);
+            var singlesGame = CreateGame(GameType.Singles, GameStatus.Pending, new List<Guid> { player }, order: 5, matchId: matchId);
+            var validator = new GameControllerValidator(singlesGame, null!);
+
+            // Caller only ever passes games of the SAME type, so doublesGame
+            // wouldn't really be included here - passing just singlesGame
+            // itself is the realistic "no same-type conflict" case.
+            var exception = Record.Exception(
+                () => validator.ValidateSelectedPlayers(new List<Game> { singlesGame }, matchAvailablePlayerCount: 6));
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void ValidateSelectedPlayers_OnlyFivePlayersAvailable_ReuseAllowedOnlyForLastGameOfType()
+        {
+            var matchId = Guid.NewGuid();
+            var reusedPlayer = Guid.NewGuid();
+            var firstSingles = CreateGame(GameType.Singles, GameStatus.Ready, new List<Guid> { reusedPlayer }, order: 5, matchId: matchId);
+            var lastSingles = CreateGame(GameType.Singles, GameStatus.Pending, new List<Guid> { reusedPlayer }, order: 10, matchId: matchId);
+            var siblings = new List<Game> { firstSingles, lastSingles };
+
+            var lastGameValidator = new GameControllerValidator(lastSingles, null!);
+            var exception = Record.Exception(
+                () => lastGameValidator.ValidateSelectedPlayers(siblings, matchAvailablePlayerCount: 5));
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void ValidateSelectedPlayers_OnlyFivePlayersAvailable_ReuseStillRejectedForNonLastGameOfType()
+        {
+            var matchId = Guid.NewGuid();
+            var reusedPlayer = Guid.NewGuid();
+            var firstSingles = CreateGame(GameType.Singles, GameStatus.Ready, new List<Guid> { reusedPlayer }, order: 5, matchId: matchId);
+            var middleSingles = CreateGame(GameType.Singles, GameStatus.Pending, new List<Guid> { reusedPlayer }, order: 7, matchId: matchId);
+            var lastSingles = CreateGame(GameType.Singles, GameStatus.Pending, new List<Guid>(), order: 10, matchId: matchId);
+            var siblings = new List<Game> { firstSingles, middleSingles, lastSingles };
+
+            var middleGameValidator = new GameControllerValidator(middleSingles, null!);
+
+            var ex = Assert.Throws<ValidationException>(
+                () => middleGameValidator.ValidateSelectedPlayers(siblings, matchAvailablePlayerCount: 5));
+
+            Assert.Contains("already assigned to another", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateSelectedPlayers_SixPlayersAvailable_ReuseRejectedEvenForLastGameOfType()
+        {
+            // The exception only applies when exactly 5 are available - with a
+            // full 6, every game of a type should always be fillable without reuse.
+            var matchId = Guid.NewGuid();
+            var reusedPlayer = Guid.NewGuid();
+            var firstSingles = CreateGame(GameType.Singles, GameStatus.Ready, new List<Guid> { reusedPlayer }, order: 5, matchId: matchId);
+            var lastSingles = CreateGame(GameType.Singles, GameStatus.Pending, new List<Guid> { reusedPlayer }, order: 10, matchId: matchId);
+            var siblings = new List<Game> { firstSingles, lastSingles };
+
+            var lastGameValidator = new GameControllerValidator(lastSingles, null!);
+
+            Assert.Throws<ValidationException>(
+                () => lastGameValidator.ValidateSelectedPlayers(siblings, matchAvailablePlayerCount: 6));
         }
     }
 }

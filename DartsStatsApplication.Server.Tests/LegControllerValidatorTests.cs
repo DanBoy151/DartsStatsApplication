@@ -261,6 +261,31 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
             Assert.Null(ex);
         }
 
+        // ---- IsValidToSaveProgress ----
+
+        [Fact]
+        public void IsValidToSaveProgress_LegStarted_DoesNotThrow()
+        {
+            var leg = CreateLeg(LegStatus.Started, 501);
+            var validator = new LegControllerValidator(leg, null!);
+
+            var ex = Record.Exception(() => validator.IsValidToSaveProgress());
+
+            Assert.Null(ex);
+        }
+
+        [Theory]
+        [InlineData(LegStatus.Pending)]
+        [InlineData(LegStatus.Completed)]
+        public void IsValidToSaveProgress_LegNotStarted_Throws(LegStatus status)
+        {
+            var leg = CreateLeg(status, 501);
+            var validator = new LegControllerValidator(leg, null!);
+
+            var ex = Assert.Throws<ValidationException>(() => validator.IsValidToSaveProgress());
+            Assert.Equal("Unable to save progress for a Leg that is not Started", ex.Message);
+        }
+
         // ---- IsValidToCompleteLegByBullOff ----
 
         private static CompleteLegBullOffData BullOff(LegResult result, int visits)
