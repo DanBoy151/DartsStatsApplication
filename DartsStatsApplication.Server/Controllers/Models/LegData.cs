@@ -59,4 +59,15 @@ namespace DartsStatsApplication.Server.Controllers.Models
         public int remainingScore { get; set; }
     }
 
+    /// <summary>
+    /// Body for PUT /api/Leg/{id}/progress - saves the in-progress throw
+    /// history for a Started leg without completing it (see
+    /// LegService.SaveProgress for why remainingScore is deliberately not
+    /// part of this payload).
+    /// </summary>
+    public class SaveLegProgressData
+    {
+        public List<PlayerScore> score { get; set; }
+    }
+
 }

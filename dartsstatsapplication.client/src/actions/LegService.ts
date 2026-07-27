@@ -109,7 +109,7 @@ export async function completeLegByBullOff() {
   }
 }
 
-function scoreToArray(
+export function scoreToArray(
   score: Record<string, number> | { playerId: string; score: number }[] | undefined
 ): { playerId: string; score: number }[] {
   if (!score) return [];
@@ -118,4 +118,30 @@ function scoreToArray(
     playerId,
     score: Number(score)
   }));
+}
+
+/**
+ * Saves the in-progress leg's throw history to the server without
+ * completing it - called when the user navigates away mid-leg (Home/top
+ * menu), so a resumed session (possibly on a different device, or after the
+ * store's own 6-hour expiry) sees the real throws instead of an empty
+ * history. A no-op unless a leg is actually being played.
+ */
+export async function saveLegProgress(): Promise<void> {
+  const matchDataStore = useMatchDataStore()
+  const leg = matchDataStore.selectedLeg
+  if (!leg || leg.status !== 'Started') return
+
+  try {
+    await apiRequest<RawLeg>(
+      `/api/Leg/${leg.legId}/progress`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score: scoreToArray(leg.score) })
+      }
+    )
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error saving leg progress')
+  }
 }

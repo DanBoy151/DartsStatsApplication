@@ -24,6 +24,25 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_leg);
         }
 
+        /// <summary>
+        /// Persists the in-progress throw history for a Started leg without
+        /// completing it - called when the user navigates away mid-leg
+        /// (Home/top menu), so a resumed session sees the real throws instead
+        /// of an empty history. Deliberately does NOT touch remainingScore:
+        /// IsValidToCompleteLeg relies on that field still holding the leg's
+        /// STARTING score at completion time (see its own doc comment) - the
+        /// client recomputes the true current remaining from this saved score
+        /// history plus the game's startingScore when reloading instead (see
+        /// GameService.fetchLegs on the client).
+        /// </summary>
+        public void SaveProgress(SaveLegProgressData data)
+        {
+            _validator.IsValidToSaveProgress();
+
+            _leg.data.score = data.score ?? new List<PlayerScore>();
+            _documentSession.Store(_leg);
+        }
+
         public void CompleteLeg(CompleteLegData legData)
         {
             _validator.IsValidToCompleteLeg(legData);

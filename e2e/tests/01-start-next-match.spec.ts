@@ -39,6 +39,7 @@ test.describe.serial('Start next match', () => {
     gameSummaryPanel,
     selectPlayersGameScreen,
     matchCenterScreen,
+    menuBar,
   }) => {
     const { match, players } = seededMatch
 
@@ -509,6 +510,55 @@ test.describe.serial('Start next match', () => {
       // what's visible here - leaves its roster untouched, still Ready for
       // the rest of the test.
       await matchCenterScreen.cancelButton.click()
+      await expect(gameSummaryPanel.root).toBeVisible()
+    })
+
+    await test.step('leaving via Home saves in-progress leg data, so it can be resumed after the client state is lost', async () => {
+      // Singles(1) is still mid-leg2 at remaining=401 (left there earlier
+      // via Back, never finished).
+      await gameSummaryPanel.gameBoxByType('Singles', 1).click()
+      await expect(matchCenterScreen.root).toBeVisible()
+      await expect(matchCenterScreen.turnRemaining).toHaveText('401')
+
+      await menuBar.homeLink.click()
+
+      // Regression: leaving mid-leg used to lose all progress not yet sent
+      // to the server - only completeLeg() ever wrote score data, so the
+      // throws recorded so far existed only in this browser's local store.
+      // Home should now save them first.
+      const gamesRes = await api.get(`/api/Match/${match.id}/games`)
+      const games: { id: string; data: { type: string; playerIds: string[] } }[] = await gamesRes.json()
+      const singlesGame = games.find((g) => g.data.type === 'Singles' && g.data.playerIds?.includes(players[1]!.id))!
+      const legsRes = await api.get(`/api/Game/${singlesGame.id}/legs`)
+      const legs: { data: { status: string; score: { playerId: string; score: number }[] } }[] = await legsRes.json()
+      const startedLeg = legs.find((l) => l.data.status === 'Started')!
+      expect(startedLeg).toBeTruthy()
+      const totalScored = startedLeg.data.score.reduce((sum, s) => sum + s.score, 0)
+      expect(501 - totalScored).toBe(401)
+
+      // Simulate genuinely losing the client's own state (a different
+      // device, or the store's own 6-hour expiry) rather than just this
+      // same tab reloading - clear localStorage entirely before returning.
+      await page.evaluate(() => localStorage.clear())
+      await page.reload()
+
+      await launchScreen.waitUntilLoaded()
+      await launchScreen.clickPlayMatch()
+      await availablePlayersScreen.waitUntilLoaded()
+      // The roster was already confirmed - re-submitting the same selection
+      // is a harmless no-op, just re-establishing the client's own local state.
+      await expect(await availablePlayersScreen.selectedPlayerCount()).toBe(players.length)
+      await availablePlayersScreen.proceed()
+
+      await expect(gameSummaryPanel.root).toBeVisible()
+      await gameSummaryPanel.gameBoxByType('Singles', 1).click()
+
+      // The resumed leg must reflect the real saved progress, not a blank
+      // fresh leg.
+      await expect(matchCenterScreen.root).toBeVisible()
+      await expect(matchCenterScreen.turnRemaining).toHaveText('401')
+
+      await matchCenterScreen.backButton.click()
       await expect(gameSummaryPanel.root).toBeVisible()
     })
 

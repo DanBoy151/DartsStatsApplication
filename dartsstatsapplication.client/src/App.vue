@@ -1,5 +1,7 @@
 <script setup lang="ts">
   import { ref } from 'vue'
+  import { useMatchDataStore } from '@/stores/matchDataStore'
+  import { saveLegProgress } from '@/actions/LegService'
   import MenuBar from './components/MenuBar.vue'
   import MainContent from './components/MainContent.vue'
   import ErrorToast from './components/ErrorToast.vue'
@@ -32,8 +34,25 @@
   // which is the only way to reliably land back on the launch screen from
   // anywhere, including mid-match.
   const homeKey = ref(0)
+  const matchDataStore = useMatchDataStore()
 
-  function handleNavigate(action: string) {
+  // Every menu destination tears down the active match screen (either via
+  // the v-if below, or goToMain()'s remount) with no unmount hook of its
+  // own to save anything first - a leg mid-play only reaches the server via
+  // completeLeg(), so navigating away before finishing it left the throws
+  // recorded so far recoverable only from this browser's own localStorage
+  // (gone after the store's 6-hour expiry, on a different device, or if
+  // it's simply cleared). Saving here first, before any navigation actually
+  // happens, means a resumed session sees the real throws either way.
+  async function saveActiveLegProgress() {
+    if (matchDataStore.selectedLeg?.status === 'Started') {
+      await saveLegProgress()
+    }
+  }
+
+  async function handleNavigate(action: string) {
+    await saveActiveLegProgress()
+
     if (
       action === 'new-player' ||
       action === 'new-match' ||
