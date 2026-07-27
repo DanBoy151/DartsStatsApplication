@@ -121,6 +121,43 @@ test.describe.serial('Start next match', () => {
       await expect(gameSummaryPanel.root).toBeVisible()
     })
 
+    await test.step('a rejected roster save does not cascade into recording opposition headcount', async () => {
+      // Regression test: setAvailablePlayers() used to swallow any failure
+      // and return void regardless, so proceed() cascaded into calling
+      // recordOppositionHeadcount() anyway - masking the real rejection
+      // reason behind a second, more confusing "not InProgress" error from
+      // that call instead (the shared error toast only ever shows the latest).
+      await gameSummaryPanel.backButton.click()
+      await expect(availablePlayersScreen.root).toBeVisible()
+
+      let oppositionHeadcountCalled = false
+      await page.route('**/opposition-headcount', async (route) => {
+        oppositionHeadcountCalled = true
+        await route.continue()
+      })
+      await page.route('**/update-available-players', async (route) => {
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Forced failure for regression test' }),
+        })
+      })
+
+      await availablePlayersScreen.proceed()
+
+      // Stays on the roster screen rather than cascading forward.
+      await expect(availablePlayersScreen.root).toBeVisible()
+      await expect(gameSummaryPanel.root).not.toBeVisible()
+      expect(oppositionHeadcountCalled).toBe(false)
+
+      await page.unroute('**/update-available-players')
+      await page.unroute('**/opposition-headcount')
+
+      // A retry (the failure above was forced, nothing really wrong with the roster) succeeds normally.
+      await availablePlayersScreen.proceed()
+      await expect(gameSummaryPanel.root).toBeVisible()
+    })
+
     await test.step('selecting a pending game opens player selection for it', async () => {
       await gameSummaryPanel.gameBoxByType('Doubles').click()
       await expect(selectPlayersGameScreen.root).toBeVisible()

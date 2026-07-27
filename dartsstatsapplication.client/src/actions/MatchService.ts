@@ -246,7 +246,17 @@ export async function startMatch(matchId: string) {
 
 
 //TODO - Put some logic in to ensure that available players are only sent when there is a change
-export async function setAvailablePlayers() {
+/**
+ * Returns whether the roster was actually saved - callers that chain
+ * further requests after this one (e.g. AvailablePlayersControl.proceed(),
+ * which follows up with recordOppositionHeadcount()) need to know not to
+ * continue on failure: doing so anyway previously meant a rejected roster
+ * update (any of ValidateAvailablePlayers' own reasons - a deleted player,
+ * an unexpected match status, etc.) was masked by a second, more confusing
+ * failure from whatever ran next, since the shared error toast only ever
+ * shows the latest one.
+ */
+export async function setAvailablePlayers(): Promise<boolean> {
   const matchDataStore = useMatchDataStore()
 
   let players: string[] = []
@@ -268,9 +278,11 @@ export async function setAvailablePlayers() {
       }
     )
     matchDataStore.updateMatchAvailablePlayers()
+    return true
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching updating available players')
+    return false
   }
 }
 

@@ -82,8 +82,15 @@
     // Must await: the holding screen renders immediately once we emit, so
     // navigating before the save resolves could show the next screen before
     // the roster was actually persisted. recordOppositionHeadcount() runs
-    // after, since it needs our own just-saved count to resolve correctly.
-    await setAvailablePlayers()
+    // after, since it needs our own just-saved count to resolve correctly -
+    // and only if the roster itself actually saved: proceeding anyway on a
+    // rejected roster (e.g. a deleted player, an unexpected match status)
+    // used to mask that failure behind a second, more confusing one from
+    // this call instead (the shared error toast only ever shows the latest).
+    // Staying on this screen also means the roster can just be retried.
+    const rosterSaved = await setAvailablePlayers()
+    if (!rosterSaved) return
+
     await recordOppositionHeadcount(oppositionShortHanded.value)
     emit('proceed')
   }
