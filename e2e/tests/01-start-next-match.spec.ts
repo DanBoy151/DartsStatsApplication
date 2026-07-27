@@ -522,6 +522,14 @@ test.describe.serial('Start next match', () => {
 
       await menuBar.homeLink.click()
 
+      // handleNavigate() awaits saveActiveLegProgress() before switching
+      // views (MenuBar's click handler itself isn't awaited by Playwright's
+      // click(), which only waits for the click action, not arbitrary async
+      // work it triggers) - the Play Match button only appearing here means
+      // that save has actually completed, so the API check below isn't
+      // racing it.
+      await expect(launchScreen.playMatchButton).toBeVisible()
+
       // Regression: leaving mid-leg used to lose all progress not yet sent
       // to the server - only completeLeg() ever wrote score data, so the
       // throws recorded so far existed only in this browser's local store.
