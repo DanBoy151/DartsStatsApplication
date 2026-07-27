@@ -108,3 +108,81 @@ test('Match Center adapts to phone/tablet viewports', async ({
   await matchCenterScreen.submitScoreButton.scrollIntoViewIfNeeded()
   await expect(matchCenterScreen.submitScoreButton).toBeInViewport()
 })
+
+// Second, independent test in this file (also runs under mobile/tablet via
+// testMatch) - Player Statistics' Current Form list is a CSS Grid whose
+// opponent column can force the row (and the page) wider than the viewport
+// for a long, unbreakable club name, unrelated to Match Center's own layout
+// above. Seeded via direct API calls (no /start), so it doesn't compete for
+// the app's single "one Match In Progress at a time" slot the test above holds.
+test('Player Statistics Current Form does not overflow with a long opponent name', async ({
+  page,
+  api,
+  launchScreen,
+  menuBar,
+  playerStatisticsScreen,
+}) => {
+  const playerRes = await api.post('/api/Player', { data: { name: `E2E Long Opponent Player ${Date.now()}` } })
+  const player = await playerRes.json()
+
+  const matchRes = await api.post('/api/Match', {
+    data: {
+      status: 'Scheduled',
+      opponent: 'Greensborough Blue Hogs',
+      date: new Date().toISOString().slice(0, 10),
+      location: 'Home',
+      gamesFor: 0,
+      gamesAgainst: 0,
+    },
+  })
+  const match = await matchRes.json()
+
+  const gameRes = await api.post('/api/Game', {
+    data: {
+      matchId: match.id,
+      type: 'Singles',
+      status: 'InProgress',
+      playerIds: [player.id],
+      wonBull: true,
+      order: 0,
+      legsToPlay: 1,
+      startingScore: 501,
+      maxRounds: null,
+    },
+  })
+  const game = await gameRes.json()
+
+  const legRes = await api.post('/api/Leg', {
+    data: { gameID: game.id, status: 'Started', score: [], result: null, finishDarts: null, order: 0, remainingScore: 501 },
+  })
+  const leg = await legRes.json()
+
+  await api.put(`/api/Leg/${leg.id}/complete`, {
+    data: {
+      score: [
+        { playerId: player.id, score: 180 },
+        { playerId: player.id, score: 180 },
+        { playerId: player.id, score: 141 },
+      ],
+      result: 'Win',
+      finishDarts: 3,
+      remainingScore: 0,
+    },
+  })
+  await api.put(`/api/Game/${game.id}/complete`, { data: { result: 'Win' } })
+
+  await launchScreen.goto()
+  await launchScreen.waitUntilLoaded()
+  await menuBar.openPlayerStatistics()
+  await playerStatisticsScreen.selectPlayer(player.data.name)
+
+  await expect(playerStatisticsScreen.formPanel).toContainText('Greensborough Blue Hogs')
+
+  // Regression test: .form-game's 1fr opponent column had no min-width:0/
+  // truncation, so a long, unbreakable club name forced the row (and the
+  // whole page) wider than the viewport.
+  const overflowing = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+  )
+  expect(overflowing).toBe(false)
+})
