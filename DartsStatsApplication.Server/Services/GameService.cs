@@ -45,6 +45,22 @@ namespace DartsStatsApplication.Server.Services
         }
 
         /// <summary>
+        /// Awards this game as a walkover, bypassing the normal completion
+        /// path entirely - IsValidToCompleteGame requires InProgress status
+        /// and at least one Leg, neither of which applies to a game nobody
+        /// ever played (see MatchService.RecordOppositionHeadcount, the only
+        /// caller). Sets forfeited so the UI can label it distinctly from a
+        /// normally-played result.
+        /// </summary>
+        public void ForfeitGame(GameResult result)
+        {
+            _game.data.status = GameStatus.Complete;
+            _game.data.result = result;
+            _game.data.forfeited = true;
+            _documentSession.Store(_game);
+        }
+
+        /// <summary>
         /// Corrects the recorded bull-off result after the fact - a factual
         /// correction rather than a game-state transition, so (unlike
         /// StartGame) this has no status precondition; it can be changed at

@@ -6,6 +6,11 @@ using Marten;
 
 namespace DartsStatsApplication.Server.Services
 {
+    /// <summary>
+    /// The four possible outcomes of MatchService.ResolveOppositionHeadcountOutcome.
+    /// </summary>
+    public enum HeadcountForfeitOutcome { None, WeWin, WeLose, Void }
+
     public class MatchService
     {
         private IDocumentSession _documentSession;
@@ -146,6 +151,72 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_match);
         }
 
+
+        /// <summary>
+        /// Pure decision over the two known headcounts - no side effects, so
+        /// this is unit-testable without a document session (see
+        /// MatchServiceTests). Kept separate from RecordOppositionHeadcount()
+        /// itself, which performs the actual Game-document mutation this
+        /// outcome implies.
+        /// </summary>
+        public static HeadcountForfeitOutcome ResolveOppositionHeadcountOutcome(int ourAvailableCount, bool oppositionShortHanded)
+        {
+            bool ourTeamShort = ourAvailableCount == 5;
+
+            if (!ourTeamShort && !oppositionShortHanded) return HeadcountForfeitOutcome.None;
+            if (ourTeamShort && oppositionShortHanded) return HeadcountForfeitOutcome.Void;
+            return ourTeamShort ? HeadcountForfeitOutcome.WeLose : HeadcountForfeitOutcome.WeWin;
+        }
+
+        /// <summary>
+        /// Records whether the opposition also arrived short a player, and
+        /// resolves the match's last Singles game accordingly against our
+        /// own already-known headcount (_match.data.availablePlayers.Count,
+        /// saved just before this is called - see AvailablePlayersControl.
+        /// vue's proceed()). See ResolveOppositionHeadcountOutcome for the
+        /// actual win/loss/void decision.
+        /// oppositionShortHanded is stored regardless of outcome, which also
+        /// serves as an idempotency guard - once set, a later re-Proceed
+        /// (e.g. after "Back to Players") is a safe no-op rather than
+        /// re-resolving (and potentially re-forfeiting/deleting) a different
+        /// game the second time round.
+        /// </summary>
+        public async Task RecordOppositionHeadcount(bool oppositionShortHanded)
+        {
+            _validator.ValidateOppositionHeadcountEligible();
+
+            if (_match.data.oppositionShortHanded != null)
+            {
+                return;
+            }
+
+            _match.data.oppositionShortHanded = oppositionShortHanded;
+            _documentSession.Store(_match);
+
+            var outcome = ResolveOppositionHeadcountOutcome(_match.data.availablePlayers?.Count ?? 0, oppositionShortHanded);
+            if (outcome == HeadcountForfeitOutcome.None) return;
+
+            var singlesGames = (await _documentSession.Query<Game>()
+                .Where(g => g.data.matchId == _match.Id && g.data.type == GameType.Singles)
+                .ToListAsync()).ToList();
+
+            if (singlesGames.Count == 0) return;
+
+            var lastSingles = singlesGames.OrderByDescending(g => g.data.order).First();
+
+            if (outcome == HeadcountForfeitOutcome.Void)
+            {
+                // Both teams short a player - this game simply isn't played.
+                _documentSession.Delete<Game>(lastSingles.Id);
+                return;
+            }
+
+            // Exactly one side is short - the team with a full 6 is awarded
+            // the game as a walkover.
+            GameService gameService = new GameService(_documentSession, lastSingles);
+            gameService.ForfeitGame(outcome == HeadcountForfeitOutcome.WeWin ? GameResult.Win : GameResult.Loss);
+            UpdateMatchScore(outcome == HeadcountForfeitOutcome.WeWin);
+        }
 
         public void UpdateMatchScore(Boolean result)
         {

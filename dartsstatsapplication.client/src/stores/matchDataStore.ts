@@ -33,6 +33,8 @@ export interface GameDataState {
   startingScore: number
   /** null = no League limit configured - a leg never gets decided by bull-off. */
   maxRounds: number | null
+  /** True for a game awarded as a walkover because one side only had 5 available players - see matchDataStore.resetGamesCache. */
+  forfeited: boolean
 }
 
 export interface LegDataState {
@@ -139,7 +141,7 @@ export const useMatchDataStore = defineStore('leg', {
         .filter(p => p.isAvailable)
         .map(p => p.playerId);
     },
-    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number, legsToPlay: number, startingScore: number, maxRounds: number | null) {
+    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number, legsToPlay: number, startingScore: number, maxRounds: number | null, forfeited: boolean = false) {
       if (!this.match) return;
 
       const existingIndex = this.match.games.findIndex(g => g.gameId === gameID);
@@ -156,6 +158,7 @@ export const useMatchDataStore = defineStore('leg', {
         legsToPlay,
         startingScore,
         maxRounds,
+        forfeited,
       };
 
       if (existingIndex !== -1) {
@@ -165,6 +168,17 @@ export const useMatchDataStore = defineStore('leg', {
         // Add new game
         this.match.games.push(newGame);
       }
+    },
+    /**
+     * Clears the cached games list so the next getMatchGames() call falls
+     * through to its server-fetch branch instead of returning stale cached
+     * data - needed after recordOppositionHeadcount() may have forfeited or
+     * deleted the match's last Singles game server-side, which this cache
+     * has no way to patch in place for the delete case.
+     */
+    resetGamesCache() {
+      if (!this.match) return;
+      this.match.games = [];
     },
     /**
      * Patches wonBull in place on both the match.games entry and (if it's

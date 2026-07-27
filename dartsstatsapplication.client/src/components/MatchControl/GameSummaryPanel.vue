@@ -40,6 +40,7 @@
             <span class="badges">
               <span class="pill" :class="statusPillClass(game)">{{ game.status }}</span>
               <span v-if="game.status === 'Complete'" class="pill" :class="resultPillClass(game)">{{ displayResult(game) }}</span>
+              <span v-if="game.forfeited" class="pill pill-forfeit">Forfeit</span>
             </span>
           </div>
         </div>
@@ -58,6 +59,7 @@
             <span class="badges">
               <span class="pill" :class="statusPillClass(game)">{{ game.status }}</span>
               <span v-if="game.status === 'Complete'" class="pill" :class="resultPillClass(game)">{{ displayResult(game) }}</span>
+              <span v-if="game.forfeited" class="pill pill-forfeit">Forfeit</span>
             </span>
           </div>
         </div>
@@ -76,6 +78,7 @@
             <span class="badges">
               <span class="pill" :class="statusPillClass(game)">{{ game.status }}</span>
               <span v-if="game.status === 'Complete'" class="pill" :class="resultPillClass(game)">{{ displayResult(game) }}</span>
+              <span v-if="game.forfeited" class="pill pill-forfeit">Forfeit</span>
             </span>
           </div>
         </div>
@@ -463,5 +466,10 @@
   .games-list .pill-loss {
     background: #fdecea;
     color: #e74c3c;
+  }
+
+  .pill-forfeit {
+    background: #fff3de;
+    color: #b8790a;
   }
 </style>

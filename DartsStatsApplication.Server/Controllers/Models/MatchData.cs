@@ -23,6 +23,17 @@ namespace DartsStatsApplication.Server.Controllers.Models
         /// <summary>Set when the match is completed (MatchService.CompleteMatch).</summary>
         public DateTime? finishTime { get; set; }
 
+        /// <summary>
+        /// Null until recorded (see MatchService.RecordOppositionHeadcount) -
+        /// true if the opposition arrived with only 5 available players
+        /// rather than a full 6. Combined with our own availablePlayers
+        /// count, this decides whether the match's last Singles game is
+        /// played normally, awarded as a walkover, or not played at all.
+        /// Also doubles as an idempotency guard: once set, the resolution
+        /// only ever runs once for this match.
+        /// </summary>
+        public bool? oppositionShortHanded { get; set; }
+
     }
 
     public class CompleteMatchData
@@ -35,5 +46,10 @@ namespace DartsStatsApplication.Server.Controllers.Models
     public class StartMatchData
     {
         public List<Guid> availablePlayers { get; set; }
+    }
+
+    public class OppositionHeadcountData
+    {
+        public bool oppositionShortHanded { get; set; }
     }
 }

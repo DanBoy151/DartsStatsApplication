@@ -10,6 +10,8 @@ export interface Game {
   legsToPlay: number
   startingScore: number
   maxRounds: number | null
+  /** True for a game awarded as a walkover because one side only had 5 available players. */
+  forfeited: boolean
 }
 
 /** Wire shape returned by the Game endpoints (update-players, start, complete, list). */
@@ -25,6 +27,7 @@ export interface RawGameData {
     legsToPlay?: number
     startingScore?: number
     maxRounds?: number | null
+    forfeited?: boolean
   }
 }
 export function convertToGameListFromGameDataStateList(gameDataState: GameDataState[] | null): Game[] | null {
@@ -41,6 +44,7 @@ export function convertToGameListFromGameDataStateList(gameDataState: GameDataSt
     legsToPlay: g.legsToPlay ?? 0,
     startingScore: g.startingScore ?? 0,
     maxRounds: g.maxRounds ?? null,
+    forfeited: g.forfeited ?? false,
   }));
 }
 
@@ -58,6 +62,7 @@ export function convertToGameFromGameDataState(gameDataState: GameDataState | nu
     legsToPlay: gameDataState.legsToPlay ?? 0,
     startingScore: gameDataState.startingScore ?? 0,
     maxRounds: gameDataState.maxRounds ?? null,
+    forfeited: gameDataState.forfeited ?? false,
   };
 
 }

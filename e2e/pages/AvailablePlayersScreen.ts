@@ -9,6 +9,7 @@ export class AvailablePlayersScreen {
   readonly proceedButton: Locator
   readonly backButton: Locator
   readonly selectionCount: Locator
+  readonly oppositionShortCheckbox: Locator
 
   constructor(private readonly page: Page) {
     this.root = page.locator('.available-players-control')
@@ -18,6 +19,7 @@ export class AvailablePlayersScreen {
     this.proceedButton = this.root.getByRole('button', { name: 'Proceed' })
     this.backButton = this.root.getByRole('button', { name: 'Back' })
     this.selectionCount = this.root.locator('[data-testid="available-players-count"]')
+    this.oppositionShortCheckbox = this.root.locator('[data-testid="opposition-short-checkbox"]')
   }
 
   async waitUntilLoaded() {
@@ -37,6 +39,12 @@ export class AvailablePlayersScreen {
 
   async selectedPlayerCount(): Promise<number> {
     return this.root.locator('.player-item input:checked').count()
+  }
+
+  async setOppositionShortHanded(shortHanded = true) {
+    if ((await this.oppositionShortCheckbox.isChecked()) !== shortHanded) {
+      await this.oppositionShortCheckbox.setChecked(shortHanded)
+    }
   }
 
   async proceed() {

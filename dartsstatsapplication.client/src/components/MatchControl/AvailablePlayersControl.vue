@@ -18,6 +18,10 @@
       <p class="selection-count" data-testid="available-players-count" :class="{ 'is-short': !canProceed }">
         {{ selectedCount }} selected<span v-if="!canProceed"> — need at least {{ minimumPlayers }}</span>
       </p>
+      <label class="opposition-headcount">
+        <input type="checkbox" v-model="oppositionShortHanded" data-testid="opposition-short-checkbox" />
+        Opposition only has 5 players
+      </label>
     </div>
     <div class="button-row">
       <button class="control-btn" @click="proceed" :disabled="!canProceed">Proceed</button>
@@ -29,7 +33,7 @@
 <script setup lang="ts">
   import { ref, computed, onMounted } from 'vue'
   import { getPlayers } from '@/actions/PlayerService'
-  import { setAvailablePlayers } from '@/actions/MatchService'
+  import { setAvailablePlayers, recordOppositionHeadcount } from '@/actions/MatchService'
   import { useMatchDataStore } from "@/stores/matchDataStore"
 
   const matchDataStore = useMatchDataStore()
@@ -52,6 +56,12 @@
   )
   const canProceed = computed(() => selectedCount.value >= minimumPlayers)
 
+  // Uncommon scenario: the opposition arrived a player short. Combined with
+  // our own count above, the server resolves the match's last Singles game
+  // (walkover win/loss, or removed entirely if we're both short) - see
+  // recordOppositionHeadcount()/MatchService.RecordOppositionHeadcount.
+  const oppositionShortHanded = ref(false)
+
   async function fetchPlayers() {
     loading.value = true
     fetchError.value = ''
@@ -71,8 +81,10 @@
 
     // Must await: the holding screen renders immediately once we emit, so
     // navigating before the save resolves could show the next screen before
-    // the roster was actually persisted.
+    // the roster was actually persisted. recordOppositionHeadcount() runs
+    // after, since it needs our own just-saved count to resolve correctly.
     await setAvailablePlayers()
+    await recordOppositionHeadcount(oppositionShortHanded.value)
     emit('proceed')
   }
 
@@ -203,6 +215,22 @@
   .selection-count.is-short {
     background: #fdecea;
     color: #e74c3c;
+  }
+
+  .opposition-headcount {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 0.85rem;
+    color: #7f8c9a;
+    padding: 0.5rem 0.2rem 0;
+    cursor: pointer;
+  }
+
+  .opposition-headcount input {
+    accent-color: #2c3e50;
   }
 
   .control-btn:disabled {

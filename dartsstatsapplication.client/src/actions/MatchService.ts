@@ -156,6 +156,7 @@ export async function getGamesForMatch(matchId: string): Promise<Game[]> {
       legsToPlay: g.data?.legsToPlay ?? 0,
       startingScore: g.data?.startingScore ?? 0,
       maxRounds: g.data?.maxRounds ?? null,
+      forfeited: g.data?.forfeited ?? false,
     }))
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching games for match')
@@ -273,6 +274,38 @@ export async function setAvailablePlayers() {
   }
 }
 
+/**
+ * Records whether the opposition also arrived with only 5 available players
+ * - combined with our own already-saved availablePlayers count, the server
+ * resolves the match's last Singles game (walkover win/loss, or removed
+ * entirely if both sides are short). Always called as part of
+ * AvailablePlayersControl.vue's proceed(), right after setAvailablePlayers()
+ * so our own count is already persisted by the time this runs.
+ */
+export async function recordOppositionHeadcount(oppositionShortHanded: boolean) {
+  const matchDataStore = useMatchDataStore()
+  const matchId = matchDataStore.getMatchData()?.matchId
+  if (!matchId) return
+
+  try {
+    await apiRequest<RawMatchData>(
+      `/api/Match/${matchId}/opposition-headcount`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oppositionShortHanded })
+      }
+    )
+    // The last Singles game may have just been forfeited or deleted server-
+    // side - clear the cached games list so the next fetch (GameSummaryPanel's
+    // onMounted, right after this) gets fresh server state instead of
+    // getMatchGames()'s cache-first shortcut.
+    matchDataStore.resetGamesCache()
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error recording opposition headcount')
+  }
+}
+
 export async function getMatchGames(matchId: string): Promise<Game[] | null> {
   const matchDataStore = useMatchDataStore()
   const match = matchDataStore.getMatchData()
@@ -297,6 +330,7 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
         legsToPlay: g.data?.legsToPlay ?? 0,
         startingScore: g.data?.startingScore ?? 0,
         maxRounds: g.data?.maxRounds ?? null,
+        forfeited: g.data?.forfeited ?? false,
       }))
       : []
 
@@ -311,7 +345,8 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
         game.order,
         game.legsToPlay,
         game.startingScore,
-        game.maxRounds
+        game.maxRounds,
+        game.forfeited
       )
     })
 

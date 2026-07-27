@@ -161,6 +161,20 @@ namespace DartsStatsApplication.Server.Services.Validators
         }
 
         /// <summary>
+        /// Validate that opposition headcount can be recorded for this match - by the time
+        /// AvailablePlayersControl.vue's proceed() calls this (right after
+        /// update-available-players, in the same flow), the match is always already
+        /// InProgress; this guards against a direct/out-of-sequence call.
+        /// </summary>
+        public void ValidateOppositionHeadcountEligible()
+        {
+            if (_match.data.status != MatchStatus.InProgress)
+            {
+                throw new ValidationException("Unable to record opposition headcount for a match that is not InProgress");
+            }
+        }
+
+        /// <summary>
         /// Validate that the player chosen for player of the match actually played in the
         /// match, i.e. appears in the selected players of at least one game.
         /// </summary>
