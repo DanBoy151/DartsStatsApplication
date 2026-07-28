@@ -94,7 +94,7 @@
 <template>
   <div class="app-layout">
     <header>
-      <MenuBar @navigate="handleNavigate" />
+      <MenuBar :current-view="currentView" @navigate="handleNavigate" />
     </header>
     <main>
       <MainContent v-if="currentView === 'main'" :key="homeKey" @view-statistics="() => (currentView = 'statistics')" />

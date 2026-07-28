@@ -1,5 +1,10 @@
 import type { Locator, Page } from '@playwright/test'
 
+// Below this width MenuBar.vue hides the desktop hover menu entirely
+// (display:none) and shows the hamburger-triggered mobile drawer instead -
+// must match the `@media (max-width: 899px)` breakpoint in MenuBar.vue.
+const MOBILE_BREAKPOINT = 900
+
 /** POM for MenuBar.vue's "Manage" and "Statistics" dropdowns. */
 export class MenuBar {
   readonly homeLink: Locator
@@ -12,6 +17,9 @@ export class MenuBar {
   readonly statisticsMenuItem: Locator
   readonly teamStatisticsOption: Locator
   readonly playerStatisticsOption: Locator
+  readonly mobileMenuToggle: Locator
+  readonly mobileStatisticsSection: Locator
+  readonly mobilePlayerStatisticsOption: Locator
 
   constructor(private readonly page: Page) {
     this.homeLink = page.locator('[data-testid="menu-main"]')
@@ -24,6 +32,9 @@ export class MenuBar {
     this.statisticsMenuItem = page.locator('.menu-item', { hasText: 'Statistics' })
     this.teamStatisticsOption = page.locator('[data-testid="menu-statistics"]')
     this.playerStatisticsOption = page.locator('[data-testid="menu-player-statistics"]')
+    this.mobileMenuToggle = page.locator('[data-testid="mobile-menu-toggle"]')
+    this.mobileStatisticsSection = page.locator('[data-testid="mobile-menu-section-statistics"]')
+    this.mobilePlayerStatisticsOption = page.locator('[data-testid="mobile-menu-player-statistics"]')
   }
 
   async openNewPlayerForm() {
@@ -57,6 +68,13 @@ export class MenuBar {
   }
 
   async openPlayerStatistics() {
+    const viewportWidth = this.page.viewportSize()?.width ?? 0
+    if (viewportWidth < MOBILE_BREAKPOINT) {
+      await this.mobileMenuToggle.click()
+      await this.mobileStatisticsSection.click()
+      await this.mobilePlayerStatisticsOption.click()
+      return
+    }
     await this.statisticsMenuItem.hover()
     await this.playerStatisticsOption.click()
   }
