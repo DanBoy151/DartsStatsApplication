@@ -18,7 +18,7 @@
           Bull: {{ currentWonBull ? 'Won' : 'Lost' }} <span class="edit-icon" aria-hidden="true">✎</span>
         </button>
         <button v-if="gamesTotal" type="button" class="games-chip" data-testid="open-games-drawer" @click="emit('open-games')">
-          Games {{ gamesComplete }} / {{ gamesTotal }} <span class="chev">▸</span>
+          Games {{ gameNumber }} / {{ gamesTotal }} <span class="chev">▸</span>
         </button>
       </div>
     </div>
@@ -96,7 +96,7 @@
     gamestarted?: boolean
     /** Viewing a Complete game: show the last leg's result only, no scoring controls. */
     readonly?: boolean
-    gamesComplete?: number
+    gameNumber?: number
     gamesTotal?: number
   }>()
 
