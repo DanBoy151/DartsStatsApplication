@@ -26,6 +26,7 @@
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <div class="hero-zone">
+      <span v-if="started && !readonly" class="hero-round">Round {{ currentRoundNumber }}</span>
       <div class="hero-score">{{ score }}</div>
       <div class="hero-caption" :class="{ 'is-preview': previewRemaining !== null && !wouldBust, 'is-bust': wouldBust }">
         <template v-if="started && !readonly && previewRemaining !== null">{{ wouldBust ? 'Bust — score won\'t count' : `→ ${previewRemaining} remaining` }}</template>
@@ -623,7 +624,18 @@
     text-align: center;
   }
 
-  .hero-zone { text-align: center; }
+  .hero-zone { position: relative; text-align: center; }
+
+  .hero-round {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #7f8c9a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
 
   .hero-score {
     font-size: clamp(3rem, 16cqw, 7rem);

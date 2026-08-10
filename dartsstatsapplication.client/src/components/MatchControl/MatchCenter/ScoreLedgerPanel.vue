@@ -26,31 +26,31 @@
       <div v-if="rows.length === 0" class="ledger-empty">No throws yet</div>
       <template v-else>
         <div class="ledger-timeline">
-          <template v-for="(row, index) in rows" :key="index">
-            <div v-if="row.round !== rows[index - 1]?.round" class="ledger-round-divider">Round {{ row.round }}</div>
+          <template v-for="(entry, displayIndex) in displayRows" :key="entry.index">
+            <div v-if="entry.row.round !== displayRows[displayIndex - 1]?.row.round" class="ledger-round-divider">Round {{ entry.row.round }}</div>
             <div class="ledger-row"
-                 :class="{ 'is-max': row.isMaximum, 'is-noscore': row.isNoScore, 'is-editing': editingIndex === index }">
-              <span class="ledger-dot" :style="{ background: playerColor(row.playerIndex) }"></span>
-              <span class="ledger-player">{{ getPlayerName(row.playerId) }}</span>
+                 :class="{ 'is-max': entry.row.isMaximum, 'is-noscore': entry.row.isNoScore, 'is-editing': editingIndex === entry.index }">
+              <span class="ledger-dot" :style="{ background: playerColor(entry.row.playerIndex) }"></span>
+              <span class="ledger-player">{{ getPlayerName(entry.row.playerId) }}</span>
 
-              <template v-if="editingIndex === index">
+              <template v-if="editingIndex === entry.index">
                 <input class="ledger-score-input"
                        ref="editInputEl"
                        type="text"
                        inputmode="numeric"
                        v-model="editValue"
-                       :data-testid="`ledger-edit-input-${index}`"
-                       @keydown.enter="saveEdit(index)"
+                       :data-testid="`ledger-edit-input-${entry.index}`"
+                       @keydown.enter="saveEdit(entry.index)"
                        @keydown.escape="cancelEdit" />
                 <span class="ledger-edit-actions">
                   <button type="button"
                           class="ledger-edit-btn save"
-                          :data-testid="`ledger-edit-save-${index}`"
+                          :data-testid="`ledger-edit-save-${entry.index}`"
                           aria-label="Save score"
-                          @click="saveEdit(index)">✓</button>
+                          @click="saveEdit(entry.index)">✓</button>
                   <button type="button"
                           class="ledger-edit-btn cancel"
-                          :data-testid="`ledger-edit-cancel-${index}`"
+                          :data-testid="`ledger-edit-cancel-${entry.index}`"
                           aria-label="Cancel edit"
                           @click="cancelEdit">✕</button>
                 </span>
@@ -59,13 +59,13 @@
                 <button v-if="canEdit"
                         type="button"
                         class="ledger-score ledger-score-editable"
-                        :data-testid="`ledger-score-${index}`"
-                        @click="startEdit(index, row.score)">{{ row.isNoScore ? 'No score' : row.score }}</button>
-                <span v-else class="ledger-score">{{ row.isNoScore ? 'No score' : row.score }}</span>
-                <span class="ledger-remaining">{{ row.isNoScore ? 'no change' : `→ ${row.remaining}` }}</span>
+                        :data-testid="`ledger-score-${entry.index}`"
+                        @click="startEdit(entry.index, entry.row.score)">{{ entry.row.isNoScore ? 'No score' : entry.row.score }}</button>
+                <span v-else class="ledger-score">{{ entry.row.isNoScore ? 'No score' : entry.row.score }}</span>
+                <span class="ledger-remaining">{{ entry.row.isNoScore ? 'no change' : `→ ${entry.row.remaining}` }}</span>
               </template>
             </div>
-            <div v-if="editingIndex === index && editError" class="ledger-edit-error">{{ editError }}</div>
+            <div v-if="editingIndex === entry.index && editError" class="ledger-edit-error">{{ editError }}</div>
           </template>
         </div>
 
@@ -160,6 +160,14 @@
     return buildLedgerRows(leg.score, resolveStartingScore(game), game.players)
   })
 
+  // Newest throw first - `index` stays the row's original (chronological)
+  // position, since editingIndex/startEdit/saveEdit and the ledger-score-*
+  // testids all key off that same index into leg.score, independent of
+  // however the rows are ordered for display.
+  const displayRows = computed(() =>
+    rows.value.map((row, index) => ({ row, index })).reverse()
+  )
+
   function getPlayerName(playerId: string): string {
     const player = matchDataStore.matchAvailablePlayers.find(p => p.playerId === playerId)
     return player ? player.name : playerId
@@ -212,12 +220,13 @@
     cancelEdit()
   }
 
-  // Auto-scroll to the last row when rows change (including a tab switch,
-  // since rows is derived from viewedLeg).
+  // Auto-scroll to the most recent throw when rows change (including a tab
+  // switch, since rows is derived from viewedLeg) - now the first row in the
+  // panel, since the ledger displays newest-first.
   watch(rows, async () => {
     await nextTick()
     if (ledgerPanel.value) {
-      ledgerPanel.value.scrollTop = ledgerPanel.value.scrollHeight
+      ledgerPanel.value.scrollTop = 0
     }
   })
 </script>
