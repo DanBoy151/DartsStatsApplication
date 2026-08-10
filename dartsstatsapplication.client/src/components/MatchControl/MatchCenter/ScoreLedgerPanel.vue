@@ -25,6 +25,10 @@
     <div class="panel-body" ref="ledgerPanel">
       <div v-if="rows.length === 0" class="ledger-empty">No throws yet</div>
       <template v-else>
+        <div v-if="viewedLegFinalCaption" class="leg-final" :class="viewedLeg?.result === 'Win' ? 'win' : 'loss'" data-testid="leg-final-summary">
+          Leg {{ viewedLegNumber }} — {{ viewedLeg?.result === 'Win' ? 'Won' : 'Lost' }} · {{ viewedLegFinalCaption }}
+        </div>
+
         <div class="ledger-timeline">
           <template v-for="(entry, displayIndex) in displayRows" :key="entry.index">
             <div v-if="entry.row.round !== displayRows[displayIndex - 1]?.row.round" class="ledger-round-divider">Round {{ entry.row.round }}</div>
@@ -67,10 +71,6 @@
             </div>
             <div v-if="editingIndex === entry.index && editError" class="ledger-edit-error">{{ editError }}</div>
           </template>
-        </div>
-
-        <div v-if="viewedLegFinalCaption" class="leg-final" :class="viewedLeg?.result === 'Win' ? 'win' : 'loss'" data-testid="leg-final-summary">
-          Leg {{ viewedLegNumber }} — {{ viewedLeg?.result === 'Win' ? 'Won' : 'Lost' }} · {{ viewedLegFinalCaption }}
         </div>
       </template>
     </div>
@@ -354,7 +354,7 @@
     }
 
   .leg-final {
-    margin: 0.5rem 0.4rem 0.2rem;
+    margin: 0.5rem 0.4rem 0.7rem;
     padding: 0.7rem 0.9rem;
     border-radius: 10px;
     font-size: 0.85rem;
