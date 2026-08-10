@@ -18,7 +18,7 @@
           Bull: {{ currentWonBull ? 'Won' : 'Lost' }} <span class="edit-icon" aria-hidden="true">✎</span>
         </button>
         <button v-if="gamesTotal" type="button" class="games-chip" data-testid="open-games-drawer" @click="emit('open-games')">
-          Games {{ gamesComplete }} / {{ gamesTotal }} <span class="chev">▸</span>
+          Games {{ gameNumber }} / {{ gamesTotal }} <span class="chev">▸</span>
         </button>
       </div>
     </div>
@@ -26,6 +26,7 @@
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <div class="hero-zone">
+      <span v-if="started && !readonly" class="hero-round">Round {{ currentRoundNumber }}</span>
       <div class="hero-score">{{ score }}</div>
       <div class="hero-caption" :class="{ 'is-preview': previewRemaining !== null && !wouldBust, 'is-bust': wouldBust }">
         <template v-if="started && !readonly && previewRemaining !== null">{{ wouldBust ? 'Bust — score won\'t count' : `→ ${previewRemaining} remaining` }}</template>
@@ -87,6 +88,7 @@
   import { currentRound, isBullOffRound } from '@/models/gameProgress'
   import { isValidDartScore, isValidCheckoutScore } from '@/models/dartScoring'
   import { playerColor } from '@/models/playerColors'
+  import { saveLegProgressInBackground } from '@/actions/LegService'
 
   const matchDataStore = useMatchDataStore()
 
@@ -95,7 +97,7 @@
     gamestarted?: boolean
     /** Viewing a Complete game: show the last leg's result only, no scoring controls. */
     readonly?: boolean
-    gamesComplete?: number
+    gameNumber?: number
     gamesTotal?: number
   }>()
 
@@ -448,6 +450,7 @@
 
       const scoreEntry: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) }
       matchDataStore.updateSelectedLegScore(scoreEntry)
+      saveLegProgressInBackground()
 
       showCheckoutDartsPopup.value = true
     }
@@ -455,6 +458,7 @@
       //set the score in the data store
       const scoreEntry: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) }
       matchDataStore.updateSelectedLegScore(scoreEntry)
+      saveLegProgressInBackground()
 
       handlePostThrow(throwRound)
     }
@@ -490,6 +494,7 @@
     const scoreEntry: Record<string, number> = { [matchDataStore.currentPlayer]: Number(0) }
 
     matchDataStore.updateSelectedLegScore(scoreEntry)
+    saveLegProgressInBackground()
 
     handlePostThrow(throwRound)
 
@@ -623,7 +628,18 @@
     text-align: center;
   }
 
-  .hero-zone { text-align: center; }
+  .hero-zone { position: relative; text-align: center; }
+
+  .hero-round {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #7f8c9a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
 
   .hero-score {
     font-size: clamp(3rem, 16cqw, 7rem);

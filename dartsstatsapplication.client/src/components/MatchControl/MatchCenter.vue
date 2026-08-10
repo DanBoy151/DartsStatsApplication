@@ -11,7 +11,7 @@
                     :game-type="props.game?.type"
                     :gamestarted="started"
                     :readonly="isComplete"
-                    :games-complete="gamesComplete"
+                    :game-number="currentGameNumber"
                     :games-total="gamesTotal" />
 
     <div class="secondary-row">
@@ -75,7 +75,12 @@
   const showDrawer = ref(false)
 
   const gamesTotal = computed(() => matchDataStore.match?.games?.length ?? 0)
-  const gamesComplete = computed(() => matchDataStore.match?.games?.filter((g) => g.status === 'Complete').length ?? 0)
+  // 1-based position of the currently viewed game within the match's fixed
+  // running order (game.order is 0-based - trebles, then doubles, then
+  // singles) - not a count of Completed games, which would still read one
+  // behind while playing the last game in the list (e.g. "10 / 11" instead
+  // of "11 / 11").
+  const currentGameNumber = computed(() => (props.game?.order ?? 0) + 1)
 
   function onDrawerSelectGame() {
     showDrawer.value = false
