@@ -84,6 +84,7 @@
   import { buildLedgerRows, startingScoreForGameType } from '@/models/gameProgress'
   import { isValidDartScore } from '@/models/dartScoring'
   import { playerColor } from '@/models/playerColors'
+  import { saveLegProgressInBackground } from '@/actions/LegService'
 
   const props = defineProps<{
     /** Allow correcting a previously-recorded throw - only while the game is
@@ -216,6 +217,7 @@
       editError.value = 'That score leaves the leg below zero remaining.'
       return
     }
+    saveLegProgressInBackground()
 
     cancelEdit()
   }

@@ -88,6 +88,7 @@
   import { currentRound, isBullOffRound } from '@/models/gameProgress'
   import { isValidDartScore, isValidCheckoutScore } from '@/models/dartScoring'
   import { playerColor } from '@/models/playerColors'
+  import { saveLegProgressInBackground } from '@/actions/LegService'
 
   const matchDataStore = useMatchDataStore()
 
@@ -449,6 +450,7 @@
 
       const scoreEntry: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) }
       matchDataStore.updateSelectedLegScore(scoreEntry)
+      saveLegProgressInBackground()
 
       showCheckoutDartsPopup.value = true
     }
@@ -456,6 +458,7 @@
       //set the score in the data store
       const scoreEntry: Record<string, number> = { [matchDataStore.currentPlayer]: Number(scoreValue.value) }
       matchDataStore.updateSelectedLegScore(scoreEntry)
+      saveLegProgressInBackground()
 
       handlePostThrow(throwRound)
     }
@@ -491,6 +494,7 @@
     const scoreEntry: Record<string, number> = { [matchDataStore.currentPlayer]: Number(0) }
 
     matchDataStore.updateSelectedLegScore(scoreEntry)
+    saveLegProgressInBackground()
 
     handlePostThrow(throwRound)
 

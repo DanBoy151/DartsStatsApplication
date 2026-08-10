@@ -34,6 +34,13 @@ export async function completeLeg() {
   //Check if a selected leg has been set and if so return
   if (!matchDataStore.selectedLeg && !legId) return;
 
+  // Let any background per-throw autosave still in flight land first - it's
+  // targeting the same leg and would otherwise be able to resolve AFTER this
+  // completion PUT, hitting a 400 (SaveProgress rejects a leg that's no
+  // longer Started) for no reason. Harmless either way since this PUT below
+  // always sends the full authoritative score itself, but avoids the noise.
+  await awaitPendingBackgroundSave()
+
   const result: LegResult = {
     score: scoreToArray(matchDataStore.selectedLeg?.score),
     result: matchDataStore.selectedLeg?.result ?? '',
@@ -78,6 +85,9 @@ export async function completeLegByBullOff() {
 
   if (!matchDataStore.selectedLeg && !legId) return;
 
+  // See the matching comment in completeLeg() above.
+  await awaitPendingBackgroundSave()
+
   const result: LegBullOffResult = {
     score: scoreToArray(matchDataStore.selectedLeg?.score),
     result: matchDataStore.selectedLeg?.result ?? '',
@@ -121,13 +131,13 @@ export function scoreToArray(
 }
 
 /**
- * Saves the in-progress leg's throw history to the server without
- * completing it - called when the user navigates away mid-leg (Home/top
- * menu), so a resumed session (possibly on a different device, or after the
- * store's own 6-hour expiry) sees the real throws instead of an empty
- * history. A no-op unless a leg is actually being played.
+ * Actual PUT for both saveLegProgress() and the background autosave below -
+ * always reads selectedLeg fresh at call time (rather than being handed a
+ * snapshot), so a save that was queued against one leg but fires after the
+ * scorer has already moved on naturally targets/no-ops correctly against
+ * whatever's selected by then instead of resurrecting stale data.
  */
-export async function saveLegProgress(): Promise<void> {
+async function putLegProgress(): Promise<void> {
   const matchDataStore = useMatchDataStore()
   const leg = matchDataStore.selectedLeg
   if (!leg || leg.status !== 'Started') return
@@ -144,4 +154,64 @@ export async function saveLegProgress(): Promise<void> {
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error saving leg progress')
   }
+}
+
+// Coalesces saveLegProgressInBackground() calls: at most one PUT in flight
+// at a time, with at most one more queued behind it. This is what keeps
+// concurrent/rapid-fire background saves from ever landing out of order at
+// the server - since /progress replaces the whole score array rather than
+// appending, an older (shorter) request resolving after a newer one would
+// otherwise silently roll the leg back. Serialising them, and always having
+// the queued follow-up read the latest store state (not a snapshot taken
+// when it was requested), makes that impossible without needing any
+// sequencing on the server.
+let backgroundSaveInFlight: Promise<void> | null = null
+let backgroundSavePending = false
+
+function runQueuedBackgroundSave(): void {
+  backgroundSaveInFlight = putLegProgress().finally(() => {
+    backgroundSaveInFlight = null
+    if (backgroundSavePending) {
+      backgroundSavePending = false
+      runQueuedBackgroundSave()
+    }
+  })
+}
+
+/**
+ * Fire-and-forget: persists the current leg's throw history in the
+ * background after every throw/correction, so the keypad and Score Ledger
+ * stay instant rather than waiting on a round trip. Called from
+ * ScoringConsole.vue (submit/noScore) and ScoreLedgerPanel.vue (saveEdit)
+ * right after each local store update. Safe to call as often as needed -
+ * see runQueuedBackgroundSave() above for how overlapping calls coalesce.
+ */
+export function saveLegProgressInBackground(): void {
+  if (backgroundSaveInFlight) {
+    backgroundSavePending = true
+    return
+  }
+  runQueuedBackgroundSave()
+}
+
+/** Waits out any in-flight/queued background autosave, without starting a new one. */
+async function awaitPendingBackgroundSave(): Promise<void> {
+  while (backgroundSaveInFlight) {
+    await backgroundSaveInFlight
+  }
+}
+
+/**
+ * Saves the in-progress leg's throw history to the server without
+ * completing it - called when the user navigates away mid-leg (Home/top
+ * menu), so a resumed session (possibly on a different device, or after the
+ * store's own 6-hour expiry) sees the real throws instead of an empty
+ * history. A no-op unless a leg is actually being played. Waits out any
+ * pending background autosave first rather than racing it, then does one
+ * more save itself to guarantee the latest state actually lands - the
+ * background autosave firing is only ever best-effort.
+ */
+export async function saveLegProgress(): Promise<void> {
+  await awaitPendingBackgroundSave()
+  await putLegProgress()
 }
