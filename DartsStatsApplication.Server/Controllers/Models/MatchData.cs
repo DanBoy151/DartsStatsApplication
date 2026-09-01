@@ -29,10 +29,24 @@ namespace DartsStatsApplication.Server.Controllers.Models
         /// rather than a full 6. Combined with our own availablePlayers
         /// count, this decides whether the match's last Singles game is
         /// played normally, awarded as a walkover, or not played at all.
-        /// Also doubles as an idempotency guard: once set, the resolution
-        /// only ever runs once for this match.
+        /// Freely overwritten by a later re-Proceed (e.g. after "Back to
+        /// Players") as long as that hasn't yet mutated a Game - see
+        /// oppositionHeadcountResolved, which is the actual idempotency
+        /// guard.
         /// </summary>
         public bool? oppositionShortHanded { get; set; }
+
+        /// <summary>
+        /// True once RecordOppositionHeadcount has actually forfeited/voided
+        /// a Game off the back of oppositionShortHanded (i.e. the outcome
+        /// wasn't None). Only this - not oppositionShortHanded being set -
+        /// blocks a later re-Proceed: recording a headcount that turned out
+        /// not to require any Game mutation (e.g. both sides full strength)
+        /// must stay correctable, but once a Game has actually been
+        /// forfeited/deleted, redoing that with a since-changed roster could
+        /// target a different Game than intended.
+        /// </summary>
+        public bool oppositionHeadcountResolved { get; set; }
 
     }
 

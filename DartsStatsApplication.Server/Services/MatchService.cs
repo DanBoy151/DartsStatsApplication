@@ -175,26 +175,34 @@ namespace DartsStatsApplication.Server.Services
         /// saved just before this is called - see AvailablePlayersControl.
         /// vue's proceed()). See ResolveOppositionHeadcountOutcome for the
         /// actual win/loss/void decision.
-        /// oppositionShortHanded is stored regardless of outcome, which also
-        /// serves as an idempotency guard - once set, a later re-Proceed
-        /// (e.g. after "Back to Players") is a safe no-op rather than
-        /// re-resolving (and potentially re-forfeiting/deleting) a different
-        /// game the second time round.
+        /// oppositionShortHanded itself is always overwritten with the
+        /// latest call's value - a re-Proceed (e.g. after "Back to Players",
+        /// having ticked/unticked the box the first time round) needs to
+        /// actually take effect. Only oppositionHeadcountResolved guards
+        /// against re-running: once a Game has genuinely been
+        /// forfeited/deleted off the back of this, it's left alone rather
+        /// than risking a second mutation against a possibly-different Game.
         /// </summary>
         public async Task RecordOppositionHeadcount(bool oppositionShortHanded)
         {
             _validator.ValidateOppositionHeadcountEligible();
 
-            if (_match.data.oppositionShortHanded != null)
+            if (_match.data.oppositionHeadcountResolved)
             {
                 return;
             }
 
             _match.data.oppositionShortHanded = oppositionShortHanded;
-            _documentSession.Store(_match);
 
             var outcome = ResolveOppositionHeadcountOutcome(_match.data.availablePlayers?.Count ?? 0, oppositionShortHanded);
-            if (outcome == HeadcountForfeitOutcome.None) return;
+            if (outcome == HeadcountForfeitOutcome.None)
+            {
+                _documentSession.Store(_match);
+                return;
+            }
+
+            _match.data.oppositionHeadcountResolved = true;
+            _documentSession.Store(_match);
 
             var singlesGames = (await _documentSession.Query<Game>()
                 .Where(g => g.data.matchId == _match.Id && g.data.type == GameType.Singles)

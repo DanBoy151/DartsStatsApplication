@@ -250,6 +250,32 @@ leg object after setSelectedLeg() is called before a setLegData() update") and
 by the "viewing an In Progress game resumes on the current leg, not a fresh
 one" step in `tests/01-start-next-match.spec.ts`.
 
+### 17. Ticking "Opposition only has 5 players" after going "Back to Players" had no effect
+Reported directly by the user: if the checkbox was left unticked on the first
+**Proceed** from the roster screen, then the user went **Back to Players**
+(see #9) and ticked it before proceeding again, the match was still not
+treated as being against a short-handed opposition.
+`MatchService.RecordOppositionHeadcount()`
+(`DartsStatsApplication.Server/Services/MatchService.cs`) used
+`_match.data.oppositionShortHanded != null` as its idempotency guard, to
+avoid re-forfeiting/deleting a Game a second time on a re-Proceed. But that
+field is set on the *first* call regardless of outcome - including the
+common case where nothing needed forfeiting (both sides full strength) - so
+any later call, even one that now legitimately resolves to a walkover, was
+silently dropped as an already-handled no-op. Fixed by splitting the two
+concerns: `oppositionShortHanded` (`MatchData.cs`) is now always overwritten
+with the latest submitted value, while a new `oppositionHeadcountResolved`
+flag - set only once a Game has actually been forfeited/voided - is the sole
+idempotency guard.
+Not covered by an automated test: `RecordOppositionHeadcount()` needs a real
+document session to exercise (see `MatchServiceTests.cs`'s header comment),
+and the E2E suite's "only one Match In Progress at a time" constraint means
+this would need its own isolated run rather than slotting into
+`01-start-next-match.spec.ts`'s existing critical-path match. Verified
+instead by tracing the guard logic against `ResolveOppositionHeadcountOutcome`
+directly (the existing unit-tested pure decision function), plus the full
+`dotnet test` suite (201 tests) to confirm no regressions.
+
 ### 7. "View Statistics" button does nothing
 On the launch screen (`LaunchCaptainControl.vue`), the "View Statistics"
 button was fully styled and hoverable but had no `@click` handler at all -
