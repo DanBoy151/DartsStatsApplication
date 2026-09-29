@@ -17,7 +17,7 @@ const MATCH_ID = 'match-1'
 const AVAILABLE = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']
 
 /** The match as the server returns it from PUT opposition-headcount. */
-function serverMatch(gamesFor: number, gamesAgainst: number): RawMatchData {
+function serverMatch(gamesFor: number, gamesAgainst: number, oppositionShortHanded: boolean | null = null): RawMatchData {
   return {
     id: MATCH_ID,
     data: {
@@ -28,6 +28,7 @@ function serverMatch(gamesFor: number, gamesAgainst: number): RawMatchData {
       status: 'InProgress',
       gamesFor,
       gamesAgainst,
+      oppositionShortHanded,
     },
   }
 }
@@ -120,6 +121,31 @@ describe('recordOppositionHeadcount', () => {
 
     expect(store.getMatchData()?.gamesFor).toBe(1)
     expect(store.getMatchData()?.gamesAgainst).toBe(1)
+  })
+
+  it('remembers the recorded answer so Back to Players starts from it', async () => {
+    const store = seedInProgressMatch()
+    mockedApiRequest.mockResolvedValue(serverMatch(1, 0, true))
+
+    await recordOppositionHeadcount(true)
+
+    expect(store.getMatchData()?.oppositionShortHanded).toBe(true)
+  })
+
+  it('takes the walkover back off the score when the box is unticked on a re-Proceed', async () => {
+    const store = seedInProgressMatch()
+    mockedApiRequest.mockResolvedValueOnce(serverMatch(1, 0, true))
+    await recordOppositionHeadcount(true)
+    expect(store.getMatchData()?.gamesFor).toBe(1)
+
+    // Back to Players, untick, Proceed - the server undoes the forfeit.
+    mockedApiRequest.mockResolvedValueOnce(serverMatch(0, 0, false))
+    await recordOppositionHeadcount(false)
+
+    expect(store.getMatchData()?.gamesFor).toBe(0)
+    expect(store.getMatchData()?.gamesAgainst).toBe(0)
+    expect(store.getMatchData()?.oppositionShortHanded).toBe(false)
+    expect(store.getMatchData()?.games).toEqual([])
   })
 
   it('does nothing when there is no current match', async () => {

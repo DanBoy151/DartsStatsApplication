@@ -37,7 +37,8 @@ async function setData(data: RawMatchData): Promise<Match> {
     match.availablePlayers,
     match.status,
     match.gamesFor,
-    match.gamesAgainst
+    match.gamesAgainst,
+    data.data?.oppositionShortHanded ?? false
   )
 
   return match

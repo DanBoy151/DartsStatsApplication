@@ -29,22 +29,20 @@ namespace DartsStatsApplication.Server.Controllers.Models
         /// rather than a full 6. Combined with our own availablePlayers
         /// count, this decides whether the match's last Singles game is
         /// played normally, awarded as a walkover, or not played at all.
-        /// Freely overwritten by a later re-Proceed (e.g. after "Back to
-        /// Players") as long as that hasn't yet mutated a Game - see
-        /// oppositionHeadcountResolved, which is the actual idempotency
-        /// guard.
+        /// Overwritten by every re-Proceed (e.g. after "Back to Players"),
+        /// which also undoes any earlier forfeit/void before applying the
+        /// new outcome - see MatchService.ReconcileOppositionHeadcount. Sent
+        /// back to the client so the roster screen's checkbox starts from it.
         /// </summary>
         public bool? oppositionShortHanded { get; set; }
 
         /// <summary>
-        /// True once RecordOppositionHeadcount has actually forfeited/voided
-        /// a Game off the back of oppositionShortHanded (i.e. the outcome
-        /// wasn't None). Only this - not oppositionShortHanded being set -
-        /// blocks a later re-Proceed: recording a headcount that turned out
-        /// not to require any Game mutation (e.g. both sides full strength)
-        /// must stay correctable, but once a Game has actually been
-        /// forfeited/deleted, redoing that with a since-changed roster could
-        /// target a different Game than intended.
+        /// True while a headcount forfeit/void is currently applied to one
+        /// of this match's Singles games (i.e. the outcome wasn't None). A
+        /// forfeited game records which way a walkover went by itself, but a
+        /// voided one is deleted outright - this is the only trace of it, so
+        /// a later re-Proceed knows to recreate it when undoing (see
+        /// MatchService.CurrentHeadcountOutcome).
         /// </summary>
         public bool oppositionHeadcountResolved { get; set; }
 

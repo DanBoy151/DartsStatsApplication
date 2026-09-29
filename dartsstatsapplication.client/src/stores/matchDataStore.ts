@@ -11,6 +11,8 @@ export interface MatchDataState {
   status: string | null
   gamesFor: number
   gamesAgainst: number
+  /** Last recorded "Opposition only has 5 players" answer - seeds the roster screen's checkbox on a Back to Players. */
+  oppositionShortHanded: boolean
 }
 
 export interface MatchAvailablePlayers {
@@ -67,7 +69,7 @@ export const useMatchDataStore = defineStore('leg', {
     getMemoryDateTime() {
       return this.memDateTime
     },
-    setMatchData(matchID: string, opposition: string, date: Date, location: string, availablePlayers: string[], status: string, gamesFor: number, gamesAgainst: number) {
+    setMatchData(matchID: string, opposition: string, date: Date, location: string, availablePlayers: string[], status: string, gamesFor: number, gamesAgainst: number, oppositionShortHanded: boolean = false) {
       // Preserve already-loaded games when this is an update to the SAME
       // match (e.g. updateMatchScore() after completing a game) - only reset
       // to empty when switching to a genuinely different match. Otherwise
@@ -85,7 +87,8 @@ export const useMatchDataStore = defineStore('leg', {
         games: existingGames,
         status: status,
         gamesFor: gamesFor,
-        gamesAgainst: gamesAgainst
+        gamesAgainst: gamesAgainst,
+        oppositionShortHanded: oppositionShortHanded
       }
       this.setMemoryDateTime()
     },

@@ -60,7 +60,10 @@
   // our own count above, the server resolves the match's last Singles game
   // (walkover win/loss, or removed entirely if we're both short) - see
   // recordOppositionHeadcount()/MatchService.RecordOppositionHeadcount.
-  const oppositionShortHanded = ref(false)
+  // Starts from whatever was last recorded, so coming Back to Players
+  // doesn't silently untick it - Proceeding with it unticked is what undoes
+  // an earlier walkover, so it has to reflect what's actually applied.
+  const oppositionShortHanded = ref(matchDataStore.getMatchData()?.oppositionShortHanded ?? false)
 
   async function fetchPlayers() {
     loading.value = true
