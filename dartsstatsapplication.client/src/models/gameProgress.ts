@@ -139,6 +139,25 @@ export function isBullOffRound(round: number, maxRounds: number | null): boolean
   return round >= maxRounds
 }
 
+/** How many rounds out from the max round the scorer is warned - the warning round plus the rounds after it, up to and including the max round itself. */
+export const FINAL_ROUNDS_WARNING_COUNT = 3
+
+/**
+ * True when the *next* throw is the first throw of the round that leaves
+ * exactly FINAL_ROUNDS_WARNING_COUNT rounds (including itself and the max
+ * round) before the leg goes to the opponent-checkout/bull-off prompts - the
+ * point the scorer is warned. Only at the round's first throw, so the warning
+ * fires once as the round begins rather than for every player in it. Never
+ * true without a configured limit, or when the limit is too short for there
+ * to ever be that many rounds left.
+ */
+export function isFinalRoundsWarning(throwCount: number, playerCount: number, maxRounds: number | null): boolean {
+  if (maxRounds == null || maxRounds < FINAL_ROUNDS_WARNING_COUNT) return false
+  const playersPerRound = Math.max(playerCount, 1)
+  if (throwCount % playersPerRound !== 0) return false
+  return currentRound(throwCount, playerCount) === maxRounds - FINAL_ROUNDS_WARNING_COUNT + 1
+}
+
 /**
  * Whose turn is next, purely from how many throws are already recorded and
  * the game's fixed player order - one throw per player per round, so after

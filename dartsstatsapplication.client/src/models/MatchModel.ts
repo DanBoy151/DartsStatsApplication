@@ -34,6 +34,8 @@ export interface RawMatchData {
     finishTime?: string | null
     result?: string | null
     playerOfMatch?: string | null
+    /** null until the roster screen's "Opposition only has 5 players" has been recorded. */
+    oppositionShortHanded?: boolean | null
   }
 }
 

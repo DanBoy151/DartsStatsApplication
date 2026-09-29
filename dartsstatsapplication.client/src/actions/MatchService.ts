@@ -37,7 +37,8 @@ async function setData(data: RawMatchData): Promise<Match> {
     match.availablePlayers,
     match.status,
     match.gamesFor,
-    match.gamesAgainst
+    match.gamesAgainst,
+    data.data?.oppositionShortHanded ?? false
   )
 
   return match
@@ -300,7 +301,7 @@ export async function recordOppositionHeadcount(oppositionShortHanded: boolean) 
   if (!matchId) return
 
   try {
-    await apiRequest<RawMatchData>(
+    const data = await apiRequest<RawMatchData>(
       `/api/Match/${matchId}/opposition-headcount`,
       {
         method: 'PUT',
@@ -308,6 +309,11 @@ export async function recordOppositionHeadcount(oppositionShortHanded: boolean) 
         body: JSON.stringify({ oppositionShortHanded })
       }
     )
+    // A walkover also moves the match score (gamesFor/gamesAgainst) server-
+    // side - take the returned match so the score shown straight away
+    // already counts the forfeited game, same as updateMatchScore() does
+    // after a normally-played one.
+    await setData(data)
     // The last Singles game may have just been forfeited or deleted server-
     // side - clear the cached games list so the next fetch (GameSummaryPanel's
     // onMounted, right after this) gets fresh server state instead of

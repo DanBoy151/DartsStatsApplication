@@ -11,6 +11,17 @@ namespace DartsStatsApplication.Server.Services
     /// </summary>
     public enum HeadcountForfeitOutcome { None, WeWin, WeLose, Void }
 
+    /// <summary>
+    /// The Game-document writes MatchService.ReconcileOppositionHeadcount
+    /// worked out in memory - left for the caller to store/delete, so the
+    /// decision itself stays unit-testable without a document session.
+    /// </summary>
+    public class HeadcountReconciliation
+    {
+        public List<Game> GamesToStore { get; } = new();
+        public Game? GameToDelete { get; set; }
+    }
+
     public class MatchService
     {
         private IDocumentSession _documentSession;
@@ -92,6 +103,11 @@ namespace DartsStatsApplication.Server.Services
 
         private void CreateGame(GameType type, int gameOrder, int legsToPlay, int startingScore, int? maxRounds)
         {
+            _documentSession.Store<Game>(BuildGame(type, gameOrder, legsToPlay, startingScore, maxRounds));
+        }
+
+        private Game BuildGame(GameType type, int gameOrder, int legsToPlay, int startingScore, int? maxRounds)
+        {
             Game game = new Game();
             game.Id = Guid.NewGuid();
             game.data = new GameData();
@@ -103,7 +119,7 @@ namespace DartsStatsApplication.Server.Services
             game.data.startingScore = startingScore;
             game.data.maxRounds = maxRounds;
 
-            _documentSession.Store<Game>(game);
+            return game;
         }
 
         private void CreatePendingGames(League? league)
@@ -169,53 +185,159 @@ namespace DartsStatsApplication.Server.Services
         }
 
         /// <summary>
+        /// What's currently applied to the match's Singles games off the back
+        /// of an earlier headcount: a forfeited Singles game says which way
+        /// the walkover went, and with none forfeited but headcountResolved
+        /// still set, the last Singles game was voided (deleted) instead.
+        /// </summary>
+        public static HeadcountForfeitOutcome CurrentHeadcountOutcome(IEnumerable<Game> singlesGames, bool headcountResolved)
+        {
+            var forfeited = singlesGames.FirstOrDefault(g => g.data.forfeited);
+            if (forfeited != null)
+            {
+                return forfeited.data.result == GameResult.Win ? HeadcountForfeitOutcome.WeWin : HeadcountForfeitOutcome.WeLose;
+            }
+
+            return headcountResolved ? HeadcountForfeitOutcome.Void : HeadcountForfeitOutcome.None;
+        }
+
+        /// <summary>
+        /// Moves the match's Singles games (and score) from whatever headcount
+        /// outcome is currently applied to the desired one, entirely in
+        /// memory: first undoing the old outcome - a walkover goes back to a
+        /// Pending, unforfeited game with its point taken back off the score;
+        /// a voided game is recreated via createReplacementSingles - then
+        /// applying the new one to whichever Singles game is now last. So
+        /// unticking "Opposition only has 5 players" (or our own roster
+        /// changing) on a re-Proceed fully reverses the earlier forfeit.
+        /// Throws if the new outcome would forfeit/void a game that's
+        /// already been started.
+        /// </summary>
+        public static HeadcountReconciliation ReconcileOppositionHeadcount(
+            MatchData match,
+            List<Game> singlesGames,
+            HeadcountForfeitOutcome desired,
+            Func<Game> createReplacementSingles)
+        {
+            var result = new HeadcountReconciliation();
+            var current = CurrentHeadcountOutcome(singlesGames, match.oppositionHeadcountResolved);
+            if (current == desired) return result;
+
+            var singles = new List<Game>(singlesGames);
+
+            if (current == HeadcountForfeitOutcome.WeWin || current == HeadcountForfeitOutcome.WeLose)
+            {
+                var forfeited = singles.First(g => g.data.forfeited);
+                forfeited.data.status = GameStatus.Pending;
+                forfeited.data.result = null;
+                forfeited.data.forfeited = false;
+                result.GamesToStore.Add(forfeited);
+
+                if (current == HeadcountForfeitOutcome.WeWin)
+                {
+                    match.gamesFor = Math.Max(0, match.gamesFor - 1);
+                }
+                else
+                {
+                    match.gamesAgainst = Math.Max(0, match.gamesAgainst - 1);
+                }
+            }
+            else if (current == HeadcountForfeitOutcome.Void)
+            {
+                var replacement = createReplacementSingles();
+                singles.Add(replacement);
+                result.GamesToStore.Add(replacement);
+            }
+
+            match.oppositionHeadcountResolved = false;
+            if (desired == HeadcountForfeitOutcome.None) return result;
+
+            var lastSingles = singles.OrderByDescending(g => g.data.order).FirstOrDefault();
+            if (lastSingles == null) return result;
+
+            if (lastSingles.data.status == GameStatus.InProgress || lastSingles.data.status == GameStatus.Complete)
+            {
+                throw new ValidationException("Unable to change the opposition headcount - the last Singles game has already been played");
+            }
+
+            match.oppositionHeadcountResolved = true;
+
+            if (desired == HeadcountForfeitOutcome.Void)
+            {
+                // Both teams short a player - this game simply isn't played.
+                result.GamesToStore.Remove(lastSingles);
+                result.GameToDelete = lastSingles;
+                return result;
+            }
+
+            // Exactly one side is short - the team with a full 6 is awarded
+            // the game as a walkover.
+            bool weWin = desired == HeadcountForfeitOutcome.WeWin;
+            lastSingles.data.status = GameStatus.Complete;
+            lastSingles.data.result = weWin ? GameResult.Win : GameResult.Loss;
+            lastSingles.data.forfeited = true;
+            if (!result.GamesToStore.Contains(lastSingles)) result.GamesToStore.Add(lastSingles);
+
+            if (weWin)
+            {
+                match.gamesFor++;
+            }
+            else
+            {
+                match.gamesAgainst++;
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Records whether the opposition also arrived short a player, and
         /// resolves the match's last Singles game accordingly against our
         /// own already-known headcount (_match.data.availablePlayers.Count,
         /// saved just before this is called - see AvailablePlayersControl.
         /// vue's proceed()). See ResolveOppositionHeadcountOutcome for the
-        /// actual win/loss/void decision.
-        /// oppositionShortHanded is stored regardless of outcome, which also
-        /// serves as an idempotency guard - once set, a later re-Proceed
-        /// (e.g. after "Back to Players") is a safe no-op rather than
-        /// re-resolving (and potentially re-forfeiting/deleting) a different
-        /// game the second time round.
+        /// actual win/loss/void decision, and ReconcileOppositionHeadcount
+        /// for how a re-Proceed (e.g. after "Back to Players", having
+        /// ticked/unticked the box) undoes whatever an earlier call applied
+        /// before applying the new outcome.
         /// </summary>
         public async Task RecordOppositionHeadcount(bool oppositionShortHanded)
         {
             _validator.ValidateOppositionHeadcountEligible();
 
-            if (_match.data.oppositionShortHanded != null)
-            {
-                return;
-            }
-
             _match.data.oppositionShortHanded = oppositionShortHanded;
-            _documentSession.Store(_match);
 
-            var outcome = ResolveOppositionHeadcountOutcome(_match.data.availablePlayers?.Count ?? 0, oppositionShortHanded);
-            if (outcome == HeadcountForfeitOutcome.None) return;
+            var desired = ResolveOppositionHeadcountOutcome(_match.data.availablePlayers?.Count ?? 0, oppositionShortHanded);
 
-            var singlesGames = (await _documentSession.Query<Game>()
-                .Where(g => g.data.matchId == _match.Id && g.data.type == GameType.Singles)
+            var games = (await _documentSession.Query<Game>()
+                .Where(g => g.data.matchId == _match.Id)
                 .ToListAsync()).ToList();
+            var singlesGames = games.Where(g => g.data.type == GameType.Singles).ToList();
 
-            if (singlesGames.Count == 0) return;
-
-            var lastSingles = singlesGames.OrderByDescending(g => g.data.order).First();
-
-            if (outcome == HeadcountForfeitOutcome.Void)
+            // Only needed to undo a void - built up front since resolving the
+            // League is async, while ReconcileOppositionHeadcount stays pure.
+            Game? replacementSingles = null;
+            if (CurrentHeadcountOutcome(singlesGames, _match.data.oppositionHeadcountResolved) == HeadcountForfeitOutcome.Void
+                && desired != HeadcountForfeitOutcome.Void)
             {
-                // Both teams short a player - this game simply isn't played.
-                _documentSession.Delete<Game>(lastSingles.Id);
-                return;
+                var league = await ResolveLeague();
+                var (singlesLegs, singlesScore) = ResolveLegConfig(GameType.Singles, league);
+                int nextOrder = games.Count == 0 ? 0 : games.Max(g => g.data.order) + 1;
+                replacementSingles = BuildGame(GameType.Singles, nextOrder, singlesLegs, singlesScore, league?.data.maxRounds);
             }
 
-            // Exactly one side is short - the team with a full 6 is awarded
-            // the game as a walkover.
-            GameService gameService = new GameService(_documentSession, lastSingles);
-            gameService.ForfeitGame(outcome == HeadcountForfeitOutcome.WeWin ? GameResult.Win : GameResult.Loss);
-            UpdateMatchScore(outcome == HeadcountForfeitOutcome.WeWin);
+            var reconciliation = ReconcileOppositionHeadcount(_match.data, singlesGames, desired,
+                () => replacementSingles ?? throw new InvalidOperationException("Replacement Singles game was not prepared"));
+
+            foreach (var game in reconciliation.GamesToStore)
+            {
+                _documentSession.Store(game);
+            }
+            if (reconciliation.GameToDelete != null)
+            {
+                _documentSession.Delete<Game>(reconciliation.GameToDelete.Id);
+            }
+            _documentSession.Store(_match);
         }
 
         public void UpdateMatchScore(Boolean result)

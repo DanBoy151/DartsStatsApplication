@@ -29,10 +29,22 @@ namespace DartsStatsApplication.Server.Controllers.Models
         /// rather than a full 6. Combined with our own availablePlayers
         /// count, this decides whether the match's last Singles game is
         /// played normally, awarded as a walkover, or not played at all.
-        /// Also doubles as an idempotency guard: once set, the resolution
-        /// only ever runs once for this match.
+        /// Overwritten by every re-Proceed (e.g. after "Back to Players"),
+        /// which also undoes any earlier forfeit/void before applying the
+        /// new outcome - see MatchService.ReconcileOppositionHeadcount. Sent
+        /// back to the client so the roster screen's checkbox starts from it.
         /// </summary>
         public bool? oppositionShortHanded { get; set; }
+
+        /// <summary>
+        /// True while a headcount forfeit/void is currently applied to one
+        /// of this match's Singles games (i.e. the outcome wasn't None). A
+        /// forfeited game records which way a walkover went by itself, but a
+        /// voided one is deleted outright - this is the only trace of it, so
+        /// a later re-Proceed knows to recreate it when undoing (see
+        /// MatchService.CurrentHeadcountOutcome).
+        /// </summary>
+        public bool oppositionHeadcountResolved { get; set; }
 
     }
 

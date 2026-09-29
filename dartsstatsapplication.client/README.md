@@ -46,3 +46,11 @@ npm run build
 ```sh
 npm run lint
 ```
+
+### Run Unit Tests with [Vitest](https://vitest.dev/)
+
+```sh
+npm run test:unit
+```
+
+Tests live in `__tests__/` folders next to the code they cover: pure scoring/round helpers (`src/models`), the Pinia match store (`src/stores`), form validation (`src/validation`), and API actions (`src/actions`, with `apiClient` mocked so they only check how server responses update the store).

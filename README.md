@@ -9,7 +9,7 @@ A stats-tracking app for a darts team: records matches against opposition teams,
 - **Database**: Postgres (run via Docker in local dev).
 - **Tests**:
   - xUnit (`DartsStatsApplication.Server.Tests`) for the server's validation/business-rule layer.
-  - Vitest (`dartsstatsapplication.client`) for client-side pure logic (Pinia store behaviour, form validation helpers).
+  - Vitest (`dartsstatsapplication.client`) for client-side pure logic (Pinia store behaviour, scoring/round helpers, form validation helpers, and API-action store updates with the API client mocked).
   - Playwright (`e2e/`) for full end-to-end coverage of critical user journeys, run against an isolated Docker stack.
 
 ## Project structure
@@ -40,6 +40,7 @@ DartsStatsApplication.Server.Tests/   xUnit tests for the validator/calculator l
 
 dartsstatsapplication.client/         Vue 3 + Vite frontend
   src/actions/                        apiClient.ts (shared fetch wrapper) + one *Service.ts per aggregate
+                                       (+ Vitest tests of how their responses update the store)
   src/models/                         App-level models plus the Raw* wire-shape interfaces the services
                                        parse; dartScoring.ts / gameProgress.ts are pure scoring-logic helpers
   src/stores/                         Pinia store for in-progress match state (+ its Vitest tests)
@@ -47,7 +48,8 @@ dartsstatsapplication.client/         Vue 3 + Vite frontend
                                        a UX convenience, not a substitute for the server's own validation,
                                        which is authoritative
   src/components/                     MatchControl / MatchCenter component tree for running a live match
-                                       (scoring, checkout/bull-off prompts, editing players while Ready)
+                                       (scoring, checkout/bull-off prompts, the 3-rounds-to-go warning,
+                                       editing players while Ready)
   src/components/Manage/              NewPlayerForm.vue / NewMatchForm.vue / NewLeagueForm.vue /
                                        NewTeamForm.vue / NewSeasonForm.vue - reached via the menu bar's
                                        Manage dropdown
@@ -134,7 +136,7 @@ dotnet test
 
 See that project's own `README.md` for what's covered and what's intentionally deferred.
 
-**Client unit tests** (Vitest - Pinia store logic, form validation helpers):
+**Client unit tests** (Vitest - Pinia store logic, scoring/round helpers, form validation helpers, API-action store updates):
 
 ```sh
 cd dartsstatsapplication.client
@@ -168,9 +170,9 @@ All four (server tests, client build/lint, client unit tests, E2E) run in CI on 
 - **Team** — a roster of Players that plays Seasons within Leagues. Has no direct League field of its own - which league(s) it's played in is derived from its Seasons. Can't be deleted while a Player still belongs to it.
 - **League** — a configurable ruleset: how many Singles/Doubles/Trebles games a match has, how many legs each is played to, their starting scores, and an optional round limit (`maxRounds`) before a leg is decided by a bull-off instead of normal scoring. Can't be deleted while a Season still links to it.
 - **Season** — one Team's campaign in one League for a period; a series of Matches played under that League's rules. Its status (`Active`/`Closed`) is computed, never stored - `Closed` once every linked Match is `Completed`. Can't be deleted while a Match still links to it, and its League/Team can no longer be changed once a Match does.
-- **Match** — a fixture against an opposition team, with a location, date, status (`Scheduled` → `Ready` → `InProgress` → `Completed`), and an optional `seasonId`. Tracks `gamesFor`/`gamesAgainst` and a player of the match. Created via Manage → New Match (or `POST /api/Match`); opponent and date are required, and a newly created match must be `Scheduled` - the server rejects any attempt to create one that's already further along, so the normal start → roster → play lifecycle can't be skipped. Only one Match can be `InProgress` at a time.
+- **Match** — a fixture against an opposition team, with a location, date, status (`Scheduled` → `Ready` → `InProgress` → `Completed`), and an optional `seasonId`. Tracks `gamesFor`/`gamesAgainst` and a player of the match. Created via Manage → New Match (or `POST /api/Match`); opponent and date are required, and a newly created match must be `Scheduled` - the server rejects any attempt to create one that's already further along, so the normal start → roster → play lifecycle can't be skipped. Only one Match can be `InProgress` at a time. On the roster screen the scorer also records whether the opposition only has 5 players (`PUT /Match/{id}/opposition-headcount`): combined with our own available-player count, exactly one side being short awards the match's last Singles game to the other as a walkover (marked `forfeited`, counted straight into `gamesFor`/`gamesAgainst`), and both sides being short removes that game entirely. The answer is remembered and re-applied on every re-Proceed (e.g. after Back to Players) - changing it, or our own roster dropping to/from 5, first undoes the earlier walkover/void (game back to `Pending`, score corrected, a removed game recreated) - as long as that last Singles game hasn't been started yet.
 - **Game** — one of the games within a Match: `Singles` (1 own player), `Doubles` (2), or `Trebles` (3). How many of each type a Match has, how many legs they're played to, and their starting score are resolved once from the Match's League at creation time (or today's hardcoded 3 legs/501 Singles, 1 leg/601 Doubles, 1 leg/701 Trebles when there's no League) and stamped onto the Game as an immutable snapshot. Status moves `Pending` → `Ready` (players selected - can still be changed right up until the game starts) → `InProgress` → `Complete`.
-- **Leg** — a single leg of darts within a Game, counting down from the Game's starting score to zero. Status moves `Pending` → `Started` → `Completed`. Legs are created one at a time as they're actually needed (not all upfront), so a Singles game decided 2-0 never leaves an unplayed 3rd Leg document behind. Completing a leg validates that the submitted score history reconciles to the starting score, that every individual visit is a score achievable with real darts, and - for a checkout - that the finishing visit can end on a double. Past a League's configured `maxRounds`, a leg that isn't a genuine checkout is resolved either as a scorer-confirmed loss (the opponent checked out first) or, if neither side finished, by a bull-off (`PUT /Leg/{id}/complete-bull-off`).
+- **Leg** — a single leg of darts within a Game, counting down from the Game's starting score to zero. Status moves `Pending` → `Started` → `Completed`. Legs are created one at a time as they're actually needed (not all upfront), so a Singles game decided 2-0 never leaves an unplayed 3rd Leg document behind. Completing a leg validates that the submitted score history reconciles to the starting score, that every individual visit is a score achievable with real darts, and - for a checkout - that the finishing visit can end on a double. Past a League's configured `maxRounds`, a leg that isn't a genuine checkout is resolved either as a scorer-confirmed loss (the opponent checked out first) or, if neither side finished, by a bull-off (`PUT /Leg/{id}/complete-bull-off`). When a leg reaches the round that leaves 3 rounds to go (including the max round itself), the scorer must acknowledge a warning popup before the next throw can be entered.
 
 All state transitions are enforced by the `Services/Validators` layer and surfaced to API callers as a 400 with a readable message (via `ValidationException` + the global exception handler) rather than a raw exception or a silent no-op. The client mirrors the simple field-level checks (required, max length, dartboard-achievable scores) for instant feedback, but the server's validation is what's actually authoritative.
 
@@ -189,7 +191,7 @@ All routes are under `/api/`. Full interactive docs (and a way to try requests) 
 | `Team` | `GET /Team`, `GET /Team/{id}`, `GET /Team/{id}/seasons`, `GET /Team/{id}/stats?seasonId=`, `POST /Team`, `PUT /Team/{id}`, `DELETE /Team/{id}` |
 | `League` | `GET /League`, `GET /League/{id}`, `POST /League`, `PUT /League/{id}`, `DELETE /League/{id}` |
 | `Season` | `GET /Season`, `GET /Season/{id}`, `POST /Season`, `PUT /Season/{id}`, `DELETE /Season/{id}` |
-| `Match` | `GET /Match/matches`, `GET /Match/{id}`, `GET /Match/next`, `GET /Match/{id}/games`, `POST /Match`, `PUT /Match/{id}`, `DELETE /Match/{id}`, `PUT /Match/{id}/start`, `PUT /Match/{id}/update-available-players`, `PUT /Match/{id}/complete`, `PUT /Match/{id}/update-match-score` |
+| `Match` | `GET /Match/matches`, `GET /Match/{id}`, `GET /Match/next`, `GET /Match/{id}/games`, `POST /Match`, `PUT /Match/{id}`, `DELETE /Match/{id}`, `PUT /Match/{id}/start`, `PUT /Match/{id}/update-available-players`, `PUT /Match/{id}/opposition-headcount`, `PUT /Match/{id}/complete`, `PUT /Match/{id}/update-match-score` |
 | `Game` | `GET /Game`, `GET /Game/{id}`, `GET /Game/{id}/legs`, `POST /Game`, `POST /Game/{id}/legs` (create the next leg on demand), `PUT /Game/{id}/update-players`, `PUT /Game/{id}/start`, `PUT /Game/{id}/complete` |
 | `Leg` | `GET /Leg`, `GET /Leg/{id}`, `POST /Leg`, `PUT /Leg/{id}/start`, `PUT /Leg/{id}/complete`, `PUT /Leg/{id}/complete-bull-off` |
 

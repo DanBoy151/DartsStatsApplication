@@ -13,6 +13,7 @@ import {
   nextPlayerId,
   currentRound,
   isBullOffRound,
+  isFinalRoundsWarning,
   isMatchComplete,
   type LegOutcome,
 } from '../gameProgress'
@@ -350,6 +351,36 @@ describe('isBullOffRound', () => {
   it('is true from the max round onward, not just once it is exceeded', () => {
     expect(isBullOffRound(2, 2)).toBe(true)
     expect(isBullOffRound(3, 2)).toBe(true)
+  })
+})
+
+describe('isFinalRoundsWarning', () => {
+  it('is never true when maxRounds is null (no League limit configured)', () => {
+    expect(isFinalRoundsWarning(0, 1, null)).toBe(false)
+    expect(isFinalRoundsWarning(14, 1, null)).toBe(false)
+  })
+
+  it('is true at the start of the round leaving 3 rounds including the max round', () => {
+    // maxRounds 17: rounds 15, 16 and 17 left - round 15 starts after 14 throws (1 player).
+    expect(isFinalRoundsWarning(14, 1, 17)).toBe(true)
+    expect(isFinalRoundsWarning(13, 1, 17)).toBe(false)
+    expect(isFinalRoundsWarning(15, 1, 17)).toBe(false)
+  })
+
+  it('is only true on the first throw of that round when several players share it', () => {
+    // 3 players, maxRounds 5: round 3 starts after 6 throws.
+    expect(isFinalRoundsWarning(6, 3, 5)).toBe(true)
+    expect(isFinalRoundsWarning(7, 3, 5)).toBe(false)
+    expect(isFinalRoundsWarning(8, 3, 5)).toBe(false)
+  })
+
+  it('is true at the very start of the leg when maxRounds is exactly 3', () => {
+    expect(isFinalRoundsWarning(0, 2, 3)).toBe(true)
+  })
+
+  it('is never true when maxRounds is too short to have 3 rounds left', () => {
+    expect(isFinalRoundsWarning(0, 1, 2)).toBe(false)
+    expect(isFinalRoundsWarning(0, 1, 1)).toBe(false)
   })
 })
 

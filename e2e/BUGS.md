@@ -250,6 +250,54 @@ leg object after setSelectedLeg() is called before a setLegData() update") and
 by the "viewing an In Progress game resumes on the current leg, not a fresh
 one" step in `tests/01-start-next-match.spec.ts`.
 
+### 17. Ticking "Opposition only has 5 players" after going "Back to Players" had no effect
+Reported directly by the user: if the checkbox was left unticked on the first
+**Proceed** from the roster screen, then the user went **Back to Players**
+(see #9) and ticked it before proceeding again, the match was still not
+treated as being against a short-handed opposition.
+`MatchService.RecordOppositionHeadcount()`
+(`DartsStatsApplication.Server/Services/MatchService.cs`) used
+`_match.data.oppositionShortHanded != null` as its idempotency guard, to
+avoid re-forfeiting/deleting a Game a second time on a re-Proceed. But that
+field is set on the *first* call regardless of outcome - including the
+common case where nothing needed forfeiting (both sides full strength) - so
+any later call, even one that now legitimately resolves to a walkover, was
+silently dropped as an already-handled no-op. Fixed by splitting the two
+concerns: `oppositionShortHanded` (`MatchData.cs`) is now always overwritten
+with the latest submitted value, while a new `oppositionHeadcountResolved`
+flag - set only once a Game has actually been forfeited/voided - is the sole
+idempotency guard.
+Not covered by an automated test: `RecordOppositionHeadcount()` needs a real
+document session to exercise (see `MatchServiceTests.cs`'s header comment),
+and the E2E suite's "only one Match In Progress at a time" constraint means
+this would need its own isolated run rather than slotting into
+`01-start-next-match.spec.ts`'s existing critical-path match. Verified
+instead by tracing the guard logic against `ResolveOppositionHeadcountOutcome`
+directly (the existing unit-tested pure decision function), plus the full
+`dotnet test` suite (201 tests) to confirm no regressions.
+
+### 18. "Opposition only has 5 players" was forgotten on Back, and a walkover could never be undone
+Reported directly by the user, following on from #17. Going **Back to
+Players** always showed the checkbox unticked (`AvailablePlayersControl.vue`
+initialised it to `false` - the recorded answer never reached the client), so
+a plain re-Proceed silently re-sent "no". And unticking it deliberately
+changed nothing either: #17's `oppositionHeadcountResolved` guard dropped
+every call once a Game had been forfeited/voided, so the walkover and its
+point on the match score could never be taken back. Fixed by making the
+headcount reversible instead of one-shot:
+`MatchService.ReconcileOppositionHeadcount()` works out what's currently
+applied (a forfeited Singles game, or `oppositionHeadcountResolved` alone
+meaning a voided/deleted one), undoes it if the answer has changed - game
+back to `Pending`, point taken back off `gamesFor`/`gamesAgainst`, or a
+voided game recreated - then applies the new outcome. It refuses to
+forfeit/void a last Singles game that's already been started. The client now
+carries `oppositionShortHanded` into the match store (`setData()` in
+`actions/MatchService.ts`), and the checkbox starts from it.
+Covered by unit tests rather than E2E, for the same reasons as #17 - the
+reconcile step is pure over in-memory documents (`MatchServiceTests.cs`), and
+the client's store update is tested with the API client mocked
+(`actions/__tests__/MatchService.spec.ts`).
+
 ### 7. "View Statistics" button does nothing
 On the launch screen (`LaunchCaptainControl.vue`), the "View Statistics"
 button was fully styled and hoverable but had no `@click` handler at all -
