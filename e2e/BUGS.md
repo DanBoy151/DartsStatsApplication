@@ -276,6 +276,28 @@ instead by tracing the guard logic against `ResolveOppositionHeadcountOutcome`
 directly (the existing unit-tested pure decision function), plus the full
 `dotnet test` suite (201 tests) to confirm no regressions.
 
+### 18. "Opposition only has 5 players" was forgotten on Back, and a walkover could never be undone
+Reported directly by the user, following on from #17. Going **Back to
+Players** always showed the checkbox unticked (`AvailablePlayersControl.vue`
+initialised it to `false` - the recorded answer never reached the client), so
+a plain re-Proceed silently re-sent "no". And unticking it deliberately
+changed nothing either: #17's `oppositionHeadcountResolved` guard dropped
+every call once a Game had been forfeited/voided, so the walkover and its
+point on the match score could never be taken back. Fixed by making the
+headcount reversible instead of one-shot:
+`MatchService.ReconcileOppositionHeadcount()` works out what's currently
+applied (a forfeited Singles game, or `oppositionHeadcountResolved` alone
+meaning a voided/deleted one), undoes it if the answer has changed - game
+back to `Pending`, point taken back off `gamesFor`/`gamesAgainst`, or a
+voided game recreated - then applies the new outcome. It refuses to
+forfeit/void a last Singles game that's already been started. The client now
+carries `oppositionShortHanded` into the match store (`setData()` in
+`actions/MatchService.ts`), and the checkbox starts from it.
+Covered by unit tests rather than E2E, for the same reasons as #17 - the
+reconcile step is pure over in-memory documents (`MatchServiceTests.cs`), and
+the client's store update is tested with the API client mocked
+(`actions/__tests__/MatchService.spec.ts`).
+
 ### 7. "View Statistics" button does nothing
 On the launch screen (`LaunchCaptainControl.vue`), the "View Statistics"
 button was fully styled and hoverable but had no `@click` handler at all -
