@@ -75,6 +75,11 @@
     <DoublesFinishControl v-if="showCheckoutDartsPopup" @result="onCheckoutDartsResult" />
     <OpponentCheckedOutControl v-if="showOpponentCheckedOutPopup" @result="onOpponentCheckedOutResult" />
     <BullOffControl v-if="showBullOffPopup" @result="onBullOffResult" />
+    <FinalRoundsWarningControl v-if="showFinalRoundsWarning"
+                               :round="currentRoundNumber"
+                               :max-rounds="matchDataStore.selectedGame?.maxRounds ?? 0"
+                               :rounds-left="FINAL_ROUNDS_WARNING_COUNT"
+                               @acknowledge="acknowledgeFinalRoundsWarning" />
   </div>
 </template>
 
@@ -84,8 +89,9 @@
   import DoublesFinishControl from './DoublesFinishControl.vue'
   import OpponentCheckedOutControl from './OpponentCheckedOutControl.vue'
   import BullOffControl from './BullOffControl.vue'
+  import FinalRoundsWarningControl from './FinalRoundsWarningControl.vue'
   import { useMatchDataStore } from '@/stores/matchDataStore'
-  import { currentRound, isBullOffRound } from '@/models/gameProgress'
+  import { currentRound, isBullOffRound, isFinalRoundsWarning, FINAL_ROUNDS_WARNING_COUNT } from '@/models/gameProgress'
   import { isValidDartScore, isValidCheckoutScore } from '@/models/dartScoring'
   import { playerColor } from '@/models/playerColors'
   import { saveLegProgressInBackground } from '@/actions/LegService'
@@ -321,6 +327,30 @@
     return currentRound(throwCount, playerCount)
   })
 
+  // Once a leg reaches the round leaving FINAL_ROUNDS_WARNING_COUNT rounds
+  // before max rounds, the scorer must acknowledge a warning before the
+  // next throw can be entered. It only triggers at that round's first
+  // throw, and is remembered per leg once acknowledged so it can't reappear
+  // for the same leg while this console stays mounted.
+  const acknowledgedFinalRoundsLegId = ref<string | null>(null)
+  const finalRoundsWarningDue = computed(() => {
+    const leg = matchDataStore.selectedLeg
+    if (!started.value || props.readonly || !leg) return false
+    if (acknowledgedFinalRoundsLegId.value === leg.legId) return false
+    const playerCount = matchDataStore.selectedGame?.players.length ?? 1
+    const maxRounds = matchDataStore.selectedGame?.maxRounds ?? null
+    return isFinalRoundsWarning(leg.score.length, playerCount, maxRounds)
+  })
+  const showFinalRoundsWarning = ref(false)
+  watch(finalRoundsWarningDue, (due) => {
+    if (due) showFinalRoundsWarning.value = true
+  }, { immediate: true })
+
+  function acknowledgeFinalRoundsWarning() {
+    showFinalRoundsWarning.value = false
+    acknowledgedFinalRoundsLegId.value = matchDataStore.selectedLeg?.legId ?? null
+  }
+
   const scoreValue = ref('')
   const error = ref('')
 
@@ -361,7 +391,7 @@
   // never fires as a side effect of typing somewhere else on the page.
   function handleKeydown(e: KeyboardEvent) {
     if (!started.value || props.readonly) return
-    if (showBullPopup.value || showCheckoutDartsPopup.value || showOpponentCheckedOutPopup.value || showBullOffPopup.value) return
+    if (showBullPopup.value || showCheckoutDartsPopup.value || showOpponentCheckedOutPopup.value || showBullOffPopup.value || showFinalRoundsWarning.value) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
 
     const target = e.target as HTMLElement | null
