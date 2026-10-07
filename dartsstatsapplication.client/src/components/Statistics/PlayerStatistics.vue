@@ -109,7 +109,7 @@
                   </thead>
                   <tbody>
                     <tr v-for="game in section.games" :key="game.id" :class="game.result === 'Win' ? 'is-win' : game.result === 'Loss' ? 'is-loss' : ''">
-                      <td>{{ formatDisplayDate(game.date) }}</td>
+                      <td>{{ formatShortDate(game.date) }}</td>
                       <td class="cell-text">{{ game.opponent }}</td>
                       <td v-if="showPartners(section)" class="cell-text">{{ game.partners.join(', ') }}</td>
                       <td>{{ game.result || '—' }}</td>
@@ -143,7 +143,7 @@
 <script setup lang="ts">
   import { onMounted, ref, watch } from 'vue'
   import { getPlayers, getPlayerDetailStats, getPlayerSeasons, getPlayerForm, getPlayerGameStats } from '@/actions/PlayerService'
-  import { formatDisplayDate } from '@/utils/dateFormat'
+  import { formatDisplayDate, formatShortDate } from '@/utils/dateFormat'
   import type { Player } from '@/models/PlayerModel'
   import type { PlayerStats, PlayerGameStats } from '@/models/PlayerStatsModel'
   import type { Season } from '@/models/SeasonModel'

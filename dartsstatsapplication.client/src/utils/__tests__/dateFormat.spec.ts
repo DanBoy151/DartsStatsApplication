@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatDisplayDate, toDateInputValue, isTodayOrPastAEST } from '../dateFormat'
+import { formatDisplayDate, formatShortDate, toDateInputValue, isTodayOrPastAEST } from '../dateFormat'
 
 describe('formatDisplayDate', () => {
   it('formats a Date as "DD Month YYYY"', () => {
@@ -61,5 +61,15 @@ describe('isTodayOrPastAEST', () => {
     vi.setSystemTime(new Date('2026-01-01T20:00:00Z'))
     expect(isTodayOrPastAEST(new Date('2026-01-02'))).toBe(true)
     expect(isTodayOrPastAEST(new Date('2026-01-03'))).toBe(false)
+  })
+})
+
+describe('formatShortDate', () => {
+  it('formats a Date as "dd/mm/yy"', () => {
+    expect(formatShortDate(new Date(2026, 7, 5))).toBe('05/08/26')
+  })
+
+  it('returns an empty string for a missing date', () => {
+    expect(formatShortDate(null)).toBe('')
   })
 })

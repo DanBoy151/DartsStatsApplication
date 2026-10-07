@@ -41,3 +41,16 @@ export function isTodayOrPastAEST(date: Date): boolean {
   if (isNaN(date.getTime())) return false
   return toAESTDateKey(date) <= toAESTDateKey(new Date())
 }
+
+/** "15/08/26" compact display date (dd/mm/yy), for tight table columns. */
+export function formatShortDate(date: Date | string | undefined | null): string {
+  if (!date) return ''
+
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(dateObj.getTime())) return typeof date === 'string' ? date : ''
+
+  const day = dateObj.getDate().toString().padStart(2, '0')
+  const month = (dateObj.getMonth() + 1).toString().padStart(2, '0')
+  const year = (dateObj.getFullYear() % 100).toString().padStart(2, '0')
+  return `${day}/${month}/${year}`
+}
