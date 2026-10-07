@@ -1,5 +1,6 @@
 import type { Player, RawPlayer } from '@/models/PlayerModel'
-import type { PlayerStats, RawPlayerStats } from '@/models/PlayerStatsModel'
+import type { PlayerStats, RawPlayerStats, PlayerGameStats, RawPlayerGameStats } from '@/models/PlayerStatsModel'
+import { mapRawPlayerGameStats } from '@/models/PlayerStatsModel'
 import type { Season, RawSeasonResponse } from '@/models/SeasonModel'
 import { mapRawSeasonResponse } from '@/models/SeasonModel'
 import type { PlayerForm, RawPlayerForm } from '@/models/PlayerFormModel'
@@ -144,6 +145,29 @@ export async function getPlayerDetailStats(
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching player detail stats')
     return null
+  }
+}
+
+/**
+ * One player's stats per Game (when gameType is given) or per Match (when it
+ * isn't), most recent first - the expandable table under each section of the
+ * Player Statistics screen.
+ */
+export async function getPlayerGameStats(
+  playerId: string,
+  seasonId?: string,
+  gameType?: 'Singles' | 'Doubles' | 'Trebles'
+): Promise<PlayerGameStats[]> {
+  try {
+    const params = new URLSearchParams()
+    if (seasonId) params.set('seasonId', seasonId)
+    if (gameType) params.set('gameType', gameType)
+    const query = params.toString()
+    const data = await apiGet<RawPlayerGameStats[]>(`/api/Player/${playerId}/games${query ? `?${query}` : ''}`)
+    return data.map(mapRawPlayerGameStats)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'Error fetching player game stats')
+    return []
   }
 }
 
