@@ -86,14 +86,96 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 var joins = await LoadPlayerJoins(id, session);
-                var filteredLegs = joins
+                var filteredJoins = joins
                     .Where(j => (gameType == null || j.game.data.type == gameType.Value)
                              && (seasonId == null || j.match.data.seasonId == seasonId.Value))
-                    .Select(j => j.leg)
                     .ToList();
 
-                var stats = PlayerStatsCalculator.Calculate(new List<Player> { player }, filteredLegs);
-                return Ok(stats.FirstOrDefault() ?? new PlayerStatsData { playerId = player.Id, name = player.data.name });
+                var stats = PlayerStatsCalculator.Calculate(new List<Player> { player }, filteredJoins.Select(j => j.leg).ToList());
+                var result = stats.FirstOrDefault() ?? new PlayerStatsData { playerId = player.Id, name = player.data.name };
+                result.matchesPlayed = filteredJoins.Select(j => j.match.Id).Distinct().Count();
+                result.gamesPlayed = filteredJoins.Select(j => j.game.Id).Distinct().Count();
+                return Ok(result);
+            }
+        }
+
+        /// <summary>
+        /// Get one player's stats broken down per Game (when gameType is
+        /// given) or per Match (when it isn't - the Overall section), most
+        /// recent first. Backs the expandable table on each section of the
+        /// Player Statistics screen. Games with no legs played (e.g.
+        /// walkovers) don't appear.
+        /// </summary>
+        [HttpGet("{id}/games")]
+        public async Task<ActionResult<List<PlayerGameStatsData>>> GetPlayerGameStats(Guid id, Guid? seasonId = null, GameType? gameType = null)
+        {
+            using (var session = _documentStore.QuerySession())
+            {
+                var player = await session.LoadAsync<Player>(id);
+                if (player == null)
+                {
+                    return NotFound();
+                }
+
+                var joins = (await LoadPlayerJoins(id, session))
+                    .Where(j => (gameType == null || j.game.data.type == gameType.Value)
+                             && (seasonId == null || j.match.data.seasonId == seasonId.Value))
+                    .ToList();
+
+                var partnerIds = joins
+                    .SelectMany(j => j.game.data.playerIds ?? new List<Guid>())
+                    .Where(p => p != id)
+                    .Distinct()
+                    .ToList();
+                var namesById = partnerIds.Count == 0
+                    ? new Dictionary<Guid, string>()
+                    : (await session.Query<Player>().Where(p => partnerIds.Contains(p.Id)).ToListAsync())
+                        .ToDictionary(p => p.Id, p => p.data.name);
+
+                var thisPlayer = new List<Player> { player };
+                var rows = new List<(PlayerGameStatsData row, DateTime? finish, int order)>();
+
+                if (gameType != null)
+                {
+                    foreach (var g in joins.GroupBy(j => j.game.Id))
+                    {
+                        var first = g.First();
+                        rows.Add((new PlayerGameStatsData
+                        {
+                            id = first.game.Id,
+                            date = first.match.data.date,
+                            opponent = first.match.data.opponent,
+                            result = first.game.data.result?.ToString() ?? "",
+                            partners = (first.game.data.playerIds ?? new List<Guid>())
+                                .Where(p => p != id)
+                                .Select(p => namesById.GetValueOrDefault(p, "Unknown"))
+                                .ToList(),
+                            stats = PlayerStatsCalculator.Calculate(thisPlayer, g.Select(x => x.leg).ToList()).First(),
+                        }, first.match.data.finishTime, first.game.data.order));
+                    }
+                }
+                else
+                {
+                    foreach (var m in joins.GroupBy(j => j.match.Id))
+                    {
+                        var first = m.First();
+                        rows.Add((new PlayerGameStatsData
+                        {
+                            id = first.match.Id,
+                            date = first.match.data.date,
+                            opponent = first.match.data.opponent,
+                            result = first.match.data.result?.ToString() ?? "",
+                            stats = PlayerStatsCalculator.Calculate(thisPlayer, m.Select(x => x.leg).ToList()).First(),
+                        }, first.match.data.finishTime, 0));
+                    }
+                }
+
+                return Ok(rows
+                    .OrderByDescending(x => x.row.date)
+                    .ThenByDescending(x => x.finish)
+                    .ThenByDescending(x => x.order)
+                    .Select(x => x.row)
+                    .ToList());
             }
         }
 

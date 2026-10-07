@@ -10,6 +10,12 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
         public string name { get; set; } = "";
 
+        /// <summary>Distinct Matches with at least one leg played. Only filled by the per-player detail endpoint.</summary>
+        public int matchesPlayed { get; set; }
+
+        /// <summary>Distinct Games with at least one leg played. Only filled by the per-player detail endpoint.</summary>
+        public int gamesPlayed { get; set; }
+
         public int legsPlayed { get; set; }
 
         public int legsWon { get; set; }

@@ -67,6 +67,8 @@
             </div>
             <div v-else-if="!section.stats || section.stats.legsPlayed === 0" class="empty-state">No legs played{{ section.gameType ? ` in ${section.gameType}` : '' }}{{ section.seasonId ? ' this season' : '' }}.</div>
             <div v-else class="stat-grid">
+              <div v-if="section.gameType" class="stat-tile" :data-testid="`player-statistics-games-played-${section.key}`"><span class="stat-label">Games</span><span class="stat-value">{{ section.stats.gamesPlayed }}</span></div>
+              <div v-else class="stat-tile" data-testid="player-statistics-matches-played"><span class="stat-label">Matches</span><span class="stat-value">{{ section.stats.matchesPlayed }}</span></div>
               <div class="stat-tile"><span class="stat-label">Legs</span><span class="stat-value">{{ section.stats.legsPlayed }}</span></div>
               <div class="stat-tile"><span class="stat-label">W-L</span><span class="stat-value">{{ section.stats.legsWon }}-{{ section.stats.legsLost }}</span></div>
               <div class="stat-tile"><span class="stat-label">Win%</span><span class="stat-value">{{ formatPercent(section.stats.winPercentage) }}</span></div>
@@ -78,6 +80,53 @@
               <div class="stat-tile"><span class="stat-label">High Out</span><span class="stat-value">{{ formatInt(section.stats.highestCheckout) }}</span></div>
               <div class="stat-tile"><span class="stat-label">Best Leg</span><span class="stat-value">{{ formatInt(section.stats.bestLegDarts) }}</span></div>
             </div>
+
+            <template v-if="!section.loading && section.stats && section.stats.legsPlayed > 0">
+              <button type="button" class="expand-btn" :aria-expanded="section.expanded" :data-testid="`player-statistics-expand-${section.key}`" @click="toggleSection(section)">
+                {{ section.expanded ? '▾ Hide' : '▸ Show' }} {{ section.gameType ? 'game by game' : 'match by match' }}
+              </button>
+
+              <div v-if="section.expanded" class="game-table-wrap" :data-testid="`player-statistics-games-${section.key}`">
+                <div v-if="section.gamesLoading" class="loading-indicator"><span class="spinner"></span></div>
+                <div v-else-if="section.games.length === 0" class="empty-state">Nothing to show.</div>
+                <table v-else class="game-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Opponent</th>
+                      <th v-if="showPartners(section)">With</th>
+                      <th>Result</th>
+                      <th>Legs</th>
+                      <th>W-L</th>
+                      <th>3DA</th>
+                      <th>First 9</th>
+                      <th>100+</th>
+                      <th>140+</th>
+                      <th>180s</th>
+                      <th>High Out</th>
+                      <th>Best Leg</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="game in section.games" :key="game.id" :class="game.result === 'Win' ? 'is-win' : game.result === 'Loss' ? 'is-loss' : ''">
+                      <td>{{ formatShortDate(game.date) }}</td>
+                      <td class="cell-text">{{ game.opponent }}</td>
+                      <td v-if="showPartners(section)" class="cell-text">{{ game.partners.join(', ') }}</td>
+                      <td>{{ game.result || '—' }}</td>
+                      <td>{{ game.stats.legsPlayed }}</td>
+                      <td>{{ game.stats.legsWon }}-{{ game.stats.legsLost }}</td>
+                      <td class="cell-strong">{{ formatDecimal(game.stats.threeDartAverage) }}</td>
+                      <td>{{ formatDecimal(game.stats.firstNineAverage) }}</td>
+                      <td>{{ game.stats.tons }}</td>
+                      <td>{{ game.stats.ton40s }}</td>
+                      <td>{{ game.stats.maximums }}</td>
+                      <td>{{ formatInt(game.stats.highestCheckout) }}</td>
+                      <td>{{ formatInt(game.stats.bestLegDarts) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
           </div>
         </template>
       </template>
@@ -93,10 +142,10 @@
 
 <script setup lang="ts">
   import { onMounted, ref, watch } from 'vue'
-  import { getPlayers, getPlayerDetailStats, getPlayerSeasons, getPlayerForm } from '@/actions/PlayerService'
-  import { formatDisplayDate } from '@/utils/dateFormat'
+  import { getPlayers, getPlayerDetailStats, getPlayerSeasons, getPlayerForm, getPlayerGameStats } from '@/actions/PlayerService'
+  import { formatDisplayDate, formatShortDate } from '@/utils/dateFormat'
   import type { Player } from '@/models/PlayerModel'
-  import type { PlayerStats } from '@/models/PlayerStatsModel'
+  import type { PlayerStats, PlayerGameStats } from '@/models/PlayerStatsModel'
   import type { Season } from '@/models/SeasonModel'
   import type { PlayerForm } from '@/models/PlayerFormModel'
 
@@ -116,14 +165,17 @@
     seasonId: string
     stats: PlayerStats | null
     loading: boolean
+    expanded: boolean
+    games: PlayerGameStats[]
+    gamesLoading: boolean
   }
 
   function freshSections(): Section[] {
     return [
-      { key: 'overall', label: 'Overall', gameType: undefined, seasonId: '', stats: null, loading: false },
-      { key: 'singles', label: 'Singles', gameType: 'Singles', seasonId: '', stats: null, loading: false },
-      { key: 'doubles', label: 'Doubles', gameType: 'Doubles', seasonId: '', stats: null, loading: false },
-      { key: 'trebles', label: 'Trebles', gameType: 'Trebles', seasonId: '', stats: null, loading: false },
+      { key: 'overall', label: 'Overall', gameType: undefined, seasonId: '', stats: null, loading: false, expanded: false, games: [], gamesLoading: false },
+      { key: 'singles', label: 'Singles', gameType: 'Singles', seasonId: '', stats: null, loading: false, expanded: false, games: [], gamesLoading: false },
+      { key: 'doubles', label: 'Doubles', gameType: 'Doubles', seasonId: '', stats: null, loading: false, expanded: false, games: [], gamesLoading: false },
+      { key: 'trebles', label: 'Trebles', gameType: 'Trebles', seasonId: '', stats: null, loading: false, expanded: false, games: [], gamesLoading: false },
     ]
   }
 
@@ -171,6 +223,27 @@
     section.loading = true
     section.stats = await getPlayerDetailStats(selectedPlayerId.value, section.seasonId || undefined, section.gameType)
     section.loading = false
+    // The season (or player) changed - an open table follows it, a closed
+    // one just refetches when next opened.
+    section.games = []
+    if (section.expanded) await loadGames(section)
+  }
+
+  async function loadGames(section: Section) {
+    if (!selectedPlayerId.value) return
+    section.gamesLoading = true
+    section.games = await getPlayerGameStats(selectedPlayerId.value, section.seasonId || undefined, section.gameType)
+    section.gamesLoading = false
+  }
+
+  async function toggleSection(section: Section) {
+    section.expanded = !section.expanded
+    if (section.expanded && section.games.length === 0) await loadGames(section)
+  }
+
+  // Singles has no partners, and Overall rows are whole matches.
+  function showPartners(section: Section): boolean {
+    return section.gameType === 'Doubles' || section.gameType === 'Trebles'
   }
 
   async function loadPlayer(playerId: string) {
@@ -449,7 +522,7 @@
 
   .stat-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 0.75rem;
   }
 
@@ -481,6 +554,75 @@
   }
 
   .stat-tile.headline .stat-value {
+    color: #3498db;
+  }
+
+  .expand-btn {
+    margin-top: 0.9rem;
+    padding: 0.3rem 0.2rem;
+    border: none;
+    background: none;
+    color: #3498db;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .expand-btn:hover {
+    text-decoration: underline;
+  }
+
+  .game-table-wrap {
+    margin-top: 0.6rem;
+    overflow-x: auto;
+  }
+
+  .game-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .game-table th {
+    text-align: right;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #7f8c9a;
+    white-space: nowrap;
+    border-bottom: 1px solid #e1e6ea;
+  }
+
+  .game-table td {
+    padding: 0.4rem 0.5rem;
+    text-align: right;
+    white-space: nowrap;
+    color: #2c3e50;
+  }
+
+  .game-table th:first-child,
+  .game-table td:first-child,
+  .game-table th:nth-child(2),
+  .game-table td.cell-text {
+    text-align: left;
+  }
+
+  .game-table tbody tr:nth-child(even) {
+    background: #f8f9fa;
+  }
+
+  .game-table tbody tr.is-win td:first-child {
+    border-left: 3px solid #1f8a4c;
+  }
+
+  .game-table tbody tr.is-loss td:first-child {
+    border-left: 3px solid #c0392b;
+  }
+
+  .game-table .cell-strong {
+    font-weight: 700;
     color: #3498db;
   }
 
