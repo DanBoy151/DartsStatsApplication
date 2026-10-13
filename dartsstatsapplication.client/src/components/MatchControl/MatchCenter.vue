@@ -28,11 +28,6 @@
                     @close="showDrawer = false"
                     @select-game="onDrawerSelectGame" />
 
-    <CompleteMatchControl v-if="showCompleteMatchPopup"
-                          @result="onCompleteMatchResult" />
-    <PlayerOfMatchControl v-if="showPlayerOfMatchPopup"
-                          :players="playerOfMatchCandidates"
-                          @result="onPlayerOfMatchResult" />
   </div>
 </template>
 
@@ -43,13 +38,11 @@
   import ScoringConsole from './MatchCenter/ScoringConsole.vue'
   import StatsPanel from './MatchCenter/StatsPanel.vue'
   import GameListDrawer from './MatchCenter/GameListDrawer.vue'
-  import CompleteMatchControl from './MatchCenter/CompleteMatchControl.vue'
-  import PlayerOfMatchControl from './MatchCenter/PlayerOfMatchControl.vue'
   import { startGame, fetchLegs, completeGame, createNextLeg, updateWonBull } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import { startLeg, completeLeg, completeLegByBullOff } from '@/actions/LegService'
-  import { updateMatchScore, completeMatch } from '@/actions/MatchService'
+  import { updateMatchScore } from '@/actions/MatchService'
   import { isGameDecided, isMatchComplete, nextPlayerId } from '@/models/gameProgress'
 
   const matchDataStore = useMatchDataStore()
@@ -61,7 +54,7 @@
   // 'select-game' forwards the games drawer's own selection up to
   // MatchControl.vue, which already knows how to handle it (the same path
   // its own GameSummaryPanel instance uses).
-  const emit = defineEmits(['back', 'edit-players', 'game-complete', 'select-game'])
+  const emit = defineEmits(['back', 'edit-players', 'game-complete', 'select-game', 'finish-match'])
 
   const props = defineProps<{
     game: Game
@@ -70,8 +63,6 @@
   const started = ref(false)
   const wonBull = ref<boolean | null>(null)
   const isComplete = computed(() => matchDataStore.getSelectedGame()?.status === 'Complete')
-  const showCompleteMatchPopup = ref(false)
-  const showPlayerOfMatchPopup = ref(false)
   const showDrawer = ref(false)
 
   const gamesTotal = computed(() => matchDataStore.match?.games?.length ?? 0)
@@ -86,20 +77,6 @@
     showDrawer.value = false
     emit('select-game')
   }
-
-  // Candidates for Player of the Match: everyone who actually appeared in at
-  // least one of the match's games (not just everyone marked available) -
-  // matches MatchControllerValidator.IsValidPlayerOfMatch's own requirement,
-  // so a selection made here can never be rejected by the server.
-  const playerOfMatchCandidates = computed(() => {
-    const games = matchDataStore.match?.games ?? []
-    const playerIds = Array.from(new Set(games.flatMap((g) => g.players)))
-    const availablePlayers = matchDataStore.getMatchAvailablePlayers()
-    return playerIds.map((playerId) => {
-      const found = availablePlayers.find((p) => p.playerId === playerId)
-      return { playerId, name: found?.name ?? playerId }
-    })
-  })
 
   async function onFinishLeg() {
     started.value= false
@@ -177,35 +154,11 @@
     // holding screen as normal, so the captain can go straight into the
     // match's next game without detouring through the main screen.
     if (isMatchComplete(matchDataStore.match?.games ?? [])) {
-      showCompleteMatchPopup.value = true
+      emit('finish-match')
     } else {
       emit('back')
     }
   }
-
-  function onCompleteMatchResult(confirmed: boolean) {
-    showCompleteMatchPopup.value = false
-
-    if (confirmed) {
-      showPlayerOfMatchPopup.value = true
-    } else {
-      // Not ready to finalize yet - back to the holding screen to review,
-      // same as declining anything else here. Only actually completing the
-      // match (below) redirects to the main screen.
-      emit('back')
-    }
-  }
-
-  async function onPlayerOfMatchResult(playerId: string | null) {
-    showPlayerOfMatchPopup.value = false
-
-    if (playerId) {
-      await completeMatch(playerId)
-    }
-
-    emit('game-complete')
-  }
-
 
   function hasGameStarted() {
     const game = matchDataStore.getSelectedGame()

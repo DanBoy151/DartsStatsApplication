@@ -25,6 +25,13 @@
         <span class="summary-label">Status:</span>
         <span class="pill" :class="matchStatusClass">{{ matchStatus }}</span>
       </div>
+      <!-- Re-entry point for the finish-match prompts: they otherwise only
+           appear once, straight after the last game completes, so leaving
+           the screen before answering them would strand the match. -->
+      <button v-if="props.variant !== 'drawer' && canFinishMatch"
+              class="finish-match-btn"
+              data-testid="finish-match"
+              @click="emit('finish-match')">Finish Match</button>
     </div>
     <div class="games-list">
       <section v-if="trebleGames.length" class="game-group-wrap">
@@ -94,6 +101,7 @@
   import { formatDisplayDate } from '@/utils/dateFormat'
   import type { Game } from '@/models/GameModel'
   import { convertToGameListFromGameDataStateList } from '@/models/GameModel'
+  import { isMatchComplete } from '@/models/gameProgress'
 
   const matchDataStore = useMatchDataStore()
 
@@ -198,7 +206,14 @@
   const emit = defineEmits<{
     (e: 'select-game'): void
     (e: 'back-to-players'): void
+    (e: 'finish-match'): void
   }>()
+
+  // Every game is Complete but the match itself hasn't been closed yet.
+  const canFinishMatch = computed(() => {
+    const match = matchDataStore.getMatchData()
+    return isMatchComplete(match?.games ?? []) && match?.status !== 'Completed'
+  })
 
   function handleSelectGame(gameId: string) {
     if (!props.disabled) {
@@ -281,6 +296,19 @@
   .header-title {
     margin: 0;
     font-size: 1.4rem;
+  }
+
+  .finish-match-btn {
+    margin-top: 0.75rem;
+    width: 100%;
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
   }
 
   .back-btn {
