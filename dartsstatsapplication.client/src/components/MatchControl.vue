@@ -12,12 +12,14 @@
                    @edit-players="handleEditPlayers"
                    @game-complete="emit('game-complete')"
                    @select-game="handleSelectGame"
+                   @finish-match="startFinishMatch"
                    />
 
       <GameSummaryPanel v-else-if="showHoldingScreen"
                         class="game-overview"
                         :selected-game-id="selectedGameId ?? ''"
                         @select-game="handleSelectGame"
+                        @finish-match="startFinishMatch"
                         @back-to-players="handleExit" />
 
       <AvailablePlayersControl v-else
@@ -25,6 +27,12 @@
                                @back="$emit('back')" />
 
     </div>
+
+    <CompleteMatchControl v-if="showCompleteMatchPopup"
+                          @result="onCompleteMatchResult" />
+    <PlayerOfMatchControl v-if="showPlayerOfMatchPopup"
+                          :players="playerOfMatchCandidates"
+                          @result="onPlayerOfMatchResult" />
   </div>
 </template>
 
@@ -34,6 +42,9 @@
   import AvailablePlayersControl from './MatchControl/AvailablePlayersControl.vue'
   import SelectPlayersGameControl from './MatchControl/SelectPlayersGameControl.vue'
   import MatchCenter from './MatchControl/MatchCenter.vue'
+  import CompleteMatchControl from './MatchControl/MatchCenter/CompleteMatchControl.vue'
+  import PlayerOfMatchControl from './MatchControl/MatchCenter/PlayerOfMatchControl.vue'
+  import { completeMatch } from '@/actions/MatchService'
   import { useMatchDataStore } from "@/stores/matchDataStore"
   import type { Game } from '@/models/GameModel'
   import { convertToGameFromGameDataState } from '@/models/GameModel'
@@ -119,6 +130,57 @@
     selectedGameId.value = null
     selectedGame.value = null
     editingPlayers.value = false
+  }
+
+  // The finish-match prompts live here (not in MatchCenter) so they can be
+  // raised both straight after the last game completes AND later from the
+  // holding screen's Finish Match button if they were dismissed or the
+  // screen was left before answering them.
+  const showCompleteMatchPopup = ref(false)
+  const showPlayerOfMatchPopup = ref(false)
+
+  function startFinishMatch() {
+    showCompleteMatchPopup.value = true
+  }
+
+  // Candidates for Player of the Match: everyone who actually appeared in at
+  // least one of the match's games (not just everyone marked available) -
+  // matches MatchControllerValidator.IsValidPlayerOfMatch's own requirement,
+  // so a selection made here can never be rejected by the server.
+  const playerOfMatchCandidates = computed(() => {
+    const games = matchDataStore.match?.games ?? []
+    const playerIds = Array.from(new Set(games.flatMap((g) => g.players)))
+    const availablePlayers = matchDataStore.getMatchAvailablePlayers()
+    return playerIds.map((playerId) => {
+      const found = availablePlayers.find((p) => p.playerId === playerId)
+      return { playerId, name: found?.name ?? playerId }
+    })
+  })
+
+  function onCompleteMatchResult(confirmed: boolean) {
+    showCompleteMatchPopup.value = false
+
+    if (confirmed) {
+      showPlayerOfMatchPopup.value = true
+    } else {
+      // Not ready to finalize yet - review on the holding screen, which
+      // keeps a Finish Match button for coming back to this.
+      handleMatchCenterBack()
+    }
+  }
+
+  async function onPlayerOfMatchResult(playerId: string | null) {
+    showPlayerOfMatchPopup.value = false
+
+    if (!playerId) {
+      // Cancelled: the match is still open, so stay on the holding screen
+      // (with its Finish Match button) rather than leaving it stranded.
+      handleMatchCenterBack()
+      return
+    }
+
+    await completeMatch(playerId)
+    emit('game-complete')
   }
 
   /** ScoringConsole's "Edit Players" button, only available while a game is Ready (not yet started). */
