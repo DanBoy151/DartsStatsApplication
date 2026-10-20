@@ -12,6 +12,8 @@ export interface League {
   singlesStartScore: number
   /** null = no limit configured - a leg is never decided by bull-off. */
   maxRounds: number | null
+  /** "HH:mm" (24h) on match day after which late-night play options are offered; null = switched off. */
+  lateCutoverTime: string | null
 }
 
 /** Wire shape returned by the League endpoints. */
@@ -29,6 +31,7 @@ export interface RawLeague {
     doublesStartScore?: number
     singlesStartScore?: number
     maxRounds?: number | null
+    lateCutoverTime?: string | null
   }
 }
 
@@ -46,5 +49,7 @@ export function mapRawLeague(data: RawLeague): League {
     doublesStartScore: data.data?.doublesStartScore ?? 501,
     singlesStartScore: data.data?.singlesStartScore ?? 501,
     maxRounds: data.data?.maxRounds ?? null,
+    // Absent on a League persisted before this existed - the server applies the same 22:30 default.
+    lateCutoverTime: data.data?.lateCutoverTime === undefined ? '22:30' : data.data.lateCutoverTime,
   }
 }

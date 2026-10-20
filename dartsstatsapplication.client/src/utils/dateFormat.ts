@@ -42,6 +42,31 @@ export function isTodayOrPastAEST(date: Date): boolean {
   return toAESTDateKey(date) <= toAESTDateKey(new Date())
 }
 
+/** "HH:mm" for `date` as it falls in AEST, independent of the viewer's local timezone. */
+function toAESTTimeKey(date: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: AEST_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date)
+}
+
+/**
+ * True once `now` is on the match's own day (in AEST) and at or past the
+ * league's late cutover time ("HH:mm", 24h). A null/blank/malformed cutover
+ * means the league has no late-night options, so never true. Zero-padded
+ * "HH:mm" strings compare correctly as plain strings.
+ */
+export function isPastLateCutoverAEST(now: Date, matchDate: Date | string | null | undefined, cutover: string | null | undefined): boolean {
+  if (!cutover || !/^([01]\d|2[0-3]):[0-5]\d$/.test(cutover) || !matchDate) return false
+
+  const match = typeof matchDate === 'string' ? new Date(matchDate) : matchDate
+  if (isNaN(match.getTime()) || isNaN(now.getTime())) return false
+
+  return toAESTDateKey(match) === toAESTDateKey(now) && toAESTTimeKey(now) >= cutover
+}
+
 /** "15/08/26" compact display date (dd/mm/yy), for tight table columns. */
 export function formatShortDate(date: Date | string | undefined | null): string {
   if (!date) return ''

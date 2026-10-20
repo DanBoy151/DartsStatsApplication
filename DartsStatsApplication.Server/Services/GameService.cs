@@ -32,12 +32,34 @@ namespace DartsStatsApplication.Server.Services
             _documentSession.Store(_game);
         }
 
-        public void StartGame(Boolean wonBull)
+        /// <summary>
+        /// playMode is the late-night choice (see GameData.lateCutoverTime), or
+        /// null when the game is started before the cutover. ThrowForBull
+        /// completes the game on the spot - wonBull is then the bull throw
+        /// that decides it, and no legs are ever created - while SingleLeg
+        /// plays the game as a one-leg decider instead of its configured legs.
+        /// </summary>
+        public void StartGame(Boolean wonBull, GamePlayMode? playMode = null)
         {
             _validator.IsValidToStartGame();
+            _validator.IsValidPlayMode(playMode);
             _game.data.wonBull = wonBull;
+            _game.data.playMode = playMode;
+
+            if (playMode == GamePlayMode.ThrowForBull)
+            {
+                _game.data.status = GameStatus.Complete;
+                _game.data.result = wonBull ? GameResult.Win : GameResult.Loss;
+                _documentSession.Store(_game);
+                return;
+            }
+
             _game.data.status = GameStatus.InProgress;
             ResolveLegConfigCompat();
+            if (playMode == GamePlayMode.SingleLeg)
+            {
+                _game.data.legsToPlay = 1;
+            }
 
             // Only the first leg is created here - further legs are created one
             // at a time, on demand, via CreateNextLeg() as the game actually
@@ -88,7 +110,17 @@ namespace DartsStatsApplication.Server.Services
                 .Where(l => l.data.gameID == _game.Id)
                 .ToListAsync()).ToList();
 
-            _validator.IsValidToCompleteGame(legs, data);
+            if (data.throwForBull)
+            {
+                // Decided by the bull instead of the legs, so the leg majority
+                // is deliberately not checked against the submitted result.
+                _validator.IsValidToCompleteGameByBull();
+                _game.data.playMode = GamePlayMode.ThrowForBull;
+            }
+            else
+            {
+                _validator.IsValidToCompleteGame(legs, data);
+            }
             _game.data.status = GameStatus.Complete;
             _game.data.result = data.result;
             _documentSession.Store(_game);

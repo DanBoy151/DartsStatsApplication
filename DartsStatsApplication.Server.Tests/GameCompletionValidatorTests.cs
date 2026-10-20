@@ -291,5 +291,55 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
 
             Assert.Throws<ValidationException>(() => validator.IsValidToCreateNextLeg(existingLegCount: 1));
         }
+
+        // ---- Late-night play modes ----
+
+        [Fact]
+        public void IsValidPlayMode_NullMode_AlwaysAllowed()
+        {
+            var game = CreateGame(GameType.Singles, GameStatus.Ready, Players(1));
+            Assert.Null(Record.Exception(() => new GameControllerValidator(game, null!).IsValidPlayMode(null)));
+        }
+
+        [Theory]
+        [InlineData(GamePlayMode.Normal)]
+        [InlineData(GamePlayMode.SingleLeg)]
+        [InlineData(GamePlayMode.ThrowForBull)]
+        public void IsValidPlayMode_NoCutoverConfigured_Throws(GamePlayMode mode)
+        {
+            var game = CreateGame(GameType.Singles, GameStatus.Ready, Players(1));
+            Assert.Throws<ValidationException>(() => new GameControllerValidator(game, null!).IsValidPlayMode(mode));
+        }
+
+        [Fact]
+        public void IsValidPlayMode_CutoverConfigured_Allowed()
+        {
+            var game = CreateGame(GameType.Singles, GameStatus.Ready, Players(1));
+            game.data.lateCutoverTime = "22:30";
+            Assert.Null(Record.Exception(() => new GameControllerValidator(game, null!).IsValidPlayMode(GamePlayMode.ThrowForBull)));
+        }
+
+        [Fact]
+        public void IsValidToCompleteGameByBull_InProgressWithCutover_DoesNotThrow()
+        {
+            var game = CreateGame(GameType.Singles, GameStatus.InProgress, Players(1));
+            game.data.lateCutoverTime = "22:30";
+            Assert.Null(Record.Exception(() => new GameControllerValidator(game, null!).IsValidToCompleteGameByBull()));
+        }
+
+        [Fact]
+        public void IsValidToCompleteGameByBull_NoCutover_Throws()
+        {
+            var game = CreateGame(GameType.Singles, GameStatus.InProgress, Players(1));
+            Assert.Throws<ValidationException>(() => new GameControllerValidator(game, null!).IsValidToCompleteGameByBull());
+        }
+
+        [Fact]
+        public void IsValidToCompleteGameByBull_NotInProgress_Throws()
+        {
+            var game = CreateGame(GameType.Singles, GameStatus.Ready, Players(1));
+            game.data.lateCutoverTime = "22:30";
+            Assert.Throws<ValidationException>(() => new GameControllerValidator(game, null!).IsValidToCompleteGameByBull());
+        }
     }
 }

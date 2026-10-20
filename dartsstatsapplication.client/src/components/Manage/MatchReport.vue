@@ -55,6 +55,8 @@
                 {{ game.result === 'Win' ? 'WIN' : 'LOSS' }}
               </div>
               <div v-if="game.forfeited" class="forfeit-chip">FORFEIT</div>
+              <div v-if="game.playMode === 'ThrowForBull'" class="forfeit-chip">DECIDED BY BULL</div>
+              <div v-else-if="game.playMode === 'SingleLeg'" class="forfeit-chip">1 LEG ONLY</div>
             </div>
             <div class="legs">
               <div class="leg" v-for="(leg, li) in game.legs" :key="leg.legId">
@@ -152,6 +154,8 @@
     result: string
     /** True if this game was awarded as a walkover because one side only had 5 available players. */
     forfeited: boolean
+    /** Late-night choice (see League.lateCutoverTime): 'ThrowForBull' / 'SingleLeg' / 'Normal', or null if never asked. */
+    playMode: string | null
     legs: ReportLeg[]
   }
 
@@ -249,6 +253,7 @@
           wonBull: game.wonBull,
           result: game.result,
           forfeited: game.forfeited,
+          playMode: game.playMode,
           legs: legs.map((leg) => buildLegView(leg, game, playerName)),
         }
       })

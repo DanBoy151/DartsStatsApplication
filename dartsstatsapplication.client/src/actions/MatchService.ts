@@ -158,6 +158,8 @@ export async function getGamesForMatch(matchId: string): Promise<Game[]> {
       startingScore: g.data?.startingScore ?? 0,
       maxRounds: g.data?.maxRounds ?? null,
       forfeited: g.data?.forfeited ?? false,
+      lateCutoverTime: g.data?.lateCutoverTime ?? null,
+      playMode: g.data?.playMode ?? null,
     }))
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error fetching games for match')
@@ -349,6 +351,8 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
         startingScore: g.data?.startingScore ?? 0,
         maxRounds: g.data?.maxRounds ?? null,
         forfeited: g.data?.forfeited ?? false,
+        lateCutoverTime: g.data?.lateCutoverTime ?? null,
+        playMode: g.data?.playMode ?? null,
       }))
       : []
 
@@ -364,7 +368,9 @@ export async function getMatchGames(matchId: string): Promise<Game[] | null> {
         game.legsToPlay,
         game.startingScore,
         game.maxRounds,
-        game.forfeited
+        game.forfeited,
+        game.lateCutoverTime,
+        game.playMode
       )
     })
 

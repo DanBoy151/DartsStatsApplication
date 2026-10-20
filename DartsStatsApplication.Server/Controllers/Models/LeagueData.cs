@@ -25,5 +25,15 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
         /// <summary>Null = no round limit, legs are always played to a normal finish.</summary>
         public int? maxRounds { get; set; }
+
+        /// <summary>
+        /// Local time of day ("HH:mm", 24h) on the day of a match after which a
+        /// new game must offer a choice of playing normally, throwing for bull
+        /// (win/loss decided by the bull alone) or playing one leg only - and a
+        /// new leg on an existing game offers normal or throw for bull. Null =
+        /// the late-night options are switched off. Defaults to 22:30 (also for
+        /// League documents persisted before this existed).
+        /// </summary>
+        public string? lateCutoverTime { get; set; } = "22:30";
     }
 }

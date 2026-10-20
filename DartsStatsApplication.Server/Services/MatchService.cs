@@ -101,12 +101,12 @@ namespace DartsStatsApplication.Server.Services
             };
         }
 
-        private void CreateGame(GameType type, int gameOrder, int legsToPlay, int startingScore, int? maxRounds)
+        private void CreateGame(GameType type, int gameOrder, int legsToPlay, int startingScore, int? maxRounds, string? lateCutoverTime)
         {
-            _documentSession.Store<Game>(BuildGame(type, gameOrder, legsToPlay, startingScore, maxRounds));
+            _documentSession.Store<Game>(BuildGame(type, gameOrder, legsToPlay, startingScore, maxRounds, lateCutoverTime));
         }
 
-        private Game BuildGame(GameType type, int gameOrder, int legsToPlay, int startingScore, int? maxRounds)
+        private Game BuildGame(GameType type, int gameOrder, int legsToPlay, int startingScore, int? maxRounds, string? lateCutoverTime)
         {
             Game game = new Game();
             game.Id = Guid.NewGuid();
@@ -118,6 +118,7 @@ namespace DartsStatsApplication.Server.Services
             game.data.legsToPlay = legsToPlay;
             game.data.startingScore = startingScore;
             game.data.maxRounds = maxRounds;
+            game.data.lateCutoverTime = lateCutoverTime;
 
             return game;
         }
@@ -134,7 +135,7 @@ namespace DartsStatsApplication.Server.Services
             int count = 0;
             while (count < numTrebles)
             {
-                CreateGame(GameType.Trebles, gameOrder, treblesLegs, treblesScore, league?.data.maxRounds);
+                CreateGame(GameType.Trebles, gameOrder, treblesLegs, treblesScore, league?.data.maxRounds, league?.data.lateCutoverTime);
                 count++;
                 gameOrder++;
             }
@@ -143,7 +144,7 @@ namespace DartsStatsApplication.Server.Services
             count = 0;
             while (count < numDoubles)
             {
-                CreateGame(GameType.Doubles, gameOrder, doublesLegs, doublesScore, league?.data.maxRounds);
+                CreateGame(GameType.Doubles, gameOrder, doublesLegs, doublesScore, league?.data.maxRounds, league?.data.lateCutoverTime);
                 count++;
                 gameOrder++;
             }
@@ -152,7 +153,7 @@ namespace DartsStatsApplication.Server.Services
             count = 0;
             while (count < numSingles)
             {
-                CreateGame(GameType.Singles, gameOrder, singlesLegs, singlesScore, league?.data.maxRounds);
+                CreateGame(GameType.Singles, gameOrder, singlesLegs, singlesScore, league?.data.maxRounds, league?.data.lateCutoverTime);
                 count++;
                 gameOrder++;
             }
@@ -323,7 +324,7 @@ namespace DartsStatsApplication.Server.Services
                 var league = await ResolveLeague();
                 var (singlesLegs, singlesScore) = ResolveLegConfig(GameType.Singles, league);
                 int nextOrder = games.Count == 0 ? 0 : games.Max(g => g.data.order) + 1;
-                replacementSingles = BuildGame(GameType.Singles, nextOrder, singlesLegs, singlesScore, league?.data.maxRounds);
+                replacementSingles = BuildGame(GameType.Singles, nextOrder, singlesLegs, singlesScore, league?.data.maxRounds, league?.data.lateCutoverTime);
             }
 
             var reconciliation = ReconcileOppositionHeadcount(_match.data, singlesGames, desired,

@@ -1,6 +1,6 @@
 # DartsStatsApplication
 
-A stats-tracking app for a darts team: records matches against opposition teams, the games and legs played within each match, and each player's results - optionally organised into Leagues/Teams/Seasons with their own rules (game counts, legs, starting scores, a round limit before a bull-off decides a leg). Built as an ASP.NET Core API backed by a Postgres document store, with a Vue 3 frontend for running a match live (player selection, scoring with dartboard-legality validation, leg/game/match completion) and for managing rosters/fixtures and browsing team- and player-level statistics.
+A stats-tracking app for a darts team: records matches against opposition teams, the games and legs played within each match, and each player's results - optionally organised into Leagues/Teams/Seasons with their own rules (game counts, legs, starting scores, a round limit before a bull-off decides a leg, and a late-night cutover time after which a new game can be played normally, decided by a throw for bull, or cut to one leg). Built as an ASP.NET Core API backed by a Postgres document store, with a Vue 3 frontend for running a match live (player selection, scoring with dartboard-legality validation, leg/game/match completion) and for managing rosters/fixtures and browsing team- and player-level statistics.
 
 ## Tech stack
 

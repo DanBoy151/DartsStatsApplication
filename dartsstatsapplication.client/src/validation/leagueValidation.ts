@@ -15,6 +15,8 @@ export interface NewLeagueInput {
   doublesStartScore: number
   singlesStartScore: number
   maxRounds: number | null
+  /** "HH:mm" or null/blank for no late-night options. */
+  lateCutoverTime: string | null
 }
 
 export interface NewLeagueErrors {
@@ -23,6 +25,7 @@ export interface NewLeagueErrors {
   legCounts?: string
   startScores?: string
   maxRounds?: string
+  lateCutoverTime?: string
 }
 
 export function validateNewLeague(input: NewLeagueInput): NewLeagueErrors {
@@ -52,6 +55,10 @@ export function validateNewLeague(input: NewLeagueInput): NewLeagueErrors {
 
   if (input.maxRounds != null && input.maxRounds < 1) {
     errors.maxRounds = 'Max rounds must be 1 or more, or left blank for no limit'
+  }
+
+  if (input.lateCutoverTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.lateCutoverTime)) {
+    errors.lateCutoverTime = 'Late cutover time must be a 24-hour time (HH:mm), or left blank to switch it off'
   }
 
   return errors

@@ -40,11 +40,30 @@ namespace DartsStatsApplication.Server.Controllers.Models
 
         /// <summary>Copied from League.maxRounds at creation time. Null = no round limit.</summary>
         public int? maxRounds { get; set; }
+
+        /// <summary>Copied from League.lateCutoverTime at creation time. Null = no late-night options.</summary>
+        public string? lateCutoverTime { get; set; }
+
+        /// <summary>
+        /// The late-night choice made for this game (see lateCutoverTime), or
+        /// null if it was started before the cutover and so never asked.
+        /// ThrowForBull means the game's result was decided by the bull alone
+        /// rather than by its legs (any legs already played still count
+        /// toward stats, but not toward the result).
+        /// </summary>
+        public GamePlayMode? playMode { get; set; }
     }
 
     public class CompleteGameData
     {
         public GameResult result { get; set; }
+
+        /// <summary>
+        /// True to complete an In Progress game on a throw for bull rather than
+        /// on its legs - only allowed when the game's league has a late cutover
+        /// configured. The result is then the bull's result, not the leg majority.
+        /// </summary>
+        public bool throwForBull { get; set; }
     }
 
     public class UpdatePlayersData

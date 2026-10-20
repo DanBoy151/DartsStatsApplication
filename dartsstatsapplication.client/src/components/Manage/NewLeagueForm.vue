@@ -15,12 +15,13 @@
               <th>Doubles</th>
               <th>Singles</th>
               <th>Max Rounds</th>
+              <th>Late Cutover</th>
               <th class="actions-col"></th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="leagues.length === 0">
-              <td colspan="6" class="empty-row">No leagues yet.</td>
+              <td colspan="7" class="empty-row">No leagues yet.</td>
             </tr>
             <tr v-for="league in leagues" :key="league.id" class="data-row" data-testid="league-row">
               <td>{{ league.name }}</td>
@@ -28,6 +29,7 @@
               <td>{{ league.numDoubles }} games / {{ league.doublesLegs }} legs / {{ league.doublesStartScore }}</td>
               <td>{{ league.numSingles }} games / {{ league.singlesLegs }} legs / {{ league.singlesStartScore }}</td>
               <td>{{ league.maxRounds ?? 'No limit' }}</td>
+              <td>{{ league.lateCutoverTime ?? 'Off' }}</td>
               <td class="actions-col">
                 <template v-if="deletingId === league.id">
                   <span class="confirm-text">Delete "{{ league.name }}"?</span>
@@ -151,6 +153,18 @@
           <span v-if="errors.maxRounds" class="field-error" role="alert" data-testid="new-league-max-rounds-error">{{ errors.maxRounds }}</span>
         </label>
 
+        <label class="field">
+          <span class="field-label">Late Cutover Time (match day, AEST; blank = off)</span>
+          <input v-model="lateCutoverTimeInput"
+                 type="time"
+                 class="field-input"
+                 :class="{ 'field-input--error': errors.lateCutoverTime }"
+                 :disabled="submitting"
+                 data-testid="new-league-late-cutover-input" />
+          <span class="field-hint">After this time on match day, a new game offers play normally / throw for bull / one leg only, and a new leg offers play normally / throw for bull.</span>
+          <span v-if="errors.lateCutoverTime" class="field-error" role="alert" data-testid="new-league-late-cutover-error">{{ errors.lateCutoverTime }}</span>
+        </label>
+
         <p v-if="successMessage" class="success-message" role="status" aria-live="polite" data-testid="new-league-success">
           {{ successMessage }}
         </p>
@@ -208,6 +222,8 @@
   // A plain string field, not a number ref - so an empty box unambiguously
   // means "no limit" (null) rather than colliding with a real 0.
   const maxRoundsInput = ref('')
+  // "HH:mm" from <input type="time">; '' = late-night options switched off.
+  const lateCutoverTimeInput = ref('22:30')
 
   const errors = ref<NewLeagueErrors>({})
   const successMessage = ref<string | null>(null)
@@ -226,6 +242,7 @@
       doublesStartScore: Number(doublesStartScore.value),
       singlesStartScore: Number(singlesStartScore.value),
       maxRounds: maxRoundsInput.value === '' ? null : Number(maxRoundsInput.value),
+      lateCutoverTime: lateCutoverTimeInput.value === '' ? null : lateCutoverTimeInput.value,
     }
   }
 
@@ -259,6 +276,7 @@
     doublesStartScore.value = league.doublesStartScore
     singlesStartScore.value = league.singlesStartScore
     maxRoundsInput.value = league.maxRounds == null ? '' : String(league.maxRounds)
+    lateCutoverTimeInput.value = league.lateCutoverTime ?? ''
     errors.value = {}
     successMessage.value = null
     deletingId.value = null
@@ -276,6 +294,7 @@
     doublesStartScore.value = 601
     singlesStartScore.value = 501
     maxRoundsInput.value = ''
+    lateCutoverTimeInput.value = '22:30'
   }
 
   function cancelEdit() {
@@ -499,6 +518,11 @@
 
   .field-input--error {
     border-color: #e74c3c;
+  }
+
+  .field-hint {
+    font-size: 0.85rem;
+    color: #6b7280;
   }
 
   .field-error {

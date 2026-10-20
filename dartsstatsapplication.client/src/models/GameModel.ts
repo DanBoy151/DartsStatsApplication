@@ -12,6 +12,10 @@ export interface Game {
   maxRounds: number | null
   /** True for a game awarded as a walkover because one side only had 5 available players. */
   forfeited: boolean
+  /** League late-night cutover ("HH:mm") snapshotted onto the game; null = no late-night options. */
+  lateCutoverTime: string | null
+  /** Late-night choice made for this game; null if it started before the cutover. */
+  playMode: string | null
 }
 
 /** Wire shape returned by the Game endpoints (update-players, start, complete, list). */
@@ -28,6 +32,8 @@ export interface RawGameData {
     startingScore?: number
     maxRounds?: number | null
     forfeited?: boolean
+    lateCutoverTime?: string | null
+    playMode?: string | null
   }
 }
 export function convertToGameListFromGameDataStateList(gameDataState: GameDataState[] | null): Game[] | null {
@@ -45,6 +51,8 @@ export function convertToGameListFromGameDataStateList(gameDataState: GameDataSt
     startingScore: g.startingScore ?? 0,
     maxRounds: g.maxRounds ?? null,
     forfeited: g.forfeited ?? false,
+    lateCutoverTime: g.lateCutoverTime ?? null,
+    playMode: g.playMode ?? null,
   }));
 }
 
@@ -63,6 +71,8 @@ export function convertToGameFromGameDataState(gameDataState: GameDataState | nu
     startingScore: gameDataState.startingScore ?? 0,
     maxRounds: gameDataState.maxRounds ?? null,
     forfeited: gameDataState.forfeited ?? false,
+    lateCutoverTime: gameDataState.lateCutoverTime ?? null,
+    playMode: gameDataState.playMode ?? null,
   };
 
 }

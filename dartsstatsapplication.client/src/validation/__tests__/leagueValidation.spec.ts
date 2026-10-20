@@ -14,6 +14,7 @@ function validInput(overrides: Partial<NewLeagueInput> = {}): NewLeagueInput {
     doublesStartScore: 601,
     singlesStartScore: 501,
     maxRounds: null,
+    lateCutoverTime: '22:30',
     ...overrides,
   }
 }
@@ -82,5 +83,18 @@ describe('validateNewLeague', () => {
     expect(errors.legCounts).toBeDefined()
     expect(errors.startScores).toBeDefined()
     expect(errors.maxRounds).toBeDefined()
+  })
+})
+
+describe('validateNewLeague - lateCutoverTime', () => {
+  it('accepts a valid HH:mm time, null, or blank (switched off)', () => {
+    expect(hasErrors(validateNewLeague(validInput({ lateCutoverTime: '23:15' })))).toBe(false)
+    expect(hasErrors(validateNewLeague(validInput({ lateCutoverTime: null })))).toBe(false)
+    expect(hasErrors(validateNewLeague(validInput({ lateCutoverTime: '' })))).toBe(false)
+  })
+
+  it('flags a malformed time', () => {
+    expect(validateNewLeague(validInput({ lateCutoverTime: '25:00' })).lateCutoverTime).toBeDefined()
+    expect(validateNewLeague(validInput({ lateCutoverTime: '10:30pm' })).lateCutoverTime).toBeDefined()
   })
 })

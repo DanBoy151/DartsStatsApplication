@@ -83,6 +83,38 @@ namespace DartsStatsApplication.Server.Services.Validators
         }
 
         /// <summary>
+        /// Validate that an In Progress game can be completed on a throw for
+        /// bull: its league must have a late cutover configured (the only
+        /// reason this option exists), and it can't already be decided.
+        /// </summary>
+        public void IsValidToCompleteGameByBull()
+        {
+            if (_game.data.status != GameStatus.InProgress)
+            {
+                throw new ValidationException("Unable to complete a Game that is not In Progress");
+            }
+
+            if (string.IsNullOrWhiteSpace(_game.data.lateCutoverTime))
+            {
+                throw new ValidationException("Throw for bull is not available - this Game's League has no late cutover time");
+            }
+        }
+
+        /// <summary>
+        /// A late-night play mode (anything but null) is only valid when the
+        /// game's league configured a late cutover time. Whether it is
+        /// actually past that time is the client's call - it owns the
+        /// venue's local clock - so the server doesn't re-check it.
+        /// </summary>
+        public void IsValidPlayMode(GamePlayMode? playMode)
+        {
+            if (playMode != null && string.IsNullOrWhiteSpace(_game.data.lateCutoverTime))
+            {
+                throw new ValidationException("Late-night play options are not available - this Game's League has no late cutover time");
+            }
+        }
+
+        /// <summary>
         /// Validate that a game can be started. Throws on any rule violation.
         /// </summary>
         public void IsValidToStartGame()

@@ -9,6 +9,9 @@ namespace DartsStatsApplication.Server.Models
 
     public enum GameResult { Win, Loss }
 
+    /// <summary>The choice offered for a game once the league's late cutover time has passed on match day.</summary>
+    public enum GamePlayMode { Normal, SingleLeg, ThrowForBull }
+
     public class Game
     {
         public Guid Id { get; set; }

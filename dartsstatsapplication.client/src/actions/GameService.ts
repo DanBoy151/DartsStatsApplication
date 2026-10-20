@@ -31,7 +31,10 @@ export async function setAvailablePlayers(players: Player[]) {
       data.data?.order ?? 0,
       data.data?.legsToPlay ?? 0,
       data.data?.startingScore ?? 0,
-      data.data?.maxRounds ?? null)
+      data.data?.maxRounds ?? null,
+      data.data?.forfeited ?? false,
+      data.data?.lateCutoverTime ?? null,
+      data.data?.playMode ?? null)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating players')
@@ -39,12 +42,17 @@ export async function setAvailablePlayers(players: Player[]) {
 
 }
 
-export async function startGame(wonBull: boolean) {
+/**
+ * playMode is only passed once past the league's late cutover on match day.
+ * ThrowForBull completes the game server-side on the spot (wonBull IS the
+ * result), so the response comes back Complete with no legs ever created.
+ */
+export async function startGame(wonBull: boolean, playMode: string | null = null) {
   const matchDataStore = useMatchDataStore()
   const gameId = matchDataStore.selectedGame?.gameId
 
   try {
-    const data = await apiRequest<RawGameData>(`/api/Game/${gameId}/start?wonBull=${wonBull}`, { method: 'PUT' })
+    const data = await apiRequest<RawGameData>(`/api/Game/${gameId}/start?wonBull=${wonBull}${playMode ? `&playMode=${playMode}` : ''}`, { method: 'PUT' })
     matchDataStore.setGameData(
       data.id ?? '',
       data.data?.playerIds ?? [],
@@ -55,7 +63,10 @@ export async function startGame(wonBull: boolean) {
       data.data?.order ?? 0,
       data.data?.legsToPlay ?? 0,
       data.data?.startingScore ?? 0,
-      data.data?.maxRounds ?? null)
+      data.data?.maxRounds ?? null,
+      data.data?.forfeited ?? false,
+      data.data?.lateCutoverTime ?? null,
+      data.data?.playMode ?? null)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error calling start API')
@@ -216,7 +227,8 @@ export async function createNextLeg(): Promise<Leg | null> {
   }
 }
 
-export async function completeGame(result: string) {
+/** throwForBull completes the game on a bull throw's result rather than its legs - see GameService.CompleteGame server-side. */
+export async function completeGame(result: string, throwForBull: boolean = false) {
   const matchDataStore = useMatchDataStore()
   const gameId = matchDataStore.selectedGame?.gameId
 
@@ -229,7 +241,7 @@ export async function completeGame(result: string) {
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ result: result })
+        body: JSON.stringify({ result: result, throwForBull: throwForBull })
       }
     )
     matchDataStore.setGameData(
@@ -242,7 +254,10 @@ export async function completeGame(result: string) {
       data.data?.order ?? 0,
       data.data?.legsToPlay ?? 0,
       data.data?.startingScore ?? 0,
-      data.data?.maxRounds ?? null)
+      data.data?.maxRounds ?? null,
+      data.data?.forfeited ?? false,
+      data.data?.lateCutoverTime ?? null,
+      data.data?.playMode ?? null)
 
   } catch (err) {
     console.error(err instanceof Error ? err.message : 'Error updating Game Record')

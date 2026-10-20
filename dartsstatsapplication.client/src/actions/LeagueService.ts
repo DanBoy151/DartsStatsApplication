@@ -15,6 +15,7 @@ export interface LeagueInput {
   doublesStartScore: number
   singlesStartScore: number
   maxRounds: number | null
+  lateCutoverTime: string | null
 }
 
 /** Every League, unpaginated - for populating a Season form's League dropdown. */

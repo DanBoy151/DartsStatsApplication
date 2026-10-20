@@ -23,6 +23,11 @@
       <StatsPanel />
     </div>
 
+    <!-- New leg on an existing game once past the league's late cutover:
+         play on, or let a throw for bull decide the whole game. -->
+    <LateNightChoiceControl v-if="showLegChoice" :allow-single-leg="false" @choose="onLegChoice" />
+    <WonBullControl v-if="showLegBull" :player-names="gamePlayerNames" @result="onLegBullResult" />
+
     <GameListDrawer v-if="showDrawer"
                     :selected-game-id="props.game?.id ?? ''"
                     @close="showDrawer = false"
@@ -38,6 +43,9 @@
   import ScoringConsole from './MatchCenter/ScoringConsole.vue'
   import StatsPanel from './MatchCenter/StatsPanel.vue'
   import GameListDrawer from './MatchCenter/GameListDrawer.vue'
+  import LateNightChoiceControl, { type LateNightChoice } from './MatchCenter/LateNightChoiceControl.vue'
+  import WonBullControl from './MatchCenter/WonBullControl.vue'
+  import { isPastLateCutoverAEST } from '@/utils/dateFormat'
   import { startGame, fetchLegs, completeGame, createNextLeg, updateWonBull } from '@/actions/GameService'
   import type { Game } from '@/models/GameModel'
   import { useMatchDataStore } from "@/stores/matchDataStore"
@@ -106,9 +114,47 @@
     if (isGameDecided(matchDataStore.selectedGame.legs, matchDataStore.selectedGame.type, matchDataStore.selectedGame.legsToPlay)) {
       await finishGame()
     }
+    else if (needsLateLegChoice()) {
+      showLegChoice.value = true
+    }
     else {
       await startNextLeg()
     }
+  }
+
+  // A game already started normally after the cutover (playMode set) has had
+  // its say; one started before the cutover (playMode null) is asked at each
+  // further leg once the cutover passes.
+  function needsLateLegChoice() {
+    const game = matchDataStore.selectedGame
+    if (!game || game.playMode) return false
+    return isPastLateCutoverAEST(new Date(), matchDataStore.match?.date, game.lateCutoverTime)
+  }
+
+  const showLegChoice = ref(false)
+  const showLegBull = ref(false)
+
+  const gamePlayerNames = computed(() => {
+    const players = matchDataStore.selectedGame?.players ?? []
+    return players
+      .map((id) => matchDataStore.matchAvailablePlayers.find((p) => p.playerId === id)?.name ?? id)
+      .join(' / ')
+  })
+
+  async function onLegChoice(choice: LateNightChoice) {
+    showLegChoice.value = false
+    if (choice === 'ThrowForBull') {
+      showLegBull.value = true
+    } else {
+      await startNextLeg()
+    }
+  }
+
+  // The bull decides the whole game - its result replaces whatever the legs
+  // played so far would have given.
+  async function onLegBullResult(won: boolean) {
+    showLegBull.value = false
+    await finishGame(won ? 'Win' : 'Loss', true)
   }
 
   async function startNextLeg() {
@@ -128,23 +174,25 @@
     started.value = true
   }
 
-  async function finishGame() {
+  async function finishGame(bullResult?: string, throwForBull = false) {
     //if the game has finished then update the server
-    // Count wins and losses in the selected game's legs
-    const legs = matchDataStore.selectedGame?.legs ?? [];
-    const wins = legs.filter(leg => leg.result === "Win").length;
-    const losses = legs.filter(leg => leg.result === "Loss").length;
-
-    let result = "";
-    if (wins > losses) {
-      result="Win"
-    }
-    else {
-      result = "Loss"
+    let result = bullResult ?? "";
+    if (!bullResult) {
+      // Count wins and losses in the selected game's legs
+      const legs = matchDataStore.selectedGame?.legs ?? [];
+      const wins = legs.filter(leg => leg.result === "Win").length;
+      const losses = legs.filter(leg => leg.result === "Loss").length;
+      result = wins > losses ? "Win" : "Loss"
     }
 
-    await completeGame(result)
-    await updateMatchScore((wins > losses))
+    await completeGame(result, throwForBull)
+    await updateMatchScore(result === "Win")
+    await afterGameComplete()
+  }
+
+  // Shared tail for a game finishing by its legs, a mid-game throw for bull,
+  // or a throw for bull chosen at the start (which never has legs).
+  async function afterGameComplete() {
     matchDataStore.doneWithSelectedGame()
 
     // Once every game in the match is Complete, ask the scorer to confirm
@@ -207,10 +255,20 @@
     await updateWonBull(newWonBull)
   }
 
-  async function onStartMatch(payload: { wonBull: boolean }) {
-    started.value = true
+  async function onStartMatch(payload: { wonBull: boolean, playMode: LateNightChoice | null }) {
     wonBull.value = payload.wonBull
-    await startGame(wonBull.value)
+
+    if (payload.playMode === 'ThrowForBull') {
+      // Decided by the bull alone: the server completes the game on start
+      // (wonBull is the result), with no legs created or played.
+      await startGame(wonBull.value, payload.playMode)
+      await updateMatchScore(wonBull.value)
+      await afterGameComplete()
+      return
+    }
+
+    started.value = true
+    await startGame(wonBull.value, payload.playMode)
     //fetch leg information from server via gameID & then add to the store for later use
     await fetchLegs()
     //start first leg automatically

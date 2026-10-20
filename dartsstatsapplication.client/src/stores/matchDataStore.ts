@@ -37,6 +37,10 @@ export interface GameDataState {
   maxRounds: number | null
   /** True for a game awarded as a walkover because one side only had 5 available players - see matchDataStore.resetGamesCache. */
   forfeited: boolean
+  /** League late-night cutover ("HH:mm") snapshotted onto the game; null = no late-night options. */
+  lateCutoverTime: string | null
+  /** Late-night choice made for this game (Normal / SingleLeg / ThrowForBull); null if it started before the cutover. */
+  playMode: string | null
 }
 
 export interface LegDataState {
@@ -144,7 +148,7 @@ export const useMatchDataStore = defineStore('leg', {
         .filter(p => p.isAvailable)
         .map(p => p.playerId);
     },
-    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number, legsToPlay: number, startingScore: number, maxRounds: number | null, forfeited: boolean = false) {
+    setGameData(gameID: string, players: string[], type: string, status: string, result: string, wonBull: boolean, order: number, legsToPlay: number, startingScore: number, maxRounds: number | null, forfeited: boolean = false, lateCutoverTime: string | null = null, playMode: string | null = null) {
       if (!this.match) return;
 
       const existingIndex = this.match.games.findIndex(g => g.gameId === gameID);
@@ -162,6 +166,8 @@ export const useMatchDataStore = defineStore('leg', {
         startingScore,
         maxRounds,
         forfeited,
+        lateCutoverTime,
+        playMode,
       };
 
       if (existingIndex !== -1) {

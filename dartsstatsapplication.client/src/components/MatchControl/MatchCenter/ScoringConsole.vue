@@ -56,7 +56,7 @@
         <button class="btn btn-primary" type="button" @click="backMatch">Back</button>
       </template>
       <template v-else-if="!started">
-        <button class="btn btn-primary" type="button" @click="showBullPopup = true">Start</button>
+        <button class="btn btn-primary" type="button" @click="onStartClicked">Start</button>
         <button class="btn btn-secondary" type="button" @click="editPlayers">Edit Players</button>
         <button class="btn btn-secondary" type="button" @click="cancelMatch">Cancel</button>
       </template>
@@ -71,6 +71,7 @@
       <button class="btn-quiet" type="button" @click="backMatch">Back</button>
     </div>
 
+    <LateNightChoiceControl v-if="showLateNightChoice" :allow-single-leg="true" @choose="onLateNightChoice" />
     <WonBullControl v-if="showBullPopup" :player-names="gamePlayerNames" @result="onBullResult" />
     <DoublesFinishControl v-if="showCheckoutDartsPopup" @result="onCheckoutDartsResult" />
     <OpponentCheckedOutControl v-if="showOpponentCheckedOutPopup" @result="onOpponentCheckedOutResult" />
@@ -86,6 +87,7 @@
 <script setup lang="ts">
   import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
   import WonBullControl from './WonBullControl.vue'
+  import LateNightChoiceControl, { type LateNightChoice } from './LateNightChoiceControl.vue'
   import DoublesFinishControl from './DoublesFinishControl.vue'
   import OpponentCheckedOutControl from './OpponentCheckedOutControl.vue'
   import BullOffControl from './BullOffControl.vue'
@@ -95,6 +97,7 @@
   import { isValidDartScore, isValidCheckoutScore } from '@/models/dartScoring'
   import { playerColor } from '@/models/playerColors'
   import { saveLegProgressInBackground } from '@/actions/LegService'
+  import { isPastLateCutoverAEST } from '@/utils/dateFormat'
 
   const matchDataStore = useMatchDataStore()
 
@@ -108,7 +111,7 @@
   }>()
 
   const emit = defineEmits<{
-    (e: 'start-match', payload: { wonBull: boolean }): void
+    (e: 'start-match', payload: { wonBull: boolean, playMode: LateNightChoice | null }): void
     (e: 'finish-leg'): void
     (e: 'back-match'): void
     (e: 'cancel-match'): void
@@ -167,6 +170,9 @@
 
   const started = ref(!!props.gamestarted || hasMatchStarted())
   const showBullPopup = ref(false)
+  const showLateNightChoice = ref(false)
+  // The late-night choice made before the bull popup (null = game started before the league's cutover, so none was offered).
+  const pendingPlayMode = ref<LateNightChoice | null>(null)
   const showCheckoutDartsPopup = ref(false)
   const showOpponentCheckedOutPopup = ref(false)
   const showBullOffPopup = ref(false)
@@ -232,6 +238,26 @@
     return defaultScore
   }
 
+  // Past the league's late cutover on match day, starting a game first asks
+  // how it's to be played (normal / throw for bull / 1 leg); the bull popup
+  // that follows then records either who throws first, or - for a throw
+  // for bull - the game's actual result.
+  function onStartClicked() {
+    const game = matchDataStore.selectedGame
+    if (isPastLateCutoverAEST(new Date(), matchDataStore.match?.date, game?.lateCutoverTime)) {
+      showLateNightChoice.value = true
+    } else {
+      pendingPlayMode.value = null
+      showBullPopup.value = true
+    }
+  }
+
+  function onLateNightChoice(choice: LateNightChoice) {
+    showLateNightChoice.value = false
+    pendingPlayMode.value = choice
+    showBullPopup.value = true
+  }
+
   function onBullResult(result: boolean) {
     showBullPopup.value = false
 
@@ -251,8 +277,10 @@
   }
 
   function startMatch() {
-    started.value = true
-    emit('start-match', { wonBull: wonBull.value ?? false })
+    // A throw for bull is decided by the bull alone - no legs are played, so
+    // the game never enters the scoring state.
+    started.value = pendingPlayMode.value !== 'ThrowForBull'
+    emit('start-match', { wonBull: wonBull.value ?? false, playMode: pendingPlayMode.value })
   }
 
   function cancelMatch() {
@@ -391,7 +419,7 @@
   // never fires as a side effect of typing somewhere else on the page.
   function handleKeydown(e: KeyboardEvent) {
     if (!started.value || props.readonly) return
-    if (showBullPopup.value || showCheckoutDartsPopup.value || showOpponentCheckedOutPopup.value || showBullOffPopup.value || showFinalRoundsWarning.value) return
+    if (showBullPopup.value || showLateNightChoice.value || showCheckoutDartsPopup.value || showOpponentCheckedOutPopup.value || showBullOffPopup.value || showFinalRoundsWarning.value) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
 
     const target = e.target as HTMLElement | null

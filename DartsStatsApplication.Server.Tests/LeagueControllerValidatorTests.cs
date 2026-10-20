@@ -139,5 +139,37 @@ namespace DartsStatsApplication.Server.Tests.Services.Validators
 
             Assert.Throws<ValidationException>(() => LeagueControllerValidator.ValidateLeague(data));
         }
+
+        [Theory]
+        [InlineData("22:30")]
+        [InlineData("00:00")]
+        [InlineData("23:59")]
+        [InlineData(null)]
+        [InlineData("")]
+        public void ValidateLeague_LateCutoverTime_ValidOrOff_DoesNotThrow(string? time)
+        {
+            var data = ValidLeague();
+            data.lateCutoverTime = time;
+            Assert.Null(Record.Exception(() => LeagueControllerValidator.ValidateLeague(data)));
+        }
+
+        [Theory]
+        [InlineData("24:00")]
+        [InlineData("22:60")]
+        [InlineData("10:30pm")]
+        [InlineData("2230")]
+        [InlineData("9:30")]
+        public void ValidateLeague_LateCutoverTime_Malformed_Throws(string time)
+        {
+            var data = ValidLeague();
+            data.lateCutoverTime = time;
+            Assert.Throws<ValidationException>(() => LeagueControllerValidator.ValidateLeague(data));
+        }
+
+        [Fact]
+        public void LeagueData_LateCutoverTime_DefaultsTo2230()
+        {
+            Assert.Equal("22:30", new LeagueData().lateCutoverTime);
+        }
     }
 }

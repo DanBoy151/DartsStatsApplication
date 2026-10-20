@@ -116,12 +116,14 @@ namespace DartsStatsApplication.Server.Controllers
         }
 
         /// <summary>
-        /// Start a Game
+        /// Start a Game. playMode is only supplied after the league's late cutover
+        /// time on match day: SingleLeg plays one leg only, ThrowForBull completes
+        /// the game immediately with wonBull as its result.
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpPut("{id}/start")]
-        public async Task<ActionResult<Game>> StartGame(Guid Id, Boolean wonBull)
+        public async Task<ActionResult<Game>> StartGame(Guid Id, Boolean wonBull, GamePlayMode? playMode = null)
         {
 
             using (var session = _documentStore.LightweightSession())
@@ -133,7 +135,7 @@ namespace DartsStatsApplication.Server.Controllers
                 }
 
                 GameService service = new GameService(session, game);
-                service.StartGame(wonBull);
+                service.StartGame(wonBull, playMode);
 
                 await session.SaveChangesAsync();
                 return Ok(game);

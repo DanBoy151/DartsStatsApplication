@@ -50,6 +50,18 @@ namespace DartsStatsApplication.Server.Services.Validators
             {
                 throw new ValidationException("Max rounds, if set, must be at least 1");
             }
+
+            if (!string.IsNullOrWhiteSpace(data.lateCutoverTime) && !IsValidTimeOfDay(data.lateCutoverTime))
+            {
+                throw new ValidationException("Late cutover time, if set, must be a 24-hour time in HH:mm format");
+            }
+        }
+
+        /// <summary>True for a strict 24-hour "HH:mm" (e.g. "22:30").</summary>
+        public static bool IsValidTimeOfDay(string value)
+        {
+            return TimeOnly.TryParseExact(value, "HH:mm", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out _);
         }
 
         /// <summary>

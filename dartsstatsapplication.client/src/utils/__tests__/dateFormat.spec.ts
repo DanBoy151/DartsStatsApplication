@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatDisplayDate, formatShortDate, toDateInputValue, isTodayOrPastAEST } from '../dateFormat'
+import { formatDisplayDate, formatShortDate, toDateInputValue, isTodayOrPastAEST, isPastLateCutoverAEST } from '../dateFormat'
 
 describe('formatDisplayDate', () => {
   it('formats a Date as "DD Month YYYY"', () => {
@@ -71,5 +71,39 @@ describe('formatShortDate', () => {
 
   it('returns an empty string for a missing date', () => {
     expect(formatShortDate(null)).toBe('')
+  })
+})
+
+describe('isPastLateCutoverAEST', () => {
+  // 2026-10-20 12:29Z = 22:29 AEST; 12:30Z = 22:30 AEST (UTC+10, no DST in Brisbane).
+  const matchDate = new Date('2026-10-20')
+
+  it('is false one minute before the cutover on match day', () => {
+    expect(isPastLateCutoverAEST(new Date('2026-10-20T12:29:00Z'), matchDate, '22:30')).toBe(false)
+  })
+
+  it('is true exactly at the cutover on match day', () => {
+    expect(isPastLateCutoverAEST(new Date('2026-10-20T12:30:00Z'), matchDate, '22:30')).toBe(true)
+  })
+
+  it('is false after the cutover on a different day from the match', () => {
+    expect(isPastLateCutoverAEST(new Date('2026-10-21T13:00:00Z'), matchDate, '22:30')).toBe(false)
+    expect(isPastLateCutoverAEST(new Date('2026-10-19T13:00:00Z'), matchDate, '22:30')).toBe(false)
+  })
+
+  it('judges the time in AEST, not the viewing timezone', () => {
+    // 23:00 UTC on the 20th is 09:00 AEST on the 21st - morning of the next day
+    expect(isPastLateCutoverAEST(new Date('2026-10-20T23:00:00Z'), matchDate, '22:30')).toBe(false)
+  })
+
+  it('is false when the league has no cutover or it is malformed', () => {
+    const now = new Date('2026-10-20T13:00:00Z')
+    expect(isPastLateCutoverAEST(now, matchDate, null)).toBe(false)
+    expect(isPastLateCutoverAEST(now, matchDate, '')).toBe(false)
+    expect(isPastLateCutoverAEST(now, matchDate, '10:30pm')).toBe(false)
+  })
+
+  it('accepts the match date as a string, as it comes back from the persisted store', () => {
+    expect(isPastLateCutoverAEST(new Date('2026-10-20T13:00:00Z'), '2026-10-20T00:00:00.000Z', '22:30')).toBe(true)
   })
 })
